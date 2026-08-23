@@ -21,6 +21,7 @@
   <style>
     :root { --azul:#1F4E78; --azul-claro:#4A86E8; --laranja:#F6B26B; --verde:#6AA84F; --vermelho:#C0392B; --cinza-fundo:#F4F6F9; --cinza-borda:#E2E7EF; --texto:#2C3E50; }
     * { box-sizing: border-box; }
+    html, body { max-width:100%; overflow-x:hidden; }
     body { margin:0; font-family:"Segoe UI",Arial,sans-serif; background:var(--cinza-fundo); color:var(--texto); }
     header { background:var(--azul); color:#fff; padding:16px 28px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; }
     #topoFixo { position:sticky; top:0; z-index:100; box-shadow:0 2px 6px rgba(0,0,0,.15); }
@@ -30,8 +31,8 @@
     #btnAtualizar:hover { background:#eaf1fb; }
     #btnBackup, #btnRestaurar { background:transparent; color:#fff; border:1px solid rgba(255,255,255,.5); padding:9px 16px; border-radius:6px; font-weight:600; cursor:pointer; font-size:13px; }
     #btnBackup:hover, #btnRestaurar:hover { background:rgba(255,255,255,.15); }
-    .abas { display:flex; gap:4px; background:var(--azul); padding:0 28px; }
-    .aba { background:transparent; color:#cfe0f5; border:none; padding:12px 20px; cursor:pointer; font-size:14px; font-weight:600; border-bottom:3px solid transparent; }
+    .abas { display:flex; gap:4px; background:var(--azul); padding:0 28px; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    .aba { background:transparent; color:#cfe0f5; border:none; padding:12px 20px; cursor:pointer; font-size:14px; font-weight:600; border-bottom:3px solid transparent; white-space:nowrap; flex-shrink:0; }
     .aba.ativa { color:#fff; border-bottom-color:#fff; } .aba:hover { color:#fff; }
     main { padding:24px 28px; max-width:1500px; margin:0 auto; }
     .pagina { display:none; } .pagina.ativa { display:block; }
@@ -49,7 +50,7 @@
     .kpi.positivo .valor { color:var(--verde); }
     .kpi.negativo .valor { color:var(--vermelho); }
     .graficos { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:26px; }
-    .card { background:#fff; border:1px solid var(--cinza-borda); border-radius:10px; padding:18px 20px; box-shadow:0 1px 3px rgba(0,0,0,.04); }
+    .card { background:#fff; border:1px solid var(--cinza-borda); border-radius:10px; padding:18px 20px; box-shadow:0 1px 3px rgba(0,0,0,.04); min-width:0; }
     .card h2 { font-size:15px; margin:0 0 14px; color:var(--azul); font-weight:600; }
     .card.largo { grid-column:1 / -1; }
     .chart-wrap { position:relative; height:300px; }

@@ -2,7 +2,7 @@
 // Estratégia simples: cache-first pra tudo (o app não depende de nenhuma
 // rede depois de carregado — todo dado é local, todo script é vendorizado).
 // Bump no nome do CACHE quando os arquivos abaixo mudarem de verdade.
-const CACHE = 'financeiro-v1';
+const CACHE = 'financeiro-v2';
 const ARQUIVOS = [
   './',
   './index.html',
@@ -21,6 +21,8 @@ const ARQUIVOS = [
   './db/views.sql',
   './icons/icon-192.png',
   './icons/icon-512.png',
+  './icons/icon-192-maskable.png',
+  './icons/icon-512-maskable.png',
 ];
 
 self.addEventListener('install', (evt) => {
