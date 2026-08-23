@@ -22,44 +22,44 @@ async function despachar(metodo, caminho, params, corpo) {
 
   if (partes[0] === 'referencias') {
     if (partes[1] === 'cartoes') {
-      if (partes.length === 2 && metodo === 'GET') return listarCartoes();
-      if (partes.length === 2 && metodo === 'POST') return criarCartao(corpo);
-      if (partes.length === 3 && metodo === 'PUT') return atualizarCartao(partes[2], corpo);
-      if (partes.length === 3 && metodo === 'DELETE') return excluirCartao(partes[2]);
+      if (partes.length === 2 && metodo === 'GET') return Dados.listarCartoes();
+      if (partes.length === 2 && metodo === 'POST') return Dados.criarCartao(corpo);
+      if (partes.length === 3 && metodo === 'PUT') return Dados.atualizarCartao(partes[2], corpo);
+      if (partes.length === 3 && metodo === 'DELETE') return Dados.excluirCartao(partes[2]);
     }
-    if (partes[1] === 'categorias' && partes.length === 2 && metodo === 'GET') return listarCategorias();
+    if (partes[1] === 'categorias' && partes.length === 2 && metodo === 'GET') return Dados.listarCategorias();
   }
 
   if (partes[0] === 'orcamento') {
-    if (partes.length === 1 && metodo === 'GET') return listarItensOrcamento(params.get('mes'));
-    if (partes.length === 1 && metodo === 'POST') return criarItemOrcamento(corpo);
-    if (partes.length === 2 && partes[1] === 'totais' && metodo === 'GET') return totaisOrcamento();
-    if (partes.length === 2 && metodo === 'PUT') return atualizarItemOrcamento(partes[1], corpo);
-    if (partes.length === 2 && metodo === 'DELETE') return excluirItemOrcamento(partes[1]);
+    if (partes.length === 1 && metodo === 'GET') return Dados.listarItensOrcamento(params.get('mes'));
+    if (partes.length === 1 && metodo === 'POST') return Dados.criarItemOrcamento(corpo);
+    if (partes.length === 2 && partes[1] === 'totais' && metodo === 'GET') return Dados.totaisOrcamento();
+    if (partes.length === 2 && metodo === 'PUT') return Dados.atualizarItemOrcamento(partes[1], corpo);
+    if (partes.length === 2 && metodo === 'DELETE') return Dados.excluirItemOrcamento(partes[1]);
   }
 
   if (partes[0] === 'dashboard') {
-    if (partes[1] === 'kpis') return dashboardKpis();
-    if (partes[1] === 'saldo-por-cartao') return dashboardSaldoPorCartao();
-    if (partes[1] === 'saldo-por-categoria') return dashboardSaldoPorCategoria();
-    if (partes[1] === 'resumo-por-compra') return dashboardResumoPorCompra();
-    if (partes[1] === 'projecao') return dashboardProjecao();
-    if (partes[1] === 'parcelas') return dashboardParcelas({ status: params.get('status'), mes: params.get('mes') });
+    if (partes[1] === 'kpis') return Dados.dashboardKpis();
+    if (partes[1] === 'saldo-por-cartao') return Dados.dashboardSaldoPorCartao();
+    if (partes[1] === 'saldo-por-categoria') return Dados.dashboardSaldoPorCategoria();
+    if (partes[1] === 'resumo-por-compra') return Dados.dashboardResumoPorCompra();
+    if (partes[1] === 'projecao') return Dados.dashboardProjecao();
+    if (partes[1] === 'parcelas') return Dados.dashboardParcelas({ status: params.get('status'), mes: params.get('mes') });
   }
 
   if (partes[0] === 'compras') {
-    if (partes.length === 1 && metodo === 'GET') return listarComprasResumo();
-    if (partes.length === 1 && metodo === 'POST') return criarCompra(corpo);
+    if (partes.length === 1 && metodo === 'GET') return Dados.listarComprasResumo();
+    if (partes.length === 1 && metodo === 'POST') return Dados.criarCompra(corpo);
     if (partes[1] === 'parcelas' && partes.length === 4) {
       const id = partes[2], acao = partes[3];
-      if (acao === 'pagar') return marcarParcelaPaga(id, corpo.data_pagamento);
-      if (acao === 'despagar') return desfazerPagamento(id);
-      if (acao === 'vencimento') return corrigirVencimentoParcela(id, corpo.data_vencimento);
+      if (acao === 'pagar') return Dados.marcarParcelaPaga(id, corpo.data_pagamento);
+      if (acao === 'despagar') return Dados.desfazerPagamento(id);
+      if (acao === 'vencimento') return Dados.corrigirVencimentoParcela(id, corpo.data_vencimento);
     }
-    if (partes.length === 2 && metodo === 'GET') return obterCompra(partes[1]);
-    if (partes.length === 2 && metodo === 'PUT') return atualizarCompra(partes[1], corpo);
-    if (partes.length === 2 && metodo === 'DELETE') return excluirCompra(partes[1]);
-    if (partes.length === 3 && partes[2] === 'data-compra' && metodo === 'PATCH') return corrigirDataCompra(partes[1], corpo.data_compra);
+    if (partes.length === 2 && metodo === 'GET') return Dados.obterCompra(partes[1]);
+    if (partes.length === 2 && metodo === 'PUT') return Dados.atualizarCompra(partes[1], corpo);
+    if (partes.length === 2 && metodo === 'DELETE') return Dados.excluirCompra(partes[1]);
+    if (partes.length === 3 && partes[2] === 'data-compra' && metodo === 'PATCH') return Dados.corrigirDataCompra(partes[1], corpo.data_compra);
   }
 
   throw new Error('Rota não implementada: ' + metodo + ' ' + caminho);

@@ -2,6 +2,20 @@
 // versão servidor (routes/*.js) por funções chamadas direto no navegador,
 // sobre o banco SQLite local (ver db.js). Mesmas regras de negócio, mesmo
 // formato de retorno (em reais) que a tela já espera.
+//
+// Tudo aqui dentro fica namespaced em `Dados` (IIFE) de propósito: o
+// index.html tem funções de UI com nomes iguais aos da camada de dados
+// (ex.: excluirCompra, desfazerPagamento, excluirItemOrcamento — a de UI
+// confirma com o usuário e chama api(), a de dados só mexe no banco). Como
+// scripts clássicos compartilham o mesmo escopo global, declarar essas
+// funções soltas aqui SOBRESCREVIA a versão de UI pela de dados (carregada
+// antes) — e como app.js chama essas funções pelo nome global esperando a
+// versão de dados, acabava chamando a de UI de novo, que chama api(), que
+// chama despachar(), que chama a função de novo... recursão infinita
+// ("Maximum call stack size exceeded") até estourar a pilha. Foi assim que
+// "excluir compra" (e desfazer pagamento, e excluir item de orçamento)
+// paravam de completar. O namespace evita essa classe inteira de bug.
+const Dados = (function () {
 
 // ---------------------------------------------------------------------
 // Referências: cartões (categorias de despesa) e categorias de gasto
@@ -16,7 +30,7 @@ async function criarCartao({ nome, dia_vencimento }) {
   if (dia_vencimento !== null && dia_vencimento !== undefined && dia_vencimento !== '' && (dia_vencimento < 1 || dia_vencimento > 31)) {
     throw new Error('dia_vencimento deve ser entre 1 e 31 (ou vazio)');
   }
-  const diaFinal = (dia_vencimento === undefined || dia_vencimento === '') ? null : Number(dia_vencimento);
+  const diaFinal = (dia_vencimento === undefined || dia_vencimento === null || dia_vencimento === '') ? null : Number(dia_vencimento);
   try {
     executar('INSERT INTO cartoes (nome, dia_vencimento) VALUES (?, ?)', [nome, diaFinal]);
   } catch (e) {
@@ -36,7 +50,7 @@ async function atualizarCartao(id, { nome, dia_vencimento }) {
     throw new Error('dia_vencimento deve ser entre 1 e 31 (ou vazio)');
   }
   if (nomeInformado && !nomeFinal) throw new Error('Nome não pode ficar vazio');
-  const diaFinal = (dia_vencimento === undefined || dia_vencimento === '') ? null : Number(dia_vencimento);
+  const diaFinal = (dia_vencimento === undefined || dia_vencimento === null || dia_vencimento === '') ? null : Number(dia_vencimento);
 
   const existe = primeiraLinha('SELECT COUNT(*) AS n FROM cartoes WHERE id = ?', [id]);
   if (!existe || existe.n === 0) throw new Error('Categoria de despesa não encontrada');
@@ -333,3 +347,12 @@ async function excluirItemOrcamento(id) {
   await salvarBanco();
   return { mensagem: 'Orçamento removido' };
 }
+
+return {
+  listarCartoes, criarCartao, atualizarCartao, excluirCartao, listarCategorias,
+  listarComprasResumo, obterCompra, criarCompra, atualizarCompra,
+  marcarParcelaPaga, desfazerPagamento, corrigirVencimentoParcela, corrigirDataCompra, excluirCompra,
+  dashboardKpis, dashboardSaldoPorCartao, dashboardSaldoPorCategoria, dashboardResumoPorCompra, dashboardProjecao, dashboardParcelas,
+  listarItensOrcamento, totaisOrcamento, criarItemOrcamento, atualizarItemOrcamento, excluirItemOrcamento,
+};
+})();
