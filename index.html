@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Controle Financeiro - Compras com Cartões de Crédito</title>
+  <title>CONTROLE FINANCEIRO</title>
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
   <meta name="theme-color" content="#1F4E78" />
@@ -115,7 +115,7 @@
   </div>
   <div id="topoFixo">
   <header>
-    <div><h1>💳 Controle Financeiro - Compras com Cartões de Crédito</h1><div class="sub" id="atualizadoEm">Carregando...</div></div>
+    <div><h1>💳 CONTROLE FINANCEIRO</h1><div class="sub" id="atualizadoEm">Carregando...</div></div>
     <div style="display:flex;gap:8px;align-items:center;">
       <button id="btnAtualizar" onclick="carregarTudo()">🔄 Atualizar</button>
       <button id="btnBackup" onclick="exportarBackup()">💾 Backup</button>
@@ -726,6 +726,12 @@
             datalabels: { display:false } } ] },
         options: { maintainAspectRatio:false, layout:{ padding:{ top:22 } },
           onClick: (evt, elems) => {
+            if (!elems.length) {
+              // Barra de valor baixo (ou zero) fica fina demais pra acertar clicando exatamente
+              // em cima dela — tenta de novo pegando só a barra mais próxima do clique.
+              elems = chartProjecao.getElementsAtEventForMode(evt, 'nearest', { intersect:false, axis:'x' }, true)
+                .filter((el) => el.datasetIndex !== 2); // ignora a linha do Acumulado, só interessa Gastos/Orçamento
+            }
             if (!elems.length) return;
             const mes = dados[elems[0].index].mes;
             if (elems[0].datasetIndex === 1) detalheOrcamentoMes(mes); // barra Orçamento
@@ -759,6 +765,7 @@
         data:{ labels:f.map(d=>d.cartao), datasets:[{ label:'Saldo em aberto', data:f.map(d=>d.parcelado_pendente), backgroundColor:'#4A86E8',
           datalabels: { anchor:'end', align:'end', color:'#1F4E78', font:{ size:11, weight:'600' }, formatter:(v) => brl(v) } }] },
         options:{ indexAxis:'y', maintainAspectRatio:false, layout:{ padding:{ right:70 } },
+          interaction: { mode:'y', intersect:false }, // clica em qualquer ponto da linha da barra, não só em cima do pedacinho pintado (barras de valor baixo ficam finas demais pra acertar)
           onClick: (evt, elems) => { if (elems.length) detalheCartao(f[elems[0].index].cartao); },
           onHover: (evt, elems) => { evt.native.target.style.cursor = elems.length ? 'pointer' : 'default'; },
           plugins:{ legend:{display:false}, tooltip:{enabled:false} },
@@ -796,6 +803,7 @@
         data:{ labels:['Parcelado','À Vista'], datasets:[{ data:[totalParcelado, totalAvista], backgroundColor:['#8E6FC4','#4A86E8'],
           datalabels: { color:'#fff', font:{ size:12, weight:'700' }, formatter:(v) => brl(v) } }] },
         options:{ maintainAspectRatio:false,
+          interaction: { mode:'nearest', intersect:false }, // fatia com valor baixo fica fininha demais pra acertar exatamente
           onClick: (evt, elems) => { if (elems.length) detalheTipo(elems[0].index === 0 ? 'parcelada' : 'avista'); },
           onHover: (evt, elems) => { evt.native.target.style.cursor = elems.length ? 'pointer' : 'default'; },
           plugins:{ legend:{position:'bottom'}, tooltip:{enabled:false} } },
