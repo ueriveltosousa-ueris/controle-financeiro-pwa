@@ -1,0 +1,335 @@
+// js/dados.js — camada de acesso a dados: substitui as rotas Express da
+// versão servidor (routes/*.js) por funções chamadas direto no navegador,
+// sobre o banco SQLite local (ver db.js). Mesmas regras de negócio, mesmo
+// formato de retorno (em reais) que a tela já espera.
+
+// ---------------------------------------------------------------------
+// Referências: cartões (categorias de despesa) e categorias de gasto
+// ---------------------------------------------------------------------
+function listarCartoes() {
+  return todasLinhas('SELECT id, nome, dia_vencimento, ativo FROM cartoes ORDER BY nome');
+}
+
+async function criarCartao({ nome, dia_vencimento }) {
+  nome = (nome || '').trim();
+  if (!nome) throw new Error('Nome é obrigatório');
+  if (dia_vencimento !== null && dia_vencimento !== undefined && dia_vencimento !== '' && (dia_vencimento < 1 || dia_vencimento > 31)) {
+    throw new Error('dia_vencimento deve ser entre 1 e 31 (ou vazio)');
+  }
+  const diaFinal = (dia_vencimento === undefined || dia_vencimento === '') ? null : Number(dia_vencimento);
+  try {
+    executar('INSERT INTO cartoes (nome, dia_vencimento) VALUES (?, ?)', [nome, diaFinal]);
+  } catch (e) {
+    if (/UNIQUE/i.test(e.message || '')) throw new Error('Já existe uma categoria de despesa com esse nome.');
+    throw e;
+  }
+  const id = ultimoIdInserido();
+  await salvarBanco();
+  return { id, mensagem: 'Categoria de despesa criada' };
+}
+
+async function atualizarCartao(id, { nome, dia_vencimento }) {
+  id = Number(id);
+  const nomeInformado = nome !== undefined;
+  const nomeFinal = nomeInformado ? String(nome).trim() : undefined;
+  if (dia_vencimento !== null && dia_vencimento !== undefined && dia_vencimento !== '' && (dia_vencimento < 1 || dia_vencimento > 31)) {
+    throw new Error('dia_vencimento deve ser entre 1 e 31 (ou vazio)');
+  }
+  if (nomeInformado && !nomeFinal) throw new Error('Nome não pode ficar vazio');
+  const diaFinal = (dia_vencimento === undefined || dia_vencimento === '') ? null : Number(dia_vencimento);
+
+  const existe = primeiraLinha('SELECT COUNT(*) AS n FROM cartoes WHERE id = ?', [id]);
+  if (!existe || existe.n === 0) throw new Error('Categoria de despesa não encontrada');
+
+  let parcelasRecalculadas = 0;
+  try {
+    transacao(() => {
+      if (nomeInformado) executar('UPDATE cartoes SET nome = ?, dia_vencimento = ? WHERE id = ?', [nomeFinal, diaFinal, id]);
+      else executar('UPDATE cartoes SET dia_vencimento = ? WHERE id = ?', [diaFinal, id]);
+
+      // Recalcula, em JS (ver datas.js — SQLite não faz o ajuste de mês
+      // curto sozinho), o vencimento de cada parcela PENDENTE desse cartão.
+      const pendentes = todasLinhas(`
+        SELECT p.id, p.num_parcela, c.data_compra
+        FROM parcelas p JOIN compras c ON c.id = p.compra_id
+        WHERE c.cartao_id = ? AND p.status = 'Pendente'`, [id]);
+
+      for (const p of pendentes) {
+        const primeiroVencimento = calcularPrimeiroVencimento(p.data_compra, diaFinal);
+        const novoVencimento = addMonths(primeiroVencimento, p.num_parcela - 1);
+        executar('UPDATE parcelas SET data_vencimento = ? WHERE id = ?', [novoVencimento, p.id]);
+      }
+      parcelasRecalculadas = pendentes.length;
+    });
+  } catch (e) {
+    if (/UNIQUE/i.test(e.message || '')) throw new Error('Já existe uma categoria de despesa com esse nome.');
+    throw e;
+  }
+
+  await salvarBanco();
+  return { mensagem: 'Categoria de despesa atualizada', parcelas_recalculadas: parcelasRecalculadas };
+}
+
+async function excluirCartao(id) {
+  try {
+    const r = executar('DELETE FROM cartoes WHERE id = ?', [Number(id)]);
+    if (r.changes === 0) throw new Error('Categoria de despesa não encontrada');
+  } catch (e) {
+    if (/FOREIGN KEY/i.test(e.message || '')) {
+      throw new Error('Não é possível excluir: existem despesas cadastradas nesta categoria. Renomeie-a se precisar corrigir o nome, em vez de excluir.');
+    }
+    throw e;
+  }
+  await salvarBanco();
+  return { mensagem: 'Categoria de despesa removida' };
+}
+
+function listarCategorias() {
+  return todasLinhas('SELECT id, nome FROM categorias ORDER BY nome');
+}
+
+// ---------------------------------------------------------------------
+// Compras e parcelas
+// ---------------------------------------------------------------------
+function listarComprasResumo() {
+  return todasLinhas('SELECT * FROM vw_resumo_por_compra ORDER BY situacao, descricao').map(mapResumoCompra);
+}
+
+function obterCompra(id) {
+  id = Number(id);
+  const compra = primeiraLinha(`
+    SELECT c.*, ca.nome AS cartao, ca.dia_vencimento AS cartao_dia_vencimento, cat.nome AS categoria
+    FROM compras c
+    JOIN cartoes ca ON ca.id = c.cartao_id
+    LEFT JOIN categorias cat ON cat.id = c.categoria_id
+    WHERE c.id = ?`, [id]);
+  if (!compra) throw new Error('Compra não encontrada');
+
+  const parcelas = todasLinhas('SELECT * FROM parcelas WHERE compra_id = ? ORDER BY num_parcela', [id]);
+
+  return {
+    id: compra.id,
+    descricao: compra.descricao,
+    cartao_id: compra.cartao_id,
+    categoria_id: compra.categoria_id,
+    valor_total: paraReais(compra.valor_total_centavos),
+    qtd_parcelas: compra.qtd_parcelas,
+    data_compra: compra.data_compra,
+    observacoes: compra.observacoes,
+    cartao: compra.cartao,
+    cartao_dia_vencimento: compra.cartao_dia_vencimento,
+    categoria: compra.categoria,
+    parcelas: parcelas.map(mapParcela),
+  };
+}
+
+// Gera as N parcelas de uma compra (mesma regra de divisão de centavos e de
+// vencimento usada na criação e na recriação por edição).
+function gerarParcelas(compraId, valorTotalCentavos, qtdParcelas, primeiroVencimento) {
+  const base = Math.floor(valorTotalCentavos / qtdParcelas);
+  for (let i = 1; i <= qtdParcelas; i++) {
+    const valorParcela = (i === qtdParcelas) ? valorTotalCentavos - base * (qtdParcelas - 1) : base;
+    executar(`INSERT INTO parcelas (compra_id, num_parcela, valor_centavos, data_vencimento, status)
+        VALUES (?, ?, ?, ?, 'Pendente')`, [compraId, i, valorParcela, addMonths(primeiroVencimento, i - 1)]);
+  }
+}
+
+async function criarCompra({ descricao, cartao_id, categoria_id, valor_total, qtd_parcelas, data_primeira_parcela, observacoes }) {
+  if (!descricao || !cartao_id || !valor_total || !qtd_parcelas || !data_primeira_parcela) {
+    throw new Error('Campos obrigatórios: descricao, cartao_id, valor_total, qtd_parcelas, data_primeira_parcela');
+  }
+
+  const resultado = transacao(() => {
+    const cartao = primeiraLinha('SELECT dia_vencimento FROM cartoes WHERE id = ?', [cartao_id]);
+    const diaVencimentoCartao = cartao ? cartao.dia_vencimento : null;
+    const primeiroVencimento = calcularPrimeiroVencimento(data_primeira_parcela, diaVencimentoCartao);
+    const valorTotalCentavos = paraCentavos(valor_total);
+
+    executar(`INSERT INTO compras (descricao, cartao_id, categoria_id, valor_total_centavos, qtd_parcelas, data_compra, observacoes)
+        VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [descricao, cartao_id, categoria_id || null, valorTotalCentavos, qtd_parcelas, data_primeira_parcela, observacoes || null]);
+    const compraId = ultimoIdInserido();
+
+    gerarParcelas(compraId, valorTotalCentavos, qtd_parcelas, primeiroVencimento);
+    return { compraId, primeiroVencimento };
+  });
+
+  await salvarBanco();
+  return {
+    id: resultado.compraId,
+    mensagem: `Compra criada com ${qtd_parcelas} parcela(s) gerada(s). 1ª parcela vence em ${resultado.primeiroVencimento}.`,
+  };
+}
+
+async function atualizarCompra(id, { descricao, cartao_id, categoria_id, valor_total, qtd_parcelas, data_primeira_parcela, observacoes }) {
+  id = Number(id);
+  if (!descricao || !cartao_id || !valor_total || !qtd_parcelas || !data_primeira_parcela) {
+    throw new Error('Campos obrigatórios: descricao, cartao_id, valor_total, qtd_parcelas, data_primeira_parcela');
+  }
+
+  const atual = primeiraLinha('SELECT valor_total_centavos, qtd_parcelas, cartao_id, data_compra FROM compras WHERE id = ?', [id]);
+  if (!atual) throw new Error('Compra não encontrada');
+
+  const valorTotalCentavos = paraCentavos(valor_total);
+  const precisaRecriar =
+    atual.valor_total_centavos !== valorTotalCentavos ||
+    Number(atual.qtd_parcelas) !== Number(qtd_parcelas) ||
+    Number(atual.cartao_id) !== Number(cartao_id) ||
+    atual.data_compra !== data_primeira_parcela;
+
+  transacao(() => {
+    executar(`UPDATE compras SET descricao = ?, cartao_id = ?, categoria_id = ?, valor_total_centavos = ?,
+                 qtd_parcelas = ?, data_compra = ?, observacoes = ? WHERE id = ?`,
+      [descricao, cartao_id, categoria_id || null, valorTotalCentavos, qtd_parcelas, data_primeira_parcela, observacoes || null, id]);
+
+    if (precisaRecriar) {
+      const cartao = primeiraLinha('SELECT dia_vencimento FROM cartoes WHERE id = ?', [cartao_id]);
+      const diaVencimentoCartao = cartao ? cartao.dia_vencimento : null;
+      const primeiroVencimento = calcularPrimeiroVencimento(data_primeira_parcela, diaVencimentoCartao);
+
+      executar('DELETE FROM parcelas WHERE compra_id = ?', [id]);
+      gerarParcelas(id, valorTotalCentavos, qtd_parcelas, primeiroVencimento);
+    }
+  });
+
+  await salvarBanco();
+  return { mensagem: precisaRecriar ? 'Compra atualizada e parcelas recriadas.' : 'Compra atualizada.' };
+}
+
+async function marcarParcelaPaga(id, dataPagamento) {
+  const dataPag = dataPagamento || new Date().toISOString().slice(0, 10);
+  const r = executar("UPDATE parcelas SET status = 'Pago', data_pagamento = ? WHERE id = ?", [dataPag, Number(id)]);
+  if (r.changes === 0) throw new Error('Parcela não encontrada');
+  await salvarBanco();
+  return { mensagem: 'Parcela marcada como paga' };
+}
+
+async function desfazerPagamento(id) {
+  const r = executar("UPDATE parcelas SET status = 'Pendente', data_pagamento = NULL WHERE id = ?", [Number(id)]);
+  if (r.changes === 0) throw new Error('Parcela não encontrada');
+  await salvarBanco();
+  return { mensagem: 'Pagamento desfeito' };
+}
+
+async function corrigirVencimentoParcela(id, dataVencimento) {
+  if (!dataVencimento) throw new Error('Campo obrigatório: data_vencimento');
+  const r = executar('UPDATE parcelas SET data_vencimento = ? WHERE id = ?', [dataVencimento, Number(id)]);
+  if (r.changes === 0) throw new Error('Parcela não encontrada');
+  await salvarBanco();
+  return { mensagem: 'Data de vencimento corrigida' };
+}
+
+async function corrigirDataCompra(id, dataCompra) {
+  if (!dataCompra) throw new Error('Campo obrigatório: data_compra');
+  const r = executar('UPDATE compras SET data_compra = ? WHERE id = ?', [dataCompra, Number(id)]);
+  if (r.changes === 0) throw new Error('Compra não encontrada');
+  await salvarBanco();
+  return { mensagem: 'Data da compra corrigida' };
+}
+
+async function excluirCompra(id) {
+  const r = executar('DELETE FROM compras WHERE id = ?', [Number(id)]);
+  if (r.changes === 0) throw new Error('Compra não encontrada');
+  await salvarBanco();
+  return { mensagem: 'Compra e parcelas removidas' };
+}
+
+// ---------------------------------------------------------------------
+// Dashboard: views + listagem de parcelas com filtro
+// ---------------------------------------------------------------------
+function dashboardKpis() {
+  // A tela espera um array (herança do "SELECT * FROM view" da versão
+  // servidor, que sempre devolve lista) e lê o primeiro item: r[0][0].
+  return [mapKpis(primeiraLinha('SELECT * FROM vw_kpis'))];
+}
+function dashboardSaldoPorCartao() {
+  return todasLinhas('SELECT * FROM vw_saldo_por_cartao ORDER BY parcelado_pendente_centavos DESC').map(mapSaldoPorCartao);
+}
+function dashboardSaldoPorCategoria() {
+  return todasLinhas('SELECT * FROM vw_saldo_por_categoria ORDER BY parcelado_pendente_centavos DESC').map(mapSaldoPorCategoria);
+}
+function dashboardResumoPorCompra() {
+  return listarComprasResumo();
+}
+function dashboardProjecao() {
+  return todasLinhas('SELECT * FROM vw_projecao_mensal ORDER BY mes').map(mapProjecaoMensal);
+}
+
+function dashboardParcelas({ status, mes }) {
+  const condicoes = ['1 = 1'];
+  const params = [];
+  if (status) { condicoes.push('p.status = ?'); params.push(status); }
+  if (mes) {
+    condicoes.push("p.data_vencimento >= ? AND p.data_vencimento < date(?, '+1 month')");
+    params.push(mes + '-01', mes + '-01');
+  }
+  const linhas = todasLinhas(`
+    SELECT p.id AS parcela_id, p.num_parcela, p.valor_centavos, p.data_vencimento, p.status,
+           c.descricao, c.qtd_parcelas, c.data_compra, ca.nome AS cartao, ca.dia_vencimento AS cartao_dia_vencimento, cat.nome AS categoria,
+           (SELECT COUNT(*) FROM parcelas p2 WHERE p2.compra_id = p.compra_id AND p2.status = 'Pago') AS qtd_parcelas_pagas,
+           (SELECT IFNULL(SUM(valor_centavos),0) FROM parcelas p3 WHERE p3.compra_id = p.compra_id AND p3.status = 'Pendente') AS saldo_aberto_centavos
+    FROM parcelas p
+    JOIN compras c  ON c.id  = p.compra_id
+    JOIN cartoes ca ON ca.id = c.cartao_id
+    LEFT JOIN categorias cat ON cat.id = c.categoria_id
+    WHERE ${condicoes.join(' AND ')}
+    ORDER BY p.data_vencimento`, params);
+
+  return linhas.map((l) => ({
+    parcela_id: l.parcela_id,
+    num_parcela: l.num_parcela,
+    valor: paraReais(l.valor_centavos),
+    data_vencimento: l.data_vencimento,
+    status: l.status,
+    descricao: l.descricao,
+    qtd_parcelas: l.qtd_parcelas,
+    data_compra: l.data_compra,
+    cartao: l.cartao,
+    cartao_dia_vencimento: l.cartao_dia_vencimento,
+    categoria: l.categoria,
+    qtd_parcelas_pagas: l.qtd_parcelas_pagas,
+    saldo_aberto: paraReais(l.saldo_aberto_centavos),
+  }));
+}
+
+// ---------------------------------------------------------------------
+// Orçamento mensal (itens identificados)
+// ---------------------------------------------------------------------
+function listarItensOrcamento(mes) {
+  const linhas = mes
+    ? todasLinhas('SELECT id, ano_mes, descricao, valor_centavos FROM orcamento_itens WHERE ano_mes = ? ORDER BY id', [mes + '-01'])
+    : todasLinhas('SELECT id, ano_mes, descricao, valor_centavos FROM orcamento_itens ORDER BY ano_mes, id');
+  return linhas.map((r) => ({ id: r.id, ano_mes: r.ano_mes, descricao: r.descricao, valor: paraReais(r.valor_centavos) }));
+}
+
+function totaisOrcamento() {
+  const linhas = todasLinhas('SELECT ano_mes, SUM(valor_centavos) AS total_centavos FROM orcamento_itens GROUP BY ano_mes ORDER BY ano_mes');
+  return linhas.map((l) => ({ ano_mes: l.ano_mes, total: paraReais(l.total_centavos) }));
+}
+
+async function criarItemOrcamento({ ano_mes, descricao, valor }) {
+  if (!ano_mes || !descricao || valor === undefined || isNaN(Number(valor)) || Number(valor) < 0) {
+    throw new Error('Campos obrigatórios: ano_mes, descricao, valor (0 ou maior)');
+  }
+  executar('INSERT INTO orcamento_itens (ano_mes, descricao, valor_centavos) VALUES (?, ?, ?)', [ano_mes + '-01', descricao, paraCentavos(valor)]);
+  const id = ultimoIdInserido();
+  await salvarBanco();
+  return { id, mensagem: 'Orçamento incluído' };
+}
+
+async function atualizarItemOrcamento(id, { descricao, valor }) {
+  if (!descricao || valor === undefined || isNaN(Number(valor)) || Number(valor) < 0) {
+    throw new Error('Campos obrigatórios: descricao, valor (0 ou maior)');
+  }
+  const r = executar('UPDATE orcamento_itens SET descricao = ?, valor_centavos = ? WHERE id = ?', [descricao, paraCentavos(valor), Number(id)]);
+  if (r.changes === 0) throw new Error('Item de orçamento não encontrado');
+  await salvarBanco();
+  return { mensagem: 'Orçamento atualizado' };
+}
+
+async function excluirItemOrcamento(id) {
+  const r = executar('DELETE FROM orcamento_itens WHERE id = ?', [Number(id)]);
+  if (r.changes === 0) throw new Error('Item de orçamento não encontrado');
+  await salvarBanco();
+  return { mensagem: 'Orçamento removido' };
+}

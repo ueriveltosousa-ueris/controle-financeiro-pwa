@@ -1,0 +1,1176 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Controle Financeiro - Compras com Cartões de Crédito</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <meta name="theme-color" content="#1F4E78" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <script src="vendor/chart/chart.min.js"></script>
+  <script src="vendor/chart/chartjs-plugin-datalabels.min.js"></script>
+  <script src="vendor/sqljs/sql-wasm.js"></script>
+  <script src="js/dinheiro.js"></script>
+  <script src="js/datas.js"></script>
+  <script src="js/mapeamentos.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/dados.js"></script>
+  <script src="js/app.js"></script>
+  <style>
+    :root { --azul:#1F4E78; --azul-claro:#4A86E8; --laranja:#F6B26B; --verde:#6AA84F; --vermelho:#C0392B; --cinza-fundo:#F4F6F9; --cinza-borda:#E2E7EF; --texto:#2C3E50; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family:"Segoe UI",Arial,sans-serif; background:var(--cinza-fundo); color:var(--texto); }
+    header { background:var(--azul); color:#fff; padding:16px 28px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; }
+    #topoFixo { position:sticky; top:0; z-index:100; box-shadow:0 2px 6px rgba(0,0,0,.15); }
+    header h1 { font-size:20px; margin:0; font-weight:600; }
+    header .sub { font-size:12px; opacity:.8; margin-top:2px; }
+    #btnAtualizar { background:#fff; color:var(--azul); border:none; padding:9px 16px; border-radius:6px; font-weight:600; cursor:pointer; font-size:13px; }
+    #btnAtualizar:hover { background:#eaf1fb; }
+    #btnBackup, #btnRestaurar { background:transparent; color:#fff; border:1px solid rgba(255,255,255,.5); padding:9px 16px; border-radius:6px; font-weight:600; cursor:pointer; font-size:13px; }
+    #btnBackup:hover, #btnRestaurar:hover { background:rgba(255,255,255,.15); }
+    .abas { display:flex; gap:4px; background:var(--azul); padding:0 28px; }
+    .aba { background:transparent; color:#cfe0f5; border:none; padding:12px 20px; cursor:pointer; font-size:14px; font-weight:600; border-bottom:3px solid transparent; }
+    .aba.ativa { color:#fff; border-bottom-color:#fff; } .aba:hover { color:#fff; }
+    main { padding:24px 28px; max-width:1500px; margin:0 auto; }
+    .pagina { display:none; } .pagina.ativa { display:block; }
+    #aviso { display:none; background:#fdecea; color:#922; border:1px solid #f5c6cb; padding:14px 18px; border-radius:8px; margin-bottom:20px; font-size:14px; }
+    .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; margin-bottom:26px; }
+    .kpi { background:#fff; border:1px solid var(--cinza-borda); border-radius:10px; padding:16px 18px; box-shadow:0 1px 3px rgba(0,0,0,.04); cursor:pointer; transition:background .15s,border-color .15s,box-shadow .15s; text-align:center; }
+    .kpi:hover { background:#eaf1fb; border-color:var(--azul-claro); box-shadow:0 2px 10px rgba(74,134,232,.25); }
+    .kpi .rotulo { font-size:12px; color:#7a8699; text-transform:uppercase; letter-spacing:.3px; }
+    .kpi .valor { font-size:24px; font-weight:700; margin-top:6px; color:var(--azul); }
+    .kpi.destaque { background:var(--azul); } .kpi.destaque .rotulo { color:#cfe0f5; } .kpi.destaque .valor { color:#fff; }
+    .kpi.destaque:hover { background:#2a5a8a; border-color:#2a5a8a; }
+    .kpi.alerta .valor { color:var(--vermelho); }
+    .kpi-sub { font-size:11px; color:#9aa5b5; margin-top:8px; line-height:1.6; }
+    .kpi-sub-destaque { font-size:15px; font-weight:700; color:var(--azul); margin-top:10px; line-height:1.7; }
+    .kpi.positivo .valor { color:var(--verde); }
+    .kpi.negativo .valor { color:var(--vermelho); }
+    .graficos { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:26px; }
+    .card { background:#fff; border:1px solid var(--cinza-borda); border-radius:10px; padding:18px 20px; box-shadow:0 1px 3px rgba(0,0,0,.04); }
+    .card h2 { font-size:15px; margin:0 0 14px; color:var(--azul); font-weight:600; }
+    .card.largo { grid-column:1 / -1; }
+    .chart-wrap { position:relative; height:300px; }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    th, td { padding:10px 12px; text-align:left; border-bottom:1px solid var(--cinza-borda); }
+    th { background:#f0f4fa; color:var(--azul); font-weight:600; }
+    td.num, th.num { text-align:right; }
+    .badge { padding:3px 10px; border-radius:12px; font-size:11px; font-weight:600; }
+    .badge.aberto { background:#fff3cd; color:#856404; }
+    .badge.quitada { background:#d4edda; color:#155724; }
+    .badge.avista { background:#e7f0fb; color:#1F4E78; }
+    .badge.parcelada { background:#f0eafb; color:#5b3fa0; }
+    .barra { background:#eef2f7; border-radius:6px; height:8px; overflow:hidden; width:90px; }
+    .barra > div { height:100%; background:var(--verde); }
+    .btn { border:none; border-radius:6px; padding:9px 16px; font-weight:600; cursor:pointer; font-size:13px; }
+    .btn-azul { background:var(--azul-claro); color:#fff; } .btn-azul:hover { background:#3a76d8; }
+    .btn-verde { background:var(--verde); color:#fff; } .btn-verde:hover { background:#5a9440; }
+    .btn-cinza { background:#eef2f7; color:var(--texto); } .btn-cinza:hover { background:#dde5ef; }
+    .acoes-topo { display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; }
+    #acoesLancamentos { position:sticky; z-index:90; background:var(--cinza-fundo); padding:10px 0; margin-top:-10px; }
+    .link-acao { background:none; border:none; cursor:pointer; font-size:13px; font-weight:600; padding:4px 8px; border-radius:5px; }
+    .link-editar { color:var(--azul-claro); } .link-editar:hover { background:#eaf1fb; }
+    .link-excluir { color:var(--vermelho); } .link-excluir:hover { background:#fdecea; }
+    .link-parcelas { color:var(--verde); } .link-parcelas:hover { background:#eaf5e5; }
+    .tabela-parcelas td, .tabela-parcelas th { padding:8px 10px; }
+    .btn-pagar { background:var(--verde); color:#fff; border:none; border-radius:5px; padding:5px 10px; font-size:12px; font-weight:600; cursor:pointer; }
+    .btn-pagar:hover { background:#5a9440; }
+    .btn-desfazer { background:#eef2f7; color:var(--texto); border:none; border-radius:5px; padding:5px 10px; font-size:12px; font-weight:600; cursor:pointer; }
+    .btn-desfazer:hover { background:#dde5ef; }
+    .linha-vencida { color:var(--vermelho); font-weight:600; }
+    .overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:150; align-items:flex-start; justify-content:center; padding:40px 16px; overflow-y:auto; }
+    .overlay.aberto { display:flex; }
+    .modal { background:#fff; border-radius:12px; width:100%; max-width:520px; padding:24px 26px; box-shadow:0 10px 40px rgba(0,0,0,.2); position:relative; }
+    .modal h3 { margin:0 0 6px; color:var(--azul); font-size:18px; }
+    .modal .obs-topo { font-size:12px; color:#7a8699; margin-bottom:18px; }
+    .modal-x { position:absolute; top:14px; right:16px; background:none; border:none; font-size:22px; line-height:1; color:#9aa5b5; cursor:pointer; padding:4px 8px; border-radius:6px; }
+    .modal-x:hover { background:#f0f4fa; color:var(--vermelho); }
+    .campo { margin-bottom:14px; }
+    .campo label { display:block; font-size:13px; font-weight:600; margin-bottom:5px; color:var(--texto); }
+    .campo input, .campo select { width:100%; padding:9px 11px; border:1px solid var(--cinza-borda); border-radius:7px; font-size:14px; font-family:inherit; }
+    .campo .dica { font-size:11px; color:#9aa5b5; margin-top:3px; }
+    .linha2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .aviso-edicao { display:none; background:#fff8e1; border:1px solid #ffe0a3; color:#8a6100; font-size:12px; padding:9px 12px; border-radius:7px; margin-bottom:14px; }
+    .modal-rodape { display:flex; justify-content:flex-end; gap:10px; margin-top:8px; }
+    .obrig { color:var(--vermelho); }
+    @media (max-width:820px){ .graficos{grid-template-columns:1fr;} .linha2{grid-template-columns:1fr;} }
+  </style>
+</head>
+<body>
+  <div id="tooltipAcumulado" style="display:none;position:fixed;background:#1F4E78;color:#fff;padding:10px 14px;border-radius:8px;font-size:12px;max-width:280px;z-index:200;box-shadow:0 4px 12px rgba(0,0,0,.25);pointer-events:none;line-height:1.5;">
+    A linha <b>Acumulado</b> é a soma corrida dos Gastos desde o 1º mês exibido até aquele mês —
+    quanto você deveria no total se nada fosse pago ao longo do caminho. Não inclui o Orçamento.
+  </div>
+  <div id="topoFixo">
+  <header>
+    <div><h1>💳 Controle Financeiro - Compras com Cartões de Crédito</h1><div class="sub" id="atualizadoEm">Carregando...</div></div>
+    <div style="display:flex;gap:8px;">
+      <button id="btnAtualizar" onclick="carregarTudo()">🔄 Atualizar</button>
+      <button id="btnBackup" onclick="exportarBackup()">💾 Backup</button>
+      <button id="btnRestaurar" onclick="document.getElementById('inputRestaurar').click()">📂 Restaurar</button>
+      <input type="file" id="inputRestaurar" accept=".sqlite,.db" style="display:none;" onchange="restaurarBackupSelecionado(event)" />
+    </div>
+  </header>
+
+  <nav class="abas">
+    <button class="aba ativa" id="abaDashboard" onclick="trocarAba('dashboard')">📊 Dashboard</button>
+    <button class="aba" id="abaLancamentos" onclick="trocarAba('lancamentos')">🧾 Lançamentos de Despesas</button>
+    <button class="aba" id="abaOrcamentos" onclick="trocarAba('orcamentos')">💰 Orçamentos</button>
+    <button class="aba" id="abaCartoes" onclick="trocarAba('cartoes')">💸 Despesas</button>
+  </nav>
+  </div>
+
+  <main>
+    <div id="aviso">⚠️ Não consegui carregar os dados. Tente clicar em <b>Atualizar</b>; se persistir, recarregue a página.</div>
+
+    <section class="pagina ativa" id="pagina-dashboard">
+      <section class="kpis" id="kpis"></section>
+      <section class="graficos">
+        <div class="card largo">
+          <h2>Projeção dos próximos 24 meses</h2>
+          <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;">
+            <div class="campo" style="margin-bottom:0;">
+              <label>De</label>
+              <input type="month" id="projDe" onchange="renderProjecao()" style="width:190px;" />
+            </div>
+            <div class="campo" style="margin-bottom:0;">
+              <label>Até</label>
+              <input type="month" id="projAte" onchange="renderProjecao()" style="width:190px;" />
+            </div>
+            <button class="btn btn-cinza" onclick="limparFiltroProjecao()">Ver tudo (24 meses)</button>
+          </div>
+          <div class="chart-wrap" style="overflow-x:auto;"><div id="projWrapInterno" style="min-width:4800px;height:300px;"><canvas id="graficoProjecao"></canvas></div></div>
+        </div>
+        <div class="card"><h2>Saldo em aberto por cartão</h2><div class="chart-wrap"><canvas id="graficoCartao"></canvas></div></div>
+        <div class="card"><h2>A Pagar x Orçamento</h2><div class="chart-wrap"><canvas id="graficoPagoAberto"></canvas></div></div>
+        <div class="card"><h2>Saldo em aberto: Parcelado x À Vista</h2><div class="chart-wrap"><canvas id="graficoTipo"></canvas></div></div>
+        <div class="card largo">
+          <h2>Totais de Compras por Descrição</h2>
+          <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;">
+            <div class="campo" style="margin-bottom:0;max-width:320px;flex:1;">
+              <label>Pesquisar por descrição</label>
+              <input type="text" id="filtroDescricaoGrafico" placeholder="Ex.: mercado livre, air fryer..." oninput="renderPorDescricao()" />
+            </div>
+            <button class="btn btn-cinza" onclick="document.getElementById('filtroDescricaoGrafico').value='';renderPorDescricao();">Limpar</button>
+          </div>
+          <div class="chart-wrap" style="height:auto;max-height:500px;overflow-y:auto;"><div id="descWrapInterno" style="min-height:300px;"><canvas id="graficoDescricao"></canvas></div></div>
+        </div>
+      </section>
+      <section class="card largo">
+        <h2>Resumo por compra</h2>
+        <div style="overflow-x:auto;">
+          <table id="tabelaResumo">
+            <thead><tr><th>Descrição</th><th>Cartão</th><th>Categoria</th><th>Parcela do Mês</th><th class="num">Valor Total</th><th class="num">Pago</th><th class="num">Saldo Aberto</th><th>Concluído</th><th>Situação</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+
+    <section class="pagina" id="pagina-lancamentos">
+      <div class="acoes-topo" id="acoesLancamentos">
+        <button class="btn btn-verde" onclick="abrirModalCompra()">➕ Novo Lançamento de Despesa</button>
+      </div>
+      <section class="card">
+        <h2>Compras e gastos lançados</h2>
+        <div style="overflow-x:auto;">
+          <table id="tabelaCompras">
+            <thead><tr><th>Descrição</th><th>Tipo</th><th>Cartão</th><th>Categoria</th><th class="num">Valor Total</th><th class="num">Total de Parcelas</th><th class="num">Parcelas Pagas</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Ações</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+
+    <section class="pagina" id="pagina-orcamentos">
+      <section class="card" style="max-width:640px;">
+        <h2>Orçamentos do mês</h2>
+        <div class="obs-topo" style="margin-bottom:14px;">
+          Inclua aqui os ganhos do mês — quantos itens quiser, cada um identificado (ex.: "Salário Uel",
+          "13º salário", "Freela", "Economia reserva"). O total do mês é a soma de todos os itens.
+        </div>
+        <div class="campo" style="max-width:220px;">
+          <label>Mês</label>
+          <input type="month" id="orcamentoMesSelecionado" onchange="carregarOrcamentosTab()" />
+        </div>
+
+        <div class="acoes-topo" style="margin-top:6px;">
+          <input type="text" id="orc_nova_descricao" placeholder="Ex.: Salário, Freela, Economia..." style="flex:1;min-width:200px;padding:9px 11px;border:1px solid var(--cinza-borda);border-radius:7px;font-size:14px;" />
+          <input type="text" id="orc_novo_valor" inputmode="decimal" placeholder="Valor (ex.: 4000,00)" style="width:160px;padding:9px 11px;border:1px solid var(--cinza-borda);border-radius:7px;font-size:14px;" />
+          <button class="btn btn-verde" onclick="adicionarItemOrcamento()">➕ Adicionar</button>
+        </div>
+
+        <div style="overflow-x:auto;">
+          <table id="tabelaOrcamentoItens">
+            <thead><tr><th>Descrição</th><th class="num">Valor</th><th>Ações</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+
+    <section class="pagina" id="pagina-cartoes">
+      <section class="card">
+        <h2>Categorias de despesa e vencimento</h2>
+        <div class="obs-topo" style="margin-bottom:14px;">
+          Aqui ficam todas as categorias de despesa que você usa nos lançamentos: cartões de
+          crédito e também outras formas, como débito à vista e PIX. Configure, uma única vez,
+          o dia do mês em que a fatura de cada cartão vence. Esse dia é usado para calcular
+          automaticamente o vencimento da 1ª parcela de toda despesa lançada nessa categoria
+          (a "Data da Compra" no formulário é só informativa e não entra nesse cálculo). Deixe
+          em branco as categorias sem fatura (ex.: PIX/Débito), onde o vencimento sempre será
+          a própria data da despesa.
+        </div>
+
+        <div class="acoes-topo" style="align-items:flex-end;">
+          <div class="campo" style="margin-bottom:0;flex:1;min-width:200px;">
+            <label>Nova categoria de despesa</label>
+            <input type="text" id="nova_categoria_nome" placeholder="Ex.: Cartão Nubank" />
+          </div>
+          <div class="campo" style="margin-bottom:0;width:150px;">
+            <label>Dia de vencimento</label>
+            <input type="number" id="nova_categoria_dia" min="1" max="31" placeholder="opcional" />
+          </div>
+          <button class="btn btn-verde" onclick="criarCategoriaDespesa()">➕ Adicionar</button>
+        </div>
+
+        <div style="overflow-x:auto;">
+          <table id="tabelaCartoes">
+            <thead><tr><th>Categoria</th><th>Dia de vencimento</th><th>Ações</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <!-- MODAL COMPRA PARCELADA -->
+  <div class="overlay" id="overlayCompra">
+    <div class="modal">
+      <button class="modal-x" onclick="fecharModal('overlayCompra')" aria-label="Fechar">✕</button>
+      <h3 id="tituloModalCompra">Novo Lançamento de Despesa</h3>
+      <div class="obs-topo">Qualquer despesa: à vista (1 parcela) ou parcelada (2 ou mais). O app gera as parcelas automaticamente.</div>
+      <div class="aviso-edicao" id="avisoCompra">⚠️ Alterar o <b>valor</b>, o <b>nº de parcelas</b>, a <b>data da compra</b> ou a <b>categoria de despesa</b> recria as parcelas (o controle de pagamento recomeça). Mudar só descrição não mexe nas parcelas.</div>
+      <div class="campo"><label>Descrição <span class="obrig">*</span></label><input type="text" id="c_descricao" placeholder="Ex.: TV 55 polegadas, Abastecimento..." /></div>
+      <div class="linha2">
+        <div class="campo"><label>Categoria de despesa <span class="obrig">*</span></label><select id="c_cartao" onchange="atualizarAvisoVencimento('c')"></select><div class="dica" id="c_aviso_vencimento" style="display:none;color:#9C6500;"></div></div>
+        <div class="campo"><label>Categoria</label><select id="c_categoria"></select></div>
+      </div>
+      <div class="linha2">
+        <div class="campo"><label>Valor total <span class="obrig">*</span></label><input type="text" id="c_valor" inputmode="decimal" placeholder="3500,00" /><div class="dica">Use vírgula para os centavos.</div></div>
+        <div class="campo"><label>Nº de parcelas <span class="obrig">*</span></label><input type="number" id="c_parcelas" min="1" value="1" /><div class="dica">1 = à vista. 2 ou mais = parcelado.</div></div>
+      </div>
+      <div class="campo"><label>Data da compra <span class="obrig">*</span></label><input type="date" id="c_data" /><div class="dica">Apenas referência — não afeta o cálculo. O vencimento da 1ª parcela usa o dia de vencimento configurado na aba "Despesas" (se a categoria não tiver vencimento configurado, usa esta data).</div></div>
+      <div class="campo"><label>Observações</label><input type="text" id="c_obs" placeholder="(opcional)" /></div>
+      <div class="modal-rodape">
+        <button class="btn btn-cinza" onclick="fecharModal('overlayCompra')">Cancelar</button>
+        <button class="btn btn-verde" id="btnSalvarCompra" onclick="salvarCompra()">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL PARCELAS (marcar pago / desfazer / corrigir datas) -->
+  <div class="overlay" id="overlayParcelas">
+    <div class="modal" style="width:95vw;max-width:750px;">
+      <button class="modal-x" onclick="fecharModal('overlayParcelas')" aria-label="Fechar">✕</button>
+      <h3 id="tituloModalParcelas">Parcelas</h3>
+      <div class="obs-topo" id="obsModalParcelas"></div>
+      <div class="campo" style="max-width:220px;">
+        <label>Data da Compra <span style="font-weight:400;color:#9aa5b5;">(informativa)</span></label>
+        <input type="date" id="parcelas_data_compra" onchange="salvarDataCompra()" />
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="tabela-parcelas">
+          <thead><tr><th>Nº</th><th class="num">Valor</th><th>Data de Vencimento</th><th>Status</th><th>Ação</th></tr></thead>
+          <tbody id="corpoParcelas"></tbody>
+        </table>
+      </div>
+      <div class="modal-rodape">
+        <button class="btn btn-cinza" onclick="fecharModal('overlayParcelas')">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DETALHAMENTO (abre ao clicar numa barra/fatia dos gráficos) -->
+  <div class="overlay" id="overlayDetalhe">
+    <div class="modal" style="width:95vw;max-width:1300px;">
+      <button class="modal-x" onclick="fecharModal('overlayDetalhe')" aria-label="Fechar">✕</button>
+      <h3 id="tituloModalDetalhe">Detalhamento</h3>
+      <div class="obs-topo" id="obsModalDetalhe">Clique numa barra ou fatia do gráfico para ver o detalhamento aqui.</div>
+      <div style="overflow-x:auto;">
+        <table class="tabela-parcelas">
+          <thead><tr id="cabecalhoDetalhe"></tr></thead>
+          <tbody id="corpoDetalhe"></tbody>
+        </table>
+      </div>
+      <div class="modal-rodape">
+        <button class="btn btn-cinza" onclick="fecharModal('overlayDetalhe')">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL COMPARATIVO (Orçamento x Gastos do mês) — gráfico + duas tabelas -->
+  <div class="overlay" id="overlayComparativo">
+    <div class="modal" style="width:95vw;max-width:950px;">
+      <button class="modal-x" onclick="fecharModal('overlayComparativo')" aria-label="Fechar">✕</button>
+      <h3 id="tituloComparativo">Comparativo — Orçamento x Gastos</h3>
+      <div class="obs-topo" id="obsComparativo"></div>
+      <div class="chart-wrap" style="height:170px;margin-bottom:18px;"><canvas id="graficoComparativo"></canvas></div>
+      <div style="overflow-x:auto;max-height:220px;overflow-y:auto;margin-bottom:16px;">
+        <table class="tabela-parcelas">
+          <thead><tr><th colspan="2" style="background:#e8f5e9;color:#2d6a2d;">Itens de Orçamento</th></tr>
+          <tr><th>Descrição</th><th class="num">Valor</th></tr></thead>
+          <tbody id="corpoComparativoOrcamento"></tbody>
+        </table>
+      </div>
+      <div style="overflow-x:auto;max-height:260px;overflow-y:auto;">
+        <table class="tabela-parcelas">
+          <thead><tr><th colspan="6" style="background:#fdecea;color:#a13d3d;">Gastos do Mês (parcelas a pagar)</th></tr>
+          <tr><th>Descrição</th><th>Cartão</th><th class="num">Valor</th><th>Data da Compra</th><th>Vencimento</th><th class="num">Saldo Aberto</th></tr></thead>
+          <tbody id="corpoComparativoGastos"></tbody>
+        </table>
+      </div>
+      <div class="modal-rodape">
+        <button class="btn btn-cinza" onclick="fecharModal('overlayComparativo')">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const brl = (v) => new Intl.NumberFormat('pt-BR', { style:'currency', currency:'BRL' }).format(v || 0);
+    const nomesMes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    const labelMes = (iso) => { const p = String(iso).slice(0,7).split('-'); return nomesMes[Number(p[1]) - 1] + '/' + p[0]; };
+    const hojeLocal = () => { const d = new Date(); const off = d.getTimezoneOffset(); return new Date(d.getTime() - off*60000).toISOString().slice(0,10); };
+    const parseValor = (s) => { if (typeof s === 'number') return s; s = String(s).trim().replace(/\s/g,''); if (!s) return NaN; if (s.indexOf(',') > -1) s = s.replace(/\./g,'').replace(',', '.'); return Number(s); };
+    const paraCampoValor = (n) => Number(n).toFixed(2).replace('.', ',');
+
+    // Plugin do Chart.js: desenha linhas pontilhadas bem claras entre cada mês,
+    // separando visualmente os grupos de barras no gráfico de Projeção.
+    const linhasDivisoriasMeses = {
+      id: 'linhasDivisoriasMeses',
+      afterDraw(chart) {
+        const xScale = chart.scales.x;
+        if (!xScale || xScale.ticks.length < 2) return;
+        const { top, bottom } = chart.chartArea;
+        const ctx = chart.ctx;
+        const slot = xScale.getPixelForTick(1) - xScale.getPixelForTick(0);
+        ctx.save();
+        ctx.strokeStyle = '#9aa5b5';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([2, 4]);
+        for (let i = 1; i < xScale.ticks.length; i++) {
+          const xPos = xScale.getPixelForTick(i) - slot / 2;
+          ctx.beginPath();
+          ctx.moveTo(xPos, top);
+          ctx.lineTo(xPos, bottom);
+          ctx.stroke();
+        }
+        ctx.restore();
+      },
+    };
+
+    // api(rota, opcoes) é fornecida por js/app.js — mesma assinatura da
+    // versão servidor (fetch), mas despachando direto pro banco local.
+
+    let cartoes = [], categorias = [];
+    let ultimaListaCompras = [];
+    let orcamentoPorMes = {}; // chave "YYYY-MM" -> valor daquele mês
+    let ultimaProjecaoDados = []; // guarda os 24 meses para o filtro reaplicar sem nova chamada à API
+    let chartProjecao, chartCartao, chartPagoAberto, chartTipo, chartDescricao;
+    let compraEditandoId = null;
+
+    function trocarAba(qual) {
+      document.getElementById('pagina-dashboard').classList.toggle('ativa', qual === 'dashboard');
+      document.getElementById('pagina-lancamentos').classList.toggle('ativa', qual === 'lancamentos');
+      document.getElementById('pagina-orcamentos').classList.toggle('ativa', qual === 'orcamentos');
+      document.getElementById('pagina-cartoes').classList.toggle('ativa', qual === 'cartoes');
+      document.getElementById('abaDashboard').classList.toggle('ativa', qual === 'dashboard');
+      document.getElementById('abaLancamentos').classList.toggle('ativa', qual === 'lancamentos');
+      document.getElementById('abaOrcamentos').classList.toggle('ativa', qual === 'orcamentos');
+      document.getElementById('abaCartoes').classList.toggle('ativa', qual === 'cartoes');
+      if (qual === 'cartoes') carregarCartoesTab();
+      if (qual === 'orcamentos') {
+        if (!document.getElementById('orcamentoMesSelecionado').value) {
+          document.getElementById('orcamentoMesSelecionado').value = new Date().toISOString().slice(0,7);
+        }
+        carregarOrcamentosTab();
+      }
+    }
+
+    async function carregarCartoesTab() {
+      const tbody = document.querySelector('#tabelaCartoes tbody');
+      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#888;">Carregando...</td></tr>';
+      try {
+        const lista = await api('/referencias/cartoes');
+        tbody.innerHTML = lista.map(c => `<tr>
+          <td>
+            <input type="text" style="width:220px;padding:6px 8px;border:1px solid var(--cinza-borda);border-radius:6px;"
+                   id="nome_${c.id}" value="${(c.nome||'').replace(/"/g,'&quot;')}" />
+          </td>
+          <td>
+            <input type="number" min="1" max="31" style="width:80px;padding:6px 8px;border:1px solid var(--cinza-borda);border-radius:6px;"
+                   id="venc_${c.id}" value="${c.dia_vencimento != null ? c.dia_vencimento : ''}" placeholder="—" />
+          </td>
+          <td>
+            <button class="btn btn-azul" style="padding:6px 12px;" onclick="salvarVencimentoCartao(${c.id})">Salvar</button>
+            <button class="link-acao link-excluir" onclick="excluirCategoriaDespesa(${c.id}, '${(c.nome||'').replace(/'/g,"\\'")}')">Excluir</button>
+          </td>
+        </tr>`).join('');
+      } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#922;">Erro ao carregar: ' + e.message + '</td></tr>';
+      }
+    }
+    async function criarCategoriaDespesa() {
+      const nome = document.getElementById('nova_categoria_nome').value.trim();
+      const diaTexto = document.getElementById('nova_categoria_dia').value.trim();
+      if (!nome) { alert('Digite um nome para a categoria (ex.: Cartão Nubank).'); return; }
+      if (diaTexto && (Number(diaTexto) < 1 || Number(diaTexto) > 31)) { alert('O dia de vencimento deve ser entre 1 e 31 (ou vazio).'); return; }
+      try {
+        await api('/referencias/cartoes', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ nome, dia_vencimento: diaTexto ? Number(diaTexto) : null }),
+        });
+        document.getElementById('nova_categoria_nome').value = '';
+        document.getElementById('nova_categoria_dia').value = '';
+        cartoes = []; // força recarregar a lista (usada nos formulários de lançamento)
+        await carregarCartoesTab();
+        await carregarTudo(); // repopula o combo "Categoria de despesa" do lançamento (senão fica vazio até "Atualizar")
+      } catch (e) { alert('Erro ao criar categoria: ' + e.message); }
+    }
+    async function excluirCategoriaDespesa(id, nome) {
+      if (!confirm('Excluir a categoria "' + nome + '"?\nSó é possível excluir categorias sem despesas cadastradas.')) return;
+      try {
+        await api('/referencias/cartoes/' + id, { method:'DELETE' });
+        cartoes = [];
+        await carregarCartoesTab();
+        await carregarTudo(); // repopula o combo "Categoria de despesa" do lançamento
+      } catch (e) { alert(e.message); }
+    }
+    // ---- ORÇAMENTOS: itens identificados por mês (salário, extras, economias...) ----
+    async function carregarOrcamentosTab() {
+      const mes = document.getElementById('orcamentoMesSelecionado').value; // "YYYY-MM"
+      const tbody = document.querySelector('#tabelaOrcamentoItens tbody');
+      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#888;">Carregando...</td></tr>';
+      try {
+        const itens = await api('/orcamento?mes=' + mes);
+        if (!itens.length) {
+          tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#888;">Nenhum item cadastrado para este mês.</td></tr>';
+        } else {
+          tbody.innerHTML = itens.map(it => `<tr>
+            <td>${it.descricao}</td>
+            <td class="num">${brl(it.valor)}</td>
+            <td>
+              <button class="link-acao link-editar" onclick="editarItemOrcamento(${it.id}, '${(it.descricao||'').replace(/'/g,"\\'")}', ${it.valor})">Editar</button>
+              <button class="link-acao link-excluir" onclick="excluirItemOrcamento(${it.id})">Excluir</button>
+            </td>
+          </tr>`).join('');
+        }
+        const total = itens.reduce((s, it) => s + Number(it.valor || 0), 0);
+        tbody.innerHTML += '<tr style="font-weight:700;background:#f0f4fa;"><td>TOTAL DO MÊS</td><td class="num">' + brl(total) + '</td><td></td></tr>';
+      } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#922;">Erro ao carregar: ' + e.message + '</td></tr>';
+      }
+    }
+    async function adicionarItemOrcamento() {
+      const mes = document.getElementById('orcamentoMesSelecionado').value;
+      const descricao = document.getElementById('orc_nova_descricao').value.trim();
+      const valor = parseValor(document.getElementById('orc_novo_valor').value);
+      if (!mes) { alert('Escolha o mês primeiro.'); return; }
+      if (!descricao) { alert('Digite uma descrição (ex.: Salário, Freela...).'); return; }
+      if (isNaN(valor) || valor < 0) { alert('Digite um valor válido (0 ou maior).'); return; }
+      try {
+        await api('/orcamento', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ano_mes: mes, descricao, valor }) });
+        document.getElementById('orc_nova_descricao').value = '';
+        document.getElementById('orc_novo_valor').value = '';
+        await carregarOrcamentosTab();
+        await carregarTudo();
+      } catch (e) { alert('Erro ao incluir: ' + e.message); }
+    }
+    async function editarItemOrcamento(id, descricaoAtual, valorAtual) {
+      const novaDescricao = prompt('Descrição:', descricaoAtual);
+      if (novaDescricao === null) return;
+      const novoValorTexto = prompt('Valor:', paraCampoValor(valorAtual));
+      if (novoValorTexto === null) return;
+      const novoValor = parseValor(novoValorTexto);
+      if (!novaDescricao.trim() || isNaN(novoValor) || novoValor < 0) { alert('Dados inválidos.'); return; }
+      try {
+        await api('/orcamento/' + id, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ descricao: novaDescricao.trim(), valor: novoValor }) });
+        await carregarOrcamentosTab();
+        await carregarTudo();
+      } catch (e) { alert('Erro ao editar: ' + e.message); }
+    }
+    async function excluirItemOrcamento(id) {
+      if (!confirm('Excluir este item de orçamento?')) return;
+      try {
+        await api('/orcamento/' + id, { method:'DELETE' });
+        await carregarOrcamentosTab();
+        await carregarTudo();
+      } catch (e) { alert('Erro ao excluir: ' + e.message); }
+    }
+
+    async function salvarVencimentoCartao(id) {
+      const campoVenc = document.getElementById('venc_' + id);
+      const campoNome = document.getElementById('nome_' + id);
+      const valor = campoVenc.value.trim();
+      const nome = campoNome.value.trim();
+      if (!nome) { alert('O nome da categoria não pode ficar vazio.'); return; }
+      if (valor && (Number(valor) < 1 || Number(valor) > 31)) {
+        alert('O dia de vencimento deve ser entre 1 e 31 (ou deixe vazio).'); return;
+      }
+      try {
+        await api('/referencias/cartoes/' + id, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nome, dia_vencimento: valor ? Number(valor) : null }),
+        });
+        cartoes = await api('/referencias/cartoes'); // mantém a lista local sempre atualizada
+        campoVenc.style.borderColor = 'var(--verde)';
+        campoNome.style.borderColor = 'var(--verde)';
+        setTimeout(() => { campoVenc.style.borderColor = ''; campoNome.style.borderColor = ''; }, 1200);
+        await carregarTudo();
+      } catch (e) { alert('Erro ao salvar: ' + e.message); }
+    }
+
+    async function carregarTudo() {
+      const aviso = document.getElementById('aviso');
+      try {
+        if (!cartoes.length) {
+          cartoes = await api('/referencias/cartoes');
+          categorias = await api('/referencias/categorias');
+          preencherSelects();
+        }
+        const r = await Promise.all([
+          api('/dashboard/kpis'), api('/dashboard/saldo-por-cartao'),
+          api('/dashboard/projecao'), api('/dashboard/resumo-por-compra'), api('/compras'),
+          api('/orcamento/totais'),
+        ]);
+        aviso.style.display = 'none';
+        ultimaListaCompras = r[4];
+        orcamentoPorMes = {};
+        (r[5] || []).forEach(o => { orcamentoPorMes[String(o.ano_mes).slice(0,7)] = Number(o.total); });
+        renderKPIs(r[0][0]); renderProjecao(r[2]); renderCartao(r[1]);
+        renderPagoAberto(r[0][0]); renderResumo(r[3]); renderTabelaCompras(r[4]); renderTipo(r[4]); renderPorDescricao(r[4]);
+        document.getElementById('atualizadoEm').textContent = 'Atualizado em ' + new Date().toLocaleString('pt-BR');
+      } catch (e) {
+        aviso.style.display = 'block';
+        document.getElementById('atualizadoEm').textContent = 'Erro ao carregar os dados';
+      }
+    }
+
+    function preencherSelects() {
+      const optCartao = cartoes.map(c => '<option value="' + c.id + '">' + c.nome + '</option>').join('');
+      const optCat = '<option value="">— nenhuma —</option>' + categorias.map(c => '<option value="' + c.id + '">' + c.nome + '</option>').join('');
+      document.getElementById('c_cartao').innerHTML = optCartao;
+      document.getElementById('c_categoria').innerHTML = optCat;
+    }
+
+    // Mostra um aviso no formulário quando o cartão escolhido ainda não tem
+    // vencimento configurado (nesse caso, a 1ª parcela usa a própria data da compra).
+    function atualizarAvisoVencimento(prefixo) {
+      const select = document.getElementById(prefixo + '_cartao');
+      const aviso = document.getElementById(prefixo + '_aviso_vencimento');
+      const cartao = cartoes.find(c => String(c.id) === String(select.value));
+      if (cartao && !cartao.dia_vencimento) {
+        aviso.textContent = '⚠️ "' + cartao.nome + '" ainda não tem vencimento configurado — a data acima será usada diretamente. Configure em "Cartões" para calcular automaticamente.';
+        aviso.style.display = 'block';
+      } else {
+        aviso.style.display = 'none';
+      }
+    }
+
+    function renderKPIs(k) {
+      const hoje = new Date();
+      const proxMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 1);
+      const proxMesIso = proxMes.toISOString().slice(0, 10);
+      const nomeMes = nomesMes[proxMes.getMonth()] + '/' + proxMes.getFullYear();
+      const rotuloProxMes = 'Total a vencer em ' + nomeMes;
+      const chaveProxMes = proxMesIso.slice(0, 7);
+
+      const orcamentoProxMes = orcamentoPorMes[chaveProxMes] || 0;
+      const saldoOrcamento = orcamentoProxMes - Number(k.a_vencer_proximo_mes || 0);
+      const corSaldo = saldoOrcamento < 0 ? 'negativo' : 'positivo';
+
+      const subVencer = '<div class="kpi-sub-destaque">Parcelado: ' + brl(k.a_vencer_proximo_mes_parcelado || 0) +
+        '<br>À vista: ' + brl(k.a_vencer_proximo_mes_avista || 0) + '</div>';
+
+      const cards = [
+        { r:'TOTAL GERAL A PAGAR', v:brl(k.total_em_aberto), c:'destaque', supra:'', sub:'', onclick:"detalheStatus('Pendente')" },
+        { r:rotuloProxMes, v:brl(k.a_vencer_proximo_mes), c:'', supra:'', sub:subVencer, onclick:"detalheMes('" + proxMesIso + "')" },
+        { r:'Saldo do Orçamento (' + nomeMes + ')',
+          v:brl(saldoOrcamento), c:corSaldo,
+          supra:'<div class="kpi-sub-destaque">Orçamento: ' + brl(orcamentoProxMes) + '</div>',
+          sub:'<div class="kpi-sub">Clique para ver o comparativo</div>',
+          onclick:"detalheComparativoMes('" + proxMesIso + "')" },
+      ];
+      document.getElementById('kpis').innerHTML = cards.map(x =>
+        '<div class="kpi ' + x.c + '" onclick="' + x.onclick + '"><div class="rotulo">' + x.r + '</div>' + x.supra + '<div class="valor">' + x.v + '</div>' + x.sub + '</div>'
+      ).join('');
+    }
+    // Balão flutuante explicando o "Acumulado" — aparece ao passar o mouse na legenda do gráfico.
+    function mostrarTooltipAcumulado(x, y) {
+      const el = document.getElementById('tooltipAcumulado');
+      el.style.left = (x + 14) + 'px';
+      el.style.top = (y + 14) + 'px';
+      el.style.display = 'block';
+    }
+    function esconderTooltipAcumulado() {
+      document.getElementById('tooltipAcumulado').style.display = 'none';
+    }
+    function renderProjecao(dadosNovos) {
+      if (dadosNovos) ultimaProjecaoDados = dadosNovos;
+      const de = document.getElementById('projDe').value;   // "YYYY-MM" ou vazio
+      const ate = document.getElementById('projAte').value; // "YYYY-MM" ou vazio
+      let dados = ultimaProjecaoDados;
+      if (de)  dados = dados.filter(d => String(d.mes).slice(0,7) >= de);
+      if (ate) dados = dados.filter(d => String(d.mes).slice(0,7) <= ate);
+
+      // Ajusta a largura do gráfico conforme quantos meses estão visíveis (menos meses = barras mais largas).
+      const wrapInterno = document.getElementById('projWrapInterno');
+      if (wrapInterno) wrapInterno.style.minWidth = Math.max(dados.length * 200, 900) + 'px';
+
+      const ctx = document.getElementById('graficoProjecao');
+      if (chartProjecao) chartProjecao.destroy();
+      chartProjecao = new Chart(ctx, {
+        plugins: [ChartDataLabels, linhasDivisoriasMeses],
+        data: { labels: dados.map(d => labelMes(d.mes)), datasets: [
+          { type:'bar', label:'Gastos', data:dados.map(d => d.total_mes), backgroundColor:'#E57373',
+            categoryPercentage:0.8, barPercentage:0.9,
+            datalabels: { display: (c) => c.dataset.data[c.dataIndex] > 0, anchor:'end', align:'top', rotation:0,
+              color:'#a13d3d', font:{ size:9, weight:'600' }, formatter:(v) => brl(v) } },
+          { type:'bar', label:'Orçamento', data:dados.map(d => orcamentoPorMes[String(d.mes).slice(0,7)] || 0), backgroundColor:'#6AA84F',
+            categoryPercentage:0.8, barPercentage:0.9,
+            datalabels: { display: (c) => c.dataset.data[c.dataIndex] > 0, anchor:'end', align:'top', rotation:0,
+              color:'#2d6a2d', font:{ size:9, weight:'600' }, formatter:(v) => brl(v) } },
+          { type:'line', label:'Acumulado', data:dados.map(d => d.acumulado), borderColor:'#C0392B', backgroundColor:'#C0392B', yAxisID:'y1', tension:.3, order:1, pointRadius:2,
+            datalabels: { display:false } } ] },
+        options: { maintainAspectRatio:false, layout:{ padding:{ top:22 } },
+          onClick: (evt, elems) => {
+            if (!elems.length) return;
+            const mes = dados[elems[0].index].mes;
+            if (elems[0].datasetIndex === 1) detalheOrcamentoMes(mes); // barra Orçamento
+            else detalheMes(mes); // barra Gastos (e a linha Acumulado, sem mudança)
+          },
+          onHover: (evt, elems) => { evt.native.target.style.cursor = elems.length ? 'pointer' : 'default'; },
+          plugins:{
+            legend:{ position:'bottom',
+              onHover: (evt, item) => { if (item.text === 'Acumulado') mostrarTooltipAcumulado(evt.native.clientX, evt.native.clientY); },
+              onLeave: () => esconderTooltipAcumulado() },
+            tooltip:{ enabled:true, callbacks:{
+              label:(c) => c.dataset.label + ': ' + brl(c.raw),
+              afterLabel:(c) => c.dataset.label === 'Acumulado' ? 'Soma corrida dos Gastos até este mês (não inclui o Orçamento).' : '',
+            } } },
+          scales:{ x:{grid:{display:false}}, y:{display:false,grid:{display:false}}, y1:{position:'right',grid:{drawOnChartArea:false},ticks:{callback:(v)=>'R$ '+(v/1000)+'k'}} } },
+      });
+    }
+    // Botão "Ver tudo" do filtro de período da Projeção.
+    function limparFiltroProjecao() {
+      document.getElementById('projDe').value = '';
+      document.getElementById('projAte').value = '';
+      renderProjecao();
+    }
+    function renderCartao(dados) {
+      const f = dados.filter(d => (d.compromisso_total || 0) > 0);
+      const ctx = document.getElementById('graficoCartao');
+      if (chartCartao) chartCartao.destroy();
+      chartCartao = new Chart(ctx, {
+        type:'bar',
+        plugins: [ChartDataLabels],
+        data:{ labels:f.map(d=>d.cartao), datasets:[{ label:'Saldo em aberto', data:f.map(d=>d.parcelado_pendente), backgroundColor:'#4A86E8',
+          datalabels: { anchor:'end', align:'end', color:'#1F4E78', font:{ size:11, weight:'600' }, formatter:(v) => brl(v) } }] },
+        options:{ indexAxis:'y', maintainAspectRatio:false, layout:{ padding:{ right:70 } },
+          onClick: (evt, elems) => { if (elems.length) detalheCartao(f[elems[0].index].cartao); },
+          onHover: (evt, elems) => { evt.native.target.style.cursor = elems.length ? 'pointer' : 'default'; },
+          plugins:{ legend:{display:false}, tooltip:{enabled:false} },
+          scales:{ x:{display:false,grid:{display:false}}, y:{grid:{display:false}} } },
+      });
+    }
+    function renderPagoAberto(k) {
+      const hoje = new Date();
+      const proxMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 1);
+      const proxMesIso = proxMes.toISOString().slice(0, 10);
+      const orcamentoProxMes = orcamentoPorMes[proxMes.toISOString().slice(0,7)] || 0;
+      const ctx = document.getElementById('graficoPagoAberto');
+      if (chartPagoAberto) chartPagoAberto.destroy();
+      chartPagoAberto = new Chart(ctx, {
+        type:'doughnut',
+        plugins: [ChartDataLabels],
+        data:{ labels:['A Pagar','Orçamento'], datasets:[{ data:[k.total_em_aberto, orcamentoProxMes], backgroundColor:['#E57373','#6AA84F'],
+          datalabels: { color:'#fff', font:{ size:12, weight:'700' }, formatter:(v) => brl(v) } }] },
+        options:{ maintainAspectRatio:false,
+          onClick: () => detalheComparativoMes(proxMesIso),
+          onHover: (evt, elems) => { evt.native.target.style.cursor = elems.length ? 'pointer' : 'default'; },
+          plugins:{ legend:{position:'bottom'}, tooltip:{enabled:false} } },
+      });
+    }
+
+    // Gráfico "Saldo em aberto: Parcelado x À Vista" — usa os dados já carregados (sem nova chamada à API).
+    function renderTipo(lista) {
+      const totalParcelado = lista.filter(c => Number(c.qtd_parcelas) > 1).reduce((s,c) => s + Number(c.saldo_aberto||0), 0);
+      const totalAvista = lista.filter(c => Number(c.qtd_parcelas) === 1).reduce((s,c) => s + Number(c.saldo_aberto||0), 0);
+      const ctx = document.getElementById('graficoTipo');
+      if (chartTipo) chartTipo.destroy();
+      chartTipo = new Chart(ctx, {
+        type:'doughnut',
+        plugins: [ChartDataLabels],
+        data:{ labels:['Parcelado','À Vista'], datasets:[{ data:[totalParcelado, totalAvista], backgroundColor:['#8E6FC4','#4A86E8'],
+          datalabels: { color:'#fff', font:{ size:12, weight:'700' }, formatter:(v) => brl(v) } }] },
+        options:{ maintainAspectRatio:false,
+          onClick: (evt, elems) => { if (elems.length) detalheTipo(elems[0].index === 0 ? 'parcelada' : 'avista'); },
+          onHover: (evt, elems) => { evt.native.target.style.cursor = elems.length ? 'pointer' : 'default'; },
+          plugins:{ legend:{position:'bottom'}, tooltip:{enabled:false} } },
+      });
+    }
+    // Clique numa fatia do gráfico Parcelado x À Vista -> lista as compras daquele tipo (com saldo em aberto).
+    function detalheTipo(tipo) {
+      const linhas = ultimaListaCompras.filter(c => {
+        const eParcelada = Number(c.qtd_parcelas) > 1;
+        return (tipo === 'parcelada' ? eParcelada : !eParcelada) && Number(c.saldo_aberto) > 0;
+      });
+      const header = '<th>Descrição</th><th>Cartão</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Data da Compra</th><th class="num">Valor Total</th><th class="num">Saldo Aberto</th><th>Situação</th>';
+      const linhasObj = linhas.map(c => ({
+        descricao: c.descricao,
+        html: '<tr><td>' + c.descricao + '</td><td>' + (c.cartao||'-') + '</td><td>' + (c.categoria||'-') + '</td>' +
+          '<td>' + (c.qtd_parcelas_pagas||0) + '/' + c.qtd_parcelas + '</td>' +
+          '<td>' + (c.qtd_parcelas_pagas||0) + '</td><td>' + formatarData(c.data_compra) + '</td>' +
+          '<td class="num">' + brl(c.valor_total) + '</td><td class="num">' + brl(c.saldo_aberto) + '</td>' +
+          '<td>' + (c.situacao === 'Quitada' ? '<span class="badge quitada">Quitada</span>' : '<span class="badge aberto">Em Aberto</span>') + '</td></tr>',
+      }));
+      const totalValor = linhas.reduce((s,c) => s + Number(c.valor_total||0), 0);
+      const totalSaldo = linhas.reduce((s,c) => s + Number(c.saldo_aberto||0), 0);
+      const totalHtml = '<tr style="font-weight:700;background:#f0f4fa;"><td colspan="6">TOTAL</td>' +
+        '<td class="num">' + brl(totalValor) + '</td><td class="num">' + brl(totalSaldo) + '</td><td></td></tr>';
+      const titulo = tipo === 'parcelada' ? 'Compras Parceladas — saldo em aberto' : 'Compras À Vista — saldo em aberto';
+      abrirDetalheModal(titulo, 'Detalhamento do tipo selecionado no gráfico.', header, linhasObj, totalHtml, 9);
+    }
+
+    // Gráfico "Totais de Compras por Descrição" — agrupa e soma o Valor Total por Descrição.
+    function renderPorDescricao(lista) {
+      lista = lista || ultimaListaCompras;
+      const termo = (document.getElementById('filtroDescricaoGrafico').value || '').trim().toLowerCase();
+      if (termo) lista = lista.filter(c => c.descricao.toLowerCase().includes(termo));
+      const gruposPago = {}, gruposAberto = {}, gruposTotal = {};
+      lista.forEach(c => {
+        gruposPago[c.descricao] = (gruposPago[c.descricao] || 0) + Number(c.total_pago || 0);
+        gruposAberto[c.descricao] = (gruposAberto[c.descricao] || 0) + Number(c.saldo_aberto || 0);
+        gruposTotal[c.descricao] = (gruposTotal[c.descricao] || 0) + Number(c.valor_total || 0);
+      });
+      const entradas = Object.keys(gruposPago)
+        .map(d => ({ descricao: d, pago: gruposPago[d] || 0, aberto: gruposAberto[d] || 0, total: gruposTotal[d] || 0 }))
+        .sort((a, b) => b.total - a.total); // maior para o menor (total comprado)
+      const labels = entradas.map(e => e.descricao);
+      const valoresTotal = entradas.map(e => e.total);
+      const valoresPago = entradas.map(e => e.pago);
+      const valoresAberto = entradas.map(e => e.aberto);
+
+      // Altura dinâmica: agora são 3 barras por descrição (Comprado + Pago + A Pagar), precisa de mais espaço por linha.
+      // Uso "height" (não só "min-height") para o Chart.js medir um tamanho exato e estável — evita que ele
+      // calcule a posição do clique/mouse com base numa medida desatualizada.
+      const alturaCalculada = Math.max(entradas.length * 68, 300);
+      const wrapInterno = document.getElementById('descWrapInterno');
+      if (wrapInterno) { wrapInterno.style.height = alturaCalculada + 'px'; wrapInterno.style.minHeight = alturaCalculada + 'px'; }
+
+      const ctx = document.getElementById('graficoDescricao');
+      if (chartDescricao) chartDescricao.destroy();
+      chartDescricao = new Chart(ctx, {
+        type: 'bar',
+        plugins: [ChartDataLabels],
+        data: { labels, datasets: [
+          { label:'Total Comprado', data: valoresTotal, backgroundColor:'#4A86E8',
+            datalabels: { anchor:'end', align:'end', color:'#1F4E78', font:{ size:10, weight:'600' }, formatter:(v) => v > 0 ? brl(v) : '' } },
+          { label:'Total Pago', data: valoresPago, backgroundColor:'#6AA84F',
+            datalabels: { anchor:'end', align:'end', color:'#2d6a2d', font:{ size:10, weight:'600' }, formatter:(v) => v > 0 ? brl(v) : '' } },
+          { label:'Total a Pagar', data: valoresAberto, backgroundColor:'#E57373',
+            datalabels: { anchor:'end', align:'end', color:'#a13d3d', font:{ size:10, weight:'600' }, formatter:(v) => v > 0 ? brl(v) : '' } },
+        ] },
+        options: { indexAxis:'y', maintainAspectRatio:false, layout:{ padding:{ right:90 } },
+          interaction: { mode:'y', intersect:false },
+          onClick: (evt, elems) => { if (elems.length) detalhePorDescricao(chartDescricao.data.labels[elems[0].index]); },
+          onHover: (evt, elems) => { evt.native.target.style.cursor = elems.length ? 'pointer' : 'default'; },
+          plugins:{ legend:{position:'bottom'}, tooltip:{enabled:true, callbacks:{label:(c)=>c.dataset.label+': '+brl(c.raw)}} },
+          scales:{ x:{display:false,grid:{display:false}}, y:{grid:{display:false}} } },
+      });
+      // Força o Chart.js a recalcular o tamanho/posição depois que o layout (altura dinâmica +
+      // rolagem) já assentou de verdade — evita que clique/tooltip apontem para a linha errada.
+      requestAnimationFrame(() => { if (chartDescricao) chartDescricao.resize(); });
+    }
+    // Clique numa barra do gráfico por Descrição -> lista as compras com aquela descrição exata.
+    function detalhePorDescricao(descricao) {
+      const linhas = ultimaListaCompras.filter(c => c.descricao === descricao);
+      const header = '<th>Descrição</th><th>Tipo</th><th>Cartão</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Data da Compra</th><th class="num">Valor Total</th><th class="num">Saldo Aberto</th><th>Situação</th>';
+      const linhasObj = linhas.map(c => {
+        const avista = Number(c.qtd_parcelas) === 1;
+        const tipo = avista ? '<span class="badge avista">À vista</span>' : '<span class="badge parcelada">Parcelada</span>';
+        return { descricao: c.descricao,
+          html: '<tr><td>' + c.descricao + '</td><td>' + tipo + '</td><td>' + (c.cartao||'-') + '</td><td>' + (c.categoria||'-') + '</td>' +
+            '<td>' + (c.qtd_parcelas_pagas||0) + '/' + c.qtd_parcelas + '</td><td>' + (c.qtd_parcelas_pagas||0) + '</td><td>' + formatarData(c.data_compra) + '</td>' +
+            '<td class="num">' + brl(c.valor_total) + '</td><td class="num">' + brl(c.saldo_aberto) + '</td>' +
+            '<td>' + (c.situacao === 'Quitada' ? '<span class="badge quitada">Quitada</span>' : '<span class="badge aberto">Em Aberto</span>') + '</td></tr>' };
+      });
+      const totalValor = linhas.reduce((s,c) => s + Number(c.valor_total||0), 0);
+      const totalSaldo = linhas.reduce((s,c) => s + Number(c.saldo_aberto||0), 0);
+      const totalHtml = '<tr style="font-weight:700;background:#f0f4fa;"><td colspan="7">TOTAL</td>' +
+        '<td class="num">' + brl(totalValor) + '</td><td class="num">' + brl(totalSaldo) + '</td><td></td></tr>';
+      abrirDetalheModal('Compras — "' + descricao + '"', 'Detalhamento da descrição selecionada no gráfico.', header, linhasObj, totalHtml, 10);
+    }
+
+    // ---- DETALHAMENTO (abre ao clicar numa barra/fatia dos gráficos ou nos cards) ----
+    function abrirDetalheModal(titulo, obs, headerHtml, linhas, totalHtml, colspanVazio) {
+      // Ordena sempre A-Z pela Descrição.
+      const linhasOrdenadas = linhas.slice().sort((a, b) => a.descricao.localeCompare(b.descricao, 'pt-BR'));
+      document.getElementById('tituloModalDetalhe').textContent = titulo;
+      document.getElementById('obsModalDetalhe').textContent = obs;
+      document.getElementById('cabecalhoDetalhe').innerHTML = headerHtml;
+      const corpo = linhasOrdenadas.length ? linhasOrdenadas.map(l => l.html).join('')
+        : '<tr><td colspan="' + (colspanVazio || 6) + '" style="text-align:center;color:#888;">Nenhum item encontrado.</td></tr>';
+      document.getElementById('corpoDetalhe').innerHTML = corpo + (totalHtml || '');
+      abrirModal('overlayDetalhe');
+    }
+    // Monta a linha de TOTAL do rodapé (colunas antes do valor viram um rótulo "TOTAL" mesclado).
+    function linhaTotal(colspanAntes, valorTotal, colunasDepois) {
+      return '<tr style="font-weight:700;background:#f0f4fa;"><td colspan="' + colspanAntes + '">TOTAL</td>' +
+        '<td class="num">' + brl(valorTotal) + '</td>' + '<td></td>'.repeat(colunasDepois) + '</tr>';
+    }
+    // Clique numa barra do gráfico de Projeção (ou no card "A vencer") -> lista as parcelas pendentes daquele mês.
+    async function detalheMes(mesIso) {
+      const anoMes = String(mesIso).slice(0, 7);
+      try {
+        const linhas = await api('/dashboard/parcelas?status=Pendente&mes=' + anoMes);
+        const header = '<th>Descrição</th><th>Cartão</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th class="num">Valor</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Saldo Aberto</th>';
+        const linhasObj = linhas.map(l => ({
+          descricao: l.descricao,
+          html: '<tr><td>' + l.descricao + '</td><td>' + (l.cartao||'-') + '</td>' +
+            '<td>' + l.num_parcela + '/' + l.qtd_parcelas + '</td>' +
+            '<td>' + (l.qtd_parcelas_pagas || 0) + '</td>' +
+            '<td class="num">' + brl(l.valor) + '</td><td>' + formatarData(l.data_compra) + '</td><td>' + formatarData(l.data_vencimento) + '</td>' +
+            '<td class="num">' + brl(l.saldo_aberto) + '</td></tr>',
+        }));
+        const total = linhas.reduce((s,l) => s + Number(l.valor||0), 0);
+        abrirDetalheModal('Parcelas a pagar — ' + labelMes(mesIso), 'Detalhamento do mês selecionado no gráfico.', header, linhasObj, linhaTotal(4, total, 3), 8);
+      } catch (e) { alert('Erro ao carregar detalhamento: ' + e.message); }
+    }
+    // Clique na barra Orçamento do gráfico de Projeção -> lista os itens de orçamento daquele mês.
+    async function detalheOrcamentoMes(mesIso) {
+      const anoMes = String(mesIso).slice(0, 7);
+      try {
+        const itens = await api('/orcamento?mes=' + anoMes);
+        const header = '<th>Descrição</th><th class="num">Valor</th>';
+        const linhasObj = itens.map(it => ({
+          descricao: it.descricao,
+          html: '<tr><td>' + it.descricao + '</td><td class="num">' + brl(it.valor) + '</td></tr>',
+        }));
+        const total = itens.reduce((s, it) => s + Number(it.valor||0), 0);
+        abrirDetalheModal('Orçamento — ' + labelMes(mesIso), 'Itens de orçamento cadastrados para este mês (aba Orçamentos).', header, linhasObj, linhaTotal(1, total, 0), 2);
+      } catch (e) { alert('Erro ao carregar detalhamento: ' + e.message); }
+    }
+    // Clique no card "Saldo do Orçamento" ou no gráfico "A Pagar x Orçamento" -> comparativo completo do mês.
+    let chartComparativo;
+    async function detalheComparativoMes(mesIso) {
+      const anoMes = String(mesIso).slice(0, 7);
+      const nomeMes = labelMes(mesIso);
+      try {
+        const [itensOrc, parcelas] = await Promise.all([
+          api('/orcamento?mes=' + anoMes),
+          api('/dashboard/parcelas?status=Pendente&mes=' + anoMes),
+        ]);
+        const totalOrc = itensOrc.reduce((s, it) => s + Number(it.valor||0), 0);
+        const totalGastos = parcelas.reduce((s, l) => s + Number(l.valor||0), 0);
+        const saldo = totalOrc - totalGastos;
+        const corSaldo = saldo < 0 ? 'var(--vermelho)' : 'var(--verde)';
+
+        document.getElementById('tituloComparativo').textContent = 'Comparativo — Orçamento x Gastos (' + nomeMes + ')';
+        document.getElementById('obsComparativo').innerHTML =
+          '<b>Orçamento:</b> ' + brl(totalOrc) + ' &nbsp;|&nbsp; <b>Gastos:</b> ' + brl(totalGastos) +
+          ' &nbsp;|&nbsp; <b>Saldo:</b> <span style="color:' + corSaldo + ';font-weight:700;">' + brl(saldo) + '</span>';
+
+        const ctx = document.getElementById('graficoComparativo');
+        if (chartComparativo) chartComparativo.destroy();
+        chartComparativo = new Chart(ctx, {
+          type:'bar',
+          plugins: [ChartDataLabels],
+          data:{ labels:['Comparativo'], datasets:[
+            { label:'Orçamento', data:[totalOrc], backgroundColor:'#6AA84F',
+              datalabels:{ anchor:'end', align:'top', color:'#2d6a2d', font:{size:12,weight:'700'}, formatter:(v)=>brl(v) } },
+            { label:'Gastos', data:[totalGastos], backgroundColor:'#E57373',
+              datalabels:{ anchor:'end', align:'top', color:'#a13d3d', font:{size:12,weight:'700'}, formatter:(v)=>brl(v) } },
+          ] },
+          options:{ maintainAspectRatio:false, layout:{ padding:{ top:26 } },
+            plugins:{ legend:{position:'bottom'}, tooltip:{enabled:false} },
+            scales:{ x:{grid:{display:false}}, y:{display:false,grid:{display:false}} } },
+        });
+
+        document.getElementById('corpoComparativoOrcamento').innerHTML = itensOrc.length
+          ? itensOrc.map(it => '<tr><td>' + it.descricao + '</td><td class="num">' + brl(it.valor) + '</td></tr>').join('') +
+            '<tr style="font-weight:700;background:#f0f4fa;"><td>Subtotal</td><td class="num">' + brl(totalOrc) + '</td></tr>'
+          : '<tr><td colspan="2" style="text-align:center;color:#888;">Nenhum item cadastrado (aba Orçamentos).</td></tr>';
+
+        document.getElementById('corpoComparativoGastos').innerHTML = parcelas.length
+          ? parcelas.map(l => '<tr><td>' + l.descricao + '</td><td>' + (l.cartao||'-') + '</td><td class="num">' + brl(l.valor) + '</td><td>' + formatarData(l.data_compra) + '</td><td>' + formatarData(l.data_vencimento) + '</td><td class="num">' + brl(l.saldo_aberto) + '</td></tr>').join('') +
+            '<tr style="font-weight:700;background:#f0f4fa;"><td colspan="2">Subtotal</td><td class="num">' + brl(totalGastos) + '</td><td colspan="3"></td></tr>'
+          : '<tr><td colspan="6" style="text-align:center;color:#888;">Nenhuma parcela pendente neste mês.</td></tr>';
+
+        abrirModal('overlayComparativo');
+      } catch (e) { alert('Erro ao carregar comparativo: ' + e.message); }
+    }
+    // Clique numa barra do gráfico por Cartão -> lista as compras em aberto daquele cartão.
+    function detalheCartao(nomeCartao) {
+      const linhas = ultimaListaCompras.filter(c => c.cartao === nomeCartao && Number(c.saldo_aberto) > 0);
+      const header = '<th>Descrição</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Data da Compra</th><th class="num">Valor Total</th><th class="num">Saldo Aberto</th><th>Situação</th>';
+      const linhasObj = linhas.map(c => ({
+        descricao: c.descricao,
+        html: '<tr><td>' + c.descricao + '</td><td>' + (c.categoria||'-') + '</td>' +
+          '<td>' + (c.qtd_parcelas_pagas || 0) + '/' + c.qtd_parcelas + '</td>' +
+          '<td>' + (c.qtd_parcelas_pagas || 0) + '</td><td>' + formatarData(c.data_compra) + '</td>' +
+          '<td class="num">' + brl(c.valor_total) + '</td><td class="num">' + brl(c.saldo_aberto) + '</td>' +
+          '<td>' + (c.situacao === 'Quitada' ? '<span class="badge quitada">Quitada</span>' : '<span class="badge aberto">Em Aberto</span>') + '</td></tr>',
+      }));
+      const totalValor = linhas.reduce((s,c) => s + Number(c.valor_total||0), 0);
+      const totalSaldo = linhas.reduce((s,c) => s + Number(c.saldo_aberto||0), 0);
+      const totalHtml = '<tr style="font-weight:700;background:#f0f4fa;"><td colspan="5">TOTAL</td>' +
+        '<td class="num">' + brl(totalValor) + '</td><td class="num">' + brl(totalSaldo) + '</td><td></td></tr>';
+      abrirDetalheModal('Compras em aberto — ' + nomeCartao, 'Detalhamento do cartão selecionado no gráfico.', header, linhasObj, totalHtml, 8);
+    }
+    // Clique numa fatia/barra do gráfico comparativo (ou no card "Total a Pagar") -> lista as parcelas daquele status.
+    async function detalheStatus(status) {
+      try {
+        const linhas = await api('/dashboard/parcelas?status=' + status);
+        const header = '<th>Descrição</th><th>Cartão</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th class="num">Valor</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Saldo Aberto</th>';
+        const linhasObj = linhas.map(l => ({
+          descricao: l.descricao,
+          html: '<tr><td>' + l.descricao + '</td><td>' + (l.cartao||'-') + '</td>' +
+            '<td>' + l.num_parcela + '/' + l.qtd_parcelas + '</td>' +
+            '<td>' + (l.qtd_parcelas_pagas || 0) + '</td>' +
+            '<td class="num">' + brl(l.valor) + '</td><td>' + formatarData(l.data_compra) + '</td><td>' + formatarData(l.data_vencimento) + '</td>' +
+            '<td class="num">' + brl(l.saldo_aberto) + '</td></tr>',
+        }));
+        const total = linhas.reduce((s,l) => s + Number(l.valor||0), 0);
+        const titulo = status === 'Pago' ? 'Parcelas já pagas' : 'Parcelas em aberto (a pagar)';
+        abrirDetalheModal(titulo, 'Detalhamento selecionado no gráfico.', header, linhasObj, linhaTotal(4, total, 3), 8);
+      } catch (e) { alert('Erro ao carregar detalhamento: ' + e.message); }
+    }
+
+    function renderResumo(dados) {
+      const tbody = document.querySelector('#tabelaResumo tbody');
+      if (!dados.length) { tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#888;">Nenhuma compra cadastrada.</td></tr>'; return; }
+      tbody.innerHTML = dados.map(d => {
+        const pct = Math.round((d.pct_concluido || 0) * 100);
+        const badge = d.situacao === 'Quitada' ? '<span class="badge quitada">Quitada</span>' : '<span class="badge aberto">Em Aberto</span>';
+        return '<tr><td>' + d.descricao + '</td><td>' + (d.cartao||'-') + '</td><td>' + (d.categoria||'-') + '</td>' +
+          '<td>' + (d.qtd_parcelas_pagas || 0) + '/' + d.qtd_parcelas + '</td>' +
+          '<td class="num">' + brl(d.valor_total) + '</td><td class="num">' + brl(d.total_pago) + '</td><td class="num">' + brl(d.saldo_aberto) + '</td>' +
+          '<td><div style="display:flex;align-items:center;gap:8px;"><div class="barra"><div style="width:' + pct + '%"></div></div><span>' + pct + '%</span></div></td>' +
+          '<td>' + badge + '</td></tr>';
+      }).join('');
+      const totalValor = dados.reduce((s,d) => s + Number(d.valor_total||0), 0);
+      const totalPago = dados.reduce((s,d) => s + Number(d.total_pago||0), 0);
+      const totalSaldo = dados.reduce((s,d) => s + Number(d.saldo_aberto||0), 0);
+      tbody.innerHTML += '<tr style="font-weight:700;background:#f0f4fa;">' +
+        '<td colspan="4">TOTAL</td>' +
+        '<td class="num">' + brl(totalValor) + '</td><td class="num">' + brl(totalPago) + '</td><td class="num">' + brl(totalSaldo) + '</td>' +
+        '<td></td><td></td></tr>';
+    }
+    function renderTabelaCompras(lista) {
+      lista = (lista || ultimaListaCompras).slice().sort((a, b) => a.descricao.localeCompare(b.descricao, 'pt-BR'));
+      const tbody = document.querySelector('#tabelaCompras tbody');
+      if (!lista.length) { tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#888;">Nenhum lançamento. Use os botões acima.</td></tr>'; return; }
+      tbody.innerHTML = lista.map(d => {
+        const situ = d.situacao === 'Quitada' ? '<span class="badge quitada">Quitada</span>' : '<span class="badge aberto">Em Aberto</span>';
+        const avista = Number(d.qtd_parcelas) === 1;
+        const tipo = avista ? '<span class="badge avista">À vista</span>' : '<span class="badge parcelada">Parcelada</span>';
+        const parc = avista ? '1x' : (d.qtd_parcelas + 'x');
+        const pagas = (d.qtd_parcelas_pagas || 0);
+        const nome = (d.descricao || '').replace(/'/g, "\\'");
+        return '<tr><td>' + d.descricao + '</td><td>' + tipo + '</td><td>' + (d.cartao||'-') + '</td><td>' + (d.categoria||'-') + '</td>' +
+          '<td class="num">' + brl(d.valor_total) + '</td><td class="num">' + parc + '</td>' +
+          '<td class="num">' + pagas + '</td>' +
+          '<td class="num">' + brl(d.saldo_aberto) + '</td><td>' + situ + '</td>' +
+          '<td><button class="link-acao link-parcelas" onclick="abrirParcelas(' + d.compra_id + ", '" + nome + "')" + '">Parcelas</button>' +
+          '<button class="link-acao link-editar" onclick="editarLancamento(' + d.compra_id + ')">Editar</button>' +
+          '<button class="link-acao link-excluir" onclick="excluirCompra(' + d.compra_id + ", '" + nome + "')" + '">Excluir</button></td></tr>';
+      }).join('');
+      const totalValor = lista.reduce((s,d) => s + Number(d.valor_total||0), 0);
+      const totalSaldo = lista.reduce((s,d) => s + Number(d.saldo_aberto||0), 0);
+      tbody.innerHTML += '<tr style="font-weight:700;background:#f0f4fa;">' +
+        '<td colspan="4">TOTAL</td>' +
+        '<td class="num">' + brl(totalValor) + '</td><td></td><td></td>' +
+        '<td class="num">' + brl(totalSaldo) + '</td><td></td><td></td></tr>';
+    }
+
+    function abrirModal(id) { document.getElementById(id).classList.add('aberto'); }
+    function fecharModal(id) { document.getElementById(id).classList.remove('aberto'); }
+
+    // ---- LANÇAMENTO DE DESPESA (à vista = 1 parcela, ou parcelado = 2+) ----
+    function abrirModalCompra() {
+      compraEditandoId = null;
+      document.getElementById('tituloModalCompra').textContent = 'Novo Lançamento de Despesa';
+      document.getElementById('avisoCompra').style.display = 'none';
+      document.getElementById('c_descricao').value = '';
+      document.getElementById('c_cartao').selectedIndex = 0;
+      document.getElementById('c_categoria').value = '';
+      document.getElementById('c_valor').value = '';
+      document.getElementById('c_parcelas').value = 1;
+      document.getElementById('c_data').value = hojeLocal();
+      document.getElementById('c_obs').value = '';
+      atualizarAvisoVencimento('c');
+      abrirModal('overlayCompra');
+    }
+    async function salvarCompra() {
+      const valor = parseValor(document.getElementById('c_valor').value);
+      const corpo = {
+        descricao: document.getElementById('c_descricao').value.trim(),
+        cartao_id: Number(document.getElementById('c_cartao').value),
+        categoria_id: document.getElementById('c_categoria').value ? Number(document.getElementById('c_categoria').value) : null,
+        valor_total: valor,
+        qtd_parcelas: Number(document.getElementById('c_parcelas').value),
+        data_primeira_parcela: document.getElementById('c_data').value,
+        observacoes: document.getElementById('c_obs').value.trim() || null,
+      };
+      if (!corpo.descricao || !corpo.cartao_id || !valor || valor <= 0 || !corpo.qtd_parcelas || corpo.qtd_parcelas < 1 || !corpo.data_primeira_parcela) {
+        alert('Preencha os campos obrigatórios (marcados com *) corretamente.'); return;
+      }
+      const b = document.getElementById('btnSalvarCompra'); b.disabled = true; b.textContent = 'Salvando...';
+      try {
+        if (compraEditandoId) await api('/compras/' + compraEditandoId, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(corpo) });
+        else await api('/compras', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(corpo) });
+        fecharModal('overlayCompra'); await carregarTudo();
+      } catch (e) { alert('Erro ao salvar: ' + e.message); }
+      finally { b.disabled = false; b.textContent = 'Salvar'; }
+    }
+
+    // ---- EDITAR (um único formulário, serve tanto para à vista quanto parcelado) ----
+    async function editarLancamento(id) {
+      try {
+        const c = await api('/compras/' + id);
+        compraEditandoId = id;
+        document.getElementById('tituloModalCompra').textContent = 'Editar Lançamento de Despesa';
+        document.getElementById('avisoCompra').style.display = 'block';
+        document.getElementById('c_descricao').value = c.descricao || '';
+        document.getElementById('c_cartao').value = c.cartao_id;
+        document.getElementById('c_categoria').value = c.categoria_id || '';
+        document.getElementById('c_valor').value = paraCampoValor(c.valor_total);
+        document.getElementById('c_parcelas').value = c.qtd_parcelas;
+        document.getElementById('c_data').value = String(c.data_compra).slice(0,10);
+        document.getElementById('c_obs').value = c.observacoes || '';
+        atualizarAvisoVencimento('c');
+        abrirModal('overlayCompra');
+      } catch (e) { alert('Não consegui abrir o lançamento: ' + e.message); }
+    }
+    async function excluirCompra(id, nome) {
+      if (!confirm('Excluir "' + nome + '" e suas parcelas?\nEsta ação não pode ser desfeita.')) return;
+      try { await api('/compras/' + id, { method:'DELETE' }); await carregarTudo(); }
+      catch (e) { alert('Erro ao excluir: ' + e.message); }
+    }
+
+    // ---- PARCELAS: marcar como paga / desfazer / corrigir datas ----
+    const formatarData = (iso) => { const p = String(iso).slice(0,10).split('-'); return p[2] + '/' + p[1] + '/' + p[0]; };
+    let parcelasCompraIdAtual = null;
+
+    async function abrirParcelas(compraId, nomeCompra) {
+      parcelasCompraIdAtual = compraId;
+      document.getElementById('tituloModalParcelas').textContent = 'Parcelas — ' + nomeCompra;
+      document.getElementById('obsModalParcelas').textContent = 'Clique em "Marcar Paga" quando pagar, ou "Desfazer" se marcou por engano. As datas podem ser corrigidas diretamente — a correção salva sozinha.';
+      abrirModal('overlayParcelas');
+      await recarregarParcelasModal();
+    }
+    async function recarregarParcelasModal() {
+      const tbody = document.getElementById('corpoParcelas');
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#888;">Carregando...</td></tr>';
+      try {
+        const c = await api('/compras/' + parcelasCompraIdAtual);
+        document.getElementById('parcelas_data_compra').value = String(c.data_compra).slice(0,10);
+        const hoje = hojeLocal();
+        tbody.innerHTML = c.parcelas.map(p => {
+          const vencida = p.status === 'Pendente' && String(p.data_vencimento).slice(0,10) < hoje;
+          const statusTxt = p.status === 'Pago'
+            ? '<span class="badge quitada">Paga em ' + formatarData(p.data_pagamento) + '</span>'
+            : (vencida ? '<span class="badge aberto" style="background:#fdecea;color:#922;">Vencida</span>' : '<span class="badge aberto">Pendente</span>');
+          const acao = p.status === 'Pago'
+            ? '<button class="btn-desfazer" onclick="desfazerPagamento(' + p.id + ')">Desfazer</button>'
+            : '<button class="btn-pagar" onclick="marcarPaga(' + p.id + ')">Marcar Paga</button>';
+          return '<tr' + (vencida ? ' class="linha-vencida"' : '') + '>' +
+            '<td>' + p.num_parcela + '</td><td class="num">' + brl(p.valor) + '</td>' +
+            '<td><input type="date" value="' + String(p.data_vencimento).slice(0,10) + '" ' +
+              'onchange="salvarVencimentoParcela(' + p.id + ', this.value)" ' +
+              'style="padding:5px 7px;border:1px solid var(--cinza-borda);border-radius:6px;font-size:13px;width:140px;" /></td>' +
+            '<td>' + statusTxt + '</td><td>' + acao + '</td></tr>';
+        }).join('');
+      } catch (e) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#922;">Erro ao carregar: ' + e.message + '</td></tr>'; }
+    }
+    async function salvarDataCompra() {
+      const valor = document.getElementById('parcelas_data_compra').value;
+      if (!valor) return;
+      try {
+        await api('/compras/' + parcelasCompraIdAtual + '/data-compra', { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ data_compra: valor }) });
+        await carregarTudo();
+      } catch (e) { alert('Erro ao salvar Data da Compra: ' + e.message); }
+    }
+    async function salvarVencimentoParcela(parcelaId, novaData) {
+      if (!novaData) return;
+      try {
+        await api('/compras/parcelas/' + parcelaId + '/vencimento', { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ data_vencimento: novaData }) });
+      } catch (e) { alert('Erro ao salvar Data de Vencimento: ' + e.message); return; }
+      await recarregarParcelasModal();
+      await carregarTudo();
+    }
+    async function marcarPaga(parcelaId) {
+      try { await api('/compras/parcelas/' + parcelaId + '/pagar', { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({}) }); }
+      catch (e) { alert('Erro: ' + e.message); return; }
+      await recarregarParcelasModal();
+      await carregarTudo();
+    }
+    async function desfazerPagamento(parcelaId) {
+      try { await api('/compras/parcelas/' + parcelaId + '/despagar', { method:'PATCH' }); }
+      catch (e) { alert('Erro: ' + e.message); return; }
+      await recarregarParcelasModal();
+      await carregarTudo();
+    }
+
+    document.querySelectorAll('.overlay').forEach(ov => ov.addEventListener('click', (e) => { if (e.target === ov) ov.classList.remove('aberto'); }));
+    // Tecla ESC fecha qualquer modal aberto (formulários e tabelas de detalhamento dos gráficos).
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      const aberto = document.querySelector('.overlay.aberto');
+      if (aberto) aberto.classList.remove('aberto');
+    });
+
+    // Botão "📂 Restaurar" — importa um arquivo .sqlite de backup, SUBSTITUINDO
+    // tudo que está salvo neste aparelho agora (por isso pede confirmação).
+    async function restaurarBackupSelecionado(evento) {
+      const arquivo = evento.target.files[0];
+      evento.target.value = ''; // permite escolher o mesmo arquivo de novo depois
+      if (!arquivo) return;
+      if (!confirm('Isso vai SUBSTITUIR todos os dados salvos neste aparelho pelos dados do arquivo "' + arquivo.name + '". Deseja continuar?')) return;
+      try {
+        await importarBackup(arquivo);
+        alert('Backup restaurado com sucesso.');
+        await carregarTudo();
+      } catch (e) { alert('Erro ao restaurar backup: ' + e.message); }
+    }
+
+    // Gruda o botão "Novo Lançamento de Despesa" logo abaixo do cabeçalho fixo,
+    // medindo a altura real do cabeçalho (evita depender de um número fixo).
+    function ajustarBotaoFixoLancamentos() {
+      const topo = document.getElementById('topoFixo');
+      const acoes = document.getElementById('acoesLancamentos');
+      if (topo && acoes) acoes.style.top = topo.offsetHeight + 'px';
+    }
+    window.addEventListener('resize', ajustarBotaoFixoLancamentos);
+    window.addEventListener('load', ajustarBotaoFixoLancamentos);
+    ajustarBotaoFixoLancamentos();
+
+    (async function iniciar() {
+      const aviso = document.getElementById('aviso');
+      try {
+        await inicializarBanco();
+      } catch (e) {
+        aviso.style.display = 'block';
+        aviso.textContent = '⚠️ Não consegui abrir o banco de dados local: ' + e.message;
+        document.getElementById('atualizadoEm').textContent = 'Erro ao iniciar';
+        return;
+      }
+      registrarServiceWorker();
+      carregarTudo();
+    })();
+  </script>
+</body>
+</html>
