@@ -205,7 +205,7 @@
         <div class="ajuda-balao" id="ajuda-resumo">Uma linha por compra, com quanto já foi pago e quanto falta. "Parcela do Mês" mostra quantas parcelas já foram pagas do total (ex.: 3/10). "Situação" fica <b>Quitada</b> quando não sobra mais nada pendente.</div>
         <div style="overflow-x:auto;">
           <table id="tabelaResumo">
-            <thead><tr><th>Descrição</th><th>Cartão</th><th>Categoria</th><th>Parcela do Mês</th><th class="num">Valor Total</th><th class="num">Valor Parcela</th><th class="num">Pago</th><th class="num">Saldo Aberto</th><th>Concluído</th><th>Situação</th></tr></thead>
+            <thead><tr><th>Descrição</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th class="num">Valor Total</th><th class="num">Valor Parcela</th><th class="num">Pago</th><th class="num">Saldo Aberto</th><th>Concluído</th><th>Situação</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -226,7 +226,7 @@
         </div>
         <div style="overflow-x:auto;">
           <table id="tabelaCompras">
-            <thead><tr><th>Descrição</th><th>Tipo</th><th>Cartão</th><th>Categoria</th><th class="num">Valor Total</th><th class="num">Valor Parcela</th><th class="num">Total de Parcelas</th><th class="num">Parcelas Pagas</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Ações</th></tr></thead>
+            <thead><tr><th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th class="num">Valor Total</th><th class="num">Valor Parcela</th><th class="num">Total de Parcelas</th><th class="num">Parcelas Pagas</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Ações</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -400,7 +400,7 @@
         <table class="tabela-parcelas">
           <thead>
           <tr class="linha-fixa-gastos-1"><th colspan="6" style="background:#fdecea;color:#a13d3d;">Gastos do Mês (parcelas a pagar)</th></tr>
-          <tr class="linha-fixa-gastos-2"><th>Descrição</th><th>Cartão</th><th class="num">Valor Parcela</th><th>Data da Compra</th><th>Vencimento</th><th class="num">Saldo Aberto</th></tr>
+          <tr class="linha-fixa-gastos-2"><th>Descrição</th><th>Despesa</th><th class="num">Valor Parcela</th><th>Data da Compra</th><th>Vencimento</th><th class="num">Saldo Aberto</th></tr>
           </thead>
           <tbody id="corpoComparativoGastos"></tbody>
         </table>
@@ -877,7 +877,7 @@
         const eParcelada = Number(c.qtd_parcelas) > 1;
         return (tipo === 'parcelada' ? eParcelada : !eParcelada) && Number(c.saldo_aberto) > 0;
       });
-      const header = '<th>Descrição</th><th>Cartão</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Data da Compra</th><th class="num">Valor Total</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th>';
+      const header = '<th>Descrição</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Data da Compra</th><th class="num">Valor Total</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th>';
       const linhasObj = linhas.map(c => ({
         descricao: c.descricao,
         html: '<tr><td>' + c.descricao + '</td><td>' + (c.cartao||'-') + '</td><td>' + (c.categoria||'-') + '</td>' +
@@ -951,7 +951,7 @@
     // Clique numa barra do gráfico por Descrição -> lista as compras com aquela descrição exata.
     function detalhePorDescricao(descricao) {
       const linhas = ultimaListaCompras.filter(c => c.descricao === descricao);
-      const header = '<th>Descrição</th><th>Tipo</th><th>Cartão</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Data da Compra</th><th class="num">Valor Total</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th>';
+      const header = '<th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Data da Compra</th><th class="num">Valor Total</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th>';
       const linhasObj = linhas.map(c => {
         const avista = Number(c.qtd_parcelas) === 1;
         const tipo = avista ? '<span class="badge avista">À vista</span>' : '<span class="badge parcelada">Parcelada</span>';
@@ -990,7 +990,7 @@
       const anoMes = String(mesIso).slice(0, 7);
       try {
         const linhas = await api('/dashboard/parcelas?status=Pendente&mes=' + anoMes);
-        const header = '<th>Descrição</th><th>Cartão</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th class="num">Valor Parcela</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Saldo Aberto</th>';
+        const header = '<th>Descrição</th><th>Despesa</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th class="num">Valor Parcela</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Saldo Aberto</th>';
         const linhasObj = linhas.map(l => ({
           descricao: l.descricao,
           html: '<tr><td>' + l.descricao + '</td><td>' + (l.cartao||'-') + '</td>' +
@@ -1088,7 +1088,7 @@
     async function detalheStatus(status) {
       try {
         const linhas = await api('/dashboard/parcelas?status=' + status);
-        const header = '<th>Descrição</th><th>Cartão</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th class="num">Valor Parcela</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Saldo Aberto</th>';
+        const header = '<th>Descrição</th><th>Despesa</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th class="num">Valor Parcela</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Saldo Aberto</th>';
         const linhasObj = linhas.map(l => ({
           descricao: l.descricao,
           html: '<tr><td>' + l.descricao + '</td><td>' + (l.cartao||'-') + '</td>' +
