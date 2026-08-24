@@ -2,7 +2,7 @@
 // Estratégia simples: cache-first pra tudo (o app não depende de nenhuma
 // rede depois de carregado — todo dado é local, todo script é vendorizado).
 // Bump no nome do CACHE quando os arquivos abaixo mudarem de verdade.
-const CACHE = 'financeiro-v5';
+const CACHE = 'financeiro-v6';
 const ARQUIVOS = [
   './',
   './index.html',

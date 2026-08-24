@@ -83,7 +83,8 @@
     .linha-vencida { color:var(--vermelho); font-weight:600; }
     .overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:150; align-items:flex-start; justify-content:center; padding:40px 16px; overflow-y:auto; }
     .overlay.aberto { display:flex; }
-    .modal { background:#fff; border-radius:12px; width:100%; max-width:520px; padding:24px 26px; box-shadow:0 10px 40px rgba(0,0,0,.2); position:relative; }
+    .modal { background:#fff; border-radius:12px; width:100%; max-width:520px; padding:24px 26px; box-shadow:0 10px 40px rgba(0,0,0,.2); position:relative; min-width:0; }
+    .tabela-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; overscroll-behavior-x:contain; }
     .modal h3 { margin:0 0 6px; color:var(--azul); font-size:18px; }
     .modal .obs-topo { font-size:12px; color:#7a8699; margin-bottom:18px; }
     .modal-x { position:absolute; top:14px; right:16px; background:none; border:none; font-size:22px; line-height:1; color:#9aa5b5; cursor:pointer; padding:4px 8px; border-radius:6px; }
@@ -176,7 +177,7 @@
           <div class="chart-wrap"><canvas id="graficoCartao"></canvas></div>
         </div>
         <div class="card">
-          <div class="titulo-com-ajuda"><h2 style="margin:0;">A Pagar x Orçamento</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-pagoaberto', this)">?</button></div>
+          <div class="titulo-com-ajuda"><h2 style="margin:0;" id="tituloPagoAberto">Total a Pagar das Despesas x Orçamento do Mês</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-pagoaberto', this)">?</button></div>
           <div class="ajuda-balao" id="ajuda-pagoaberto">Compara, num relance, o total pendente com o orçamento lançado pro próximo mês.</div>
           <div class="chart-wrap"><canvas id="graficoPagoAberto"></canvas></div>
         </div>
@@ -387,14 +388,14 @@
       <h3 id="tituloComparativo">Comparativo — Orçamento x Gastos</h3>
       <div class="obs-topo" id="obsComparativo"></div>
       <div class="chart-wrap" style="height:170px;margin-bottom:18px;"><canvas id="graficoComparativo"></canvas></div>
-      <div style="overflow-x:auto;max-height:220px;overflow-y:auto;margin-bottom:16px;">
+      <div class="tabela-scroll" style="max-height:220px;overflow-y:auto;margin-bottom:16px;">
         <table class="tabela-parcelas">
           <thead><tr><th colspan="2" style="background:#e8f5e9;color:#2d6a2d;">Itens de Orçamento</th></tr>
           <tr><th>Descrição</th><th class="num">Valor</th></tr></thead>
           <tbody id="corpoComparativoOrcamento"></tbody>
         </table>
       </div>
-      <div style="overflow-x:auto;max-height:260px;overflow-y:auto;">
+      <div class="tabela-scroll" style="max-height:260px;overflow-y:auto;">
         <table class="tabela-parcelas">
           <thead><tr><th colspan="6" style="background:#fdecea;color:#a13d3d;">Gastos do Mês (parcelas a pagar)</th></tr>
           <tr><th>Descrição</th><th>Cartão</th><th class="num">Valor</th><th>Data da Compra</th><th>Vencimento</th><th class="num">Saldo Aberto</th></tr></thead>
@@ -410,6 +411,7 @@
   <script>
     const brl = (v) => new Intl.NumberFormat('pt-BR', { style:'currency', currency:'BRL' }).format(v || 0);
     const nomesMes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    const nomesMesCompleto = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
     const labelMes = (iso) => { const p = String(iso).slice(0,7).split('-'); return nomesMes[Number(p[1]) - 1] + '/' + p[0]; };
     const hojeLocal = () => { const d = new Date(); const off = d.getTimezoneOffset(); return new Date(d.getTime() - off*60000).toISOString().slice(0,10); };
     const parseValor = (s) => { if (typeof s === 'number') return s; s = String(s).trim().replace(/\s/g,''); if (!s) return NaN; if (s.indexOf(',') > -1) s = s.replace(/\./g,'').replace(',', '.'); return Number(s); };
@@ -777,6 +779,8 @@
       const proxMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 1);
       const proxMesIso = proxMes.toISOString().slice(0, 10);
       const orcamentoProxMes = orcamentoPorMes[proxMes.toISOString().slice(0,7)] || 0;
+      const tituloPagoAberto = document.getElementById('tituloPagoAberto');
+      if (tituloPagoAberto) tituloPagoAberto.textContent = 'Total a Pagar das Despesas x Orçamento do Mês ' + nomesMesCompleto[proxMes.getMonth()] + '/' + proxMes.getFullYear();
       const ctx = document.getElementById('graficoPagoAberto');
       if (chartPagoAberto) chartPagoAberto.destroy();
       chartPagoAberto = new Chart(ctx, {
