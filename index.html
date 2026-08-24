@@ -26,11 +26,11 @@
     header { background:var(--azul); color:#fff; padding:16px 28px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; }
     #topoFixo { position:sticky; top:0; z-index:100; box-shadow:0 2px 6px rgba(0,0,0,.15); }
     header h1 { font-size:20px; margin:0; font-weight:600; }
-    header .sub { font-size:12px; opacity:.8; margin-top:2px; }
-    #btnAtualizar { background:#fff; color:var(--azul); border:none; padding:9px 16px; border-radius:6px; font-weight:600; cursor:pointer; font-size:13px; }
-    #btnAtualizar:hover { background:#eaf1fb; }
-    #btnBackup, #btnRestaurar { background:transparent; color:#fff; border:1px solid rgba(255,255,255,.5); padding:9px 16px; border-radius:6px; font-weight:600; cursor:pointer; font-size:13px; }
-    #btnBackup:hover, #btnRestaurar:hover { background:rgba(255,255,255,.15); }
+    header .sub { font-size:12px; opacity:.8; margin-top:2px; display:flex; align-items:center; gap:6px; }
+    #btnBackup, #btnRestaurar { background:#fff; color:var(--azul); border:none; padding:9px 16px; border-radius:6px; font-weight:600; cursor:pointer; font-size:13px; }
+    #btnBackup:hover, #btnRestaurar:hover { background:#eaf1fb; }
+    #btnAtualizar { background:transparent; color:#fff; opacity:.75; border:none; padding:2px 5px; border-radius:5px; cursor:pointer; font-size:12px; }
+    #btnAtualizar:hover { opacity:1; background:rgba(255,255,255,.15); }
     .abas { display:flex; gap:4px; background:var(--azul); padding:0 28px; overflow-x:auto; -webkit-overflow-scrolling:touch; }
     .aba { background:transparent; color:#cfe0f5; border:none; padding:12px 20px; cursor:pointer; font-size:14px; font-weight:600; border-bottom:3px solid transparent; white-space:nowrap; flex-shrink:0; }
     .aba.ativa { color:#fff; border-bottom-color:#fff; } .aba:hover { color:#fff; }
@@ -116,9 +116,8 @@
   </div>
   <div id="topoFixo">
   <header>
-    <div><h1>💳 CONTROLE FINANCEIRO</h1><div class="sub" id="atualizadoEm">Carregando...</div></div>
+    <div><h1>💳 CONTROLE FINANCEIRO</h1><div class="sub"><span id="atualizadoEm">Carregando...</span><button id="btnAtualizar" onclick="carregarTudo()" title="Atualizar a tela">🔄</button></div></div>
     <div style="display:flex;gap:8px;align-items:center;">
-      <button id="btnAtualizar" onclick="carregarTudo()">🔄 Atualizar</button>
       <button id="btnBackup" onclick="exportarBackup()">💾 Backup</button>
       <button id="btnRestaurar" onclick="document.getElementById('inputRestaurar').click()">📂 Restaurar</button>
       <input type="file" id="inputRestaurar" accept=".sqlite,.db" style="display:none;" onchange="restaurarBackupSelecionado(event)" />
