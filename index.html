@@ -205,7 +205,7 @@
         <div class="ajuda-balao" id="ajuda-resumo">Uma linha por compra, com quanto já foi pago e quanto falta. "Parcela do Mês" mostra quantas parcelas já foram pagas do total (ex.: 3/10). "Situação" fica <b>Quitada</b> quando não sobra mais nada pendente.</div>
         <div style="overflow-x:auto;">
           <table id="tabelaResumo">
-            <thead><tr><th>Descrição</th><th>Cartão</th><th>Categoria</th><th>Parcela do Mês</th><th class="num">Valor Total</th><th class="num">Pago</th><th class="num">Saldo Aberto</th><th>Concluído</th><th>Situação</th></tr></thead>
+            <thead><tr><th>Descrição</th><th>Cartão</th><th>Categoria</th><th>Parcela do Mês</th><th class="num">Valor Total</th><th class="num">Valor Parcela</th><th class="num">Pago</th><th class="num">Saldo Aberto</th><th>Concluído</th><th>Situação</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -226,7 +226,7 @@
         </div>
         <div style="overflow-x:auto;">
           <table id="tabelaCompras">
-            <thead><tr><th>Descrição</th><th>Tipo</th><th>Cartão</th><th>Categoria</th><th class="num">Valor Total</th><th class="num">Total de Parcelas</th><th class="num">Parcelas Pagas</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Ações</th></tr></thead>
+            <thead><tr><th>Descrição</th><th>Tipo</th><th>Cartão</th><th>Categoria</th><th class="num">Valor Total</th><th class="num">Valor Parcela</th><th class="num">Total de Parcelas</th><th class="num">Parcelas Pagas</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Ações</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -354,7 +354,7 @@
       </div>
       <div style="overflow-x:auto;">
         <table class="tabela-parcelas">
-          <thead><tr><th>Nº</th><th class="num">Valor</th><th>Data de Vencimento</th><th>Status</th><th>Ação</th></tr></thead>
+          <thead><tr><th>Nº</th><th class="num">Valor Parcela</th><th>Data de Vencimento</th><th>Status</th><th>Ação</th></tr></thead>
           <tbody id="corpoParcelas"></tbody>
         </table>
       </div>
@@ -400,7 +400,7 @@
         <table class="tabela-parcelas">
           <thead>
           <tr class="linha-fixa-gastos-1"><th colspan="6" style="background:#fdecea;color:#a13d3d;">Gastos do Mês (parcelas a pagar)</th></tr>
-          <tr class="linha-fixa-gastos-2"><th>Descrição</th><th>Cartão</th><th class="num">Valor</th><th>Data da Compra</th><th>Vencimento</th><th class="num">Saldo Aberto</th></tr>
+          <tr class="linha-fixa-gastos-2"><th>Descrição</th><th>Cartão</th><th class="num">Valor Parcela</th><th>Data da Compra</th><th>Vencimento</th><th class="num">Saldo Aberto</th></tr>
           </thead>
           <tbody id="corpoComparativoGastos"></tbody>
         </table>
@@ -413,6 +413,9 @@
 
   <script>
     const brl = (v) => new Intl.NumberFormat('pt-BR', { style:'currency', currency:'BRL' }).format(v || 0);
+    // Valor de cada parcela de uma compra (valor_total / qtd_parcelas) — usado nas tabelas
+    // que listam compras inteiras (não uma parcela específica de um mês).
+    const valorParcela = (c) => (Number(c.qtd_parcelas) > 0 ? Number(c.valor_total || 0) / Number(c.qtd_parcelas) : Number(c.valor_total || 0));
     const nomesMes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
     const nomesMesCompleto = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
     const labelMes = (iso) => { const p = String(iso).slice(0,7).split('-'); return nomesMes[Number(p[1]) - 1] + '/' + p[0]; };
@@ -874,21 +877,21 @@
         const eParcelada = Number(c.qtd_parcelas) > 1;
         return (tipo === 'parcelada' ? eParcelada : !eParcelada) && Number(c.saldo_aberto) > 0;
       });
-      const header = '<th>Descrição</th><th>Cartão</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Data da Compra</th><th class="num">Valor Total</th><th class="num">Saldo Aberto</th><th>Situação</th>';
+      const header = '<th>Descrição</th><th>Cartão</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Data da Compra</th><th class="num">Valor Total</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th>';
       const linhasObj = linhas.map(c => ({
         descricao: c.descricao,
         html: '<tr><td>' + c.descricao + '</td><td>' + (c.cartao||'-') + '</td><td>' + (c.categoria||'-') + '</td>' +
           '<td>' + (c.qtd_parcelas_pagas||0) + '/' + c.qtd_parcelas + '</td>' +
           '<td>' + (c.qtd_parcelas_pagas||0) + '</td><td>' + formatarData(c.data_compra) + '</td>' +
-          '<td class="num">' + brl(c.valor_total) + '</td><td class="num">' + brl(c.saldo_aberto) + '</td>' +
+          '<td class="num">' + brl(c.valor_total) + '</td><td class="num">' + brl(valorParcela(c)) + '</td><td class="num">' + brl(c.saldo_aberto) + '</td>' +
           '<td>' + (c.situacao === 'Quitada' ? '<span class="badge quitada">Quitada</span>' : '<span class="badge aberto">Em Aberto</span>') + '</td></tr>',
       }));
       const totalValor = linhas.reduce((s,c) => s + Number(c.valor_total||0), 0);
       const totalSaldo = linhas.reduce((s,c) => s + Number(c.saldo_aberto||0), 0);
       const totalHtml = '<tr style="font-weight:700;background:#f0f4fa;"><td colspan="6">TOTAL</td>' +
-        '<td class="num">' + brl(totalValor) + '</td><td class="num">' + brl(totalSaldo) + '</td><td></td></tr>';
+        '<td class="num">' + brl(totalValor) + '</td><td></td><td class="num">' + brl(totalSaldo) + '</td><td></td></tr>';
       const titulo = tipo === 'parcelada' ? 'Compras Parceladas — saldo em aberto' : 'Compras À Vista — saldo em aberto';
-      abrirDetalheModal(titulo, 'Detalhamento do tipo selecionado no gráfico.', header, linhasObj, totalHtml, 9);
+      abrirDetalheModal(titulo, 'Detalhamento do tipo selecionado no gráfico.', header, linhasObj, totalHtml, 10);
     }
 
     // Gráfico "Totais de Compras por Descrição" — agrupa e soma o Valor Total por Descrição.
@@ -948,21 +951,21 @@
     // Clique numa barra do gráfico por Descrição -> lista as compras com aquela descrição exata.
     function detalhePorDescricao(descricao) {
       const linhas = ultimaListaCompras.filter(c => c.descricao === descricao);
-      const header = '<th>Descrição</th><th>Tipo</th><th>Cartão</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Data da Compra</th><th class="num">Valor Total</th><th class="num">Saldo Aberto</th><th>Situação</th>';
+      const header = '<th>Descrição</th><th>Tipo</th><th>Cartão</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Data da Compra</th><th class="num">Valor Total</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th>';
       const linhasObj = linhas.map(c => {
         const avista = Number(c.qtd_parcelas) === 1;
         const tipo = avista ? '<span class="badge avista">À vista</span>' : '<span class="badge parcelada">Parcelada</span>';
         return { descricao: c.descricao,
           html: '<tr><td>' + c.descricao + '</td><td>' + tipo + '</td><td>' + (c.cartao||'-') + '</td><td>' + (c.categoria||'-') + '</td>' +
             '<td>' + (c.qtd_parcelas_pagas||0) + '/' + c.qtd_parcelas + '</td><td>' + (c.qtd_parcelas_pagas||0) + '</td><td>' + formatarData(c.data_compra) + '</td>' +
-            '<td class="num">' + brl(c.valor_total) + '</td><td class="num">' + brl(c.saldo_aberto) + '</td>' +
+            '<td class="num">' + brl(c.valor_total) + '</td><td class="num">' + brl(valorParcela(c)) + '</td><td class="num">' + brl(c.saldo_aberto) + '</td>' +
             '<td>' + (c.situacao === 'Quitada' ? '<span class="badge quitada">Quitada</span>' : '<span class="badge aberto">Em Aberto</span>') + '</td></tr>' };
       });
       const totalValor = linhas.reduce((s,c) => s + Number(c.valor_total||0), 0);
       const totalSaldo = linhas.reduce((s,c) => s + Number(c.saldo_aberto||0), 0);
       const totalHtml = '<tr style="font-weight:700;background:#f0f4fa;"><td colspan="7">TOTAL</td>' +
-        '<td class="num">' + brl(totalValor) + '</td><td class="num">' + brl(totalSaldo) + '</td><td></td></tr>';
-      abrirDetalheModal('Compras — "' + descricao + '"', 'Detalhamento da descrição selecionada no gráfico.', header, linhasObj, totalHtml, 10);
+        '<td class="num">' + brl(totalValor) + '</td><td></td><td class="num">' + brl(totalSaldo) + '</td><td></td></tr>';
+      abrirDetalheModal('Compras — "' + descricao + '"', 'Detalhamento da descrição selecionada no gráfico.', header, linhasObj, totalHtml, 11);
     }
 
     // ---- DETALHAMENTO (abre ao clicar numa barra/fatia dos gráficos ou nos cards) ----
@@ -987,7 +990,7 @@
       const anoMes = String(mesIso).slice(0, 7);
       try {
         const linhas = await api('/dashboard/parcelas?status=Pendente&mes=' + anoMes);
-        const header = '<th>Descrição</th><th>Cartão</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th class="num">Valor</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Saldo Aberto</th>';
+        const header = '<th>Descrição</th><th>Cartão</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th class="num">Valor Parcela</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Saldo Aberto</th>';
         const linhasObj = linhas.map(l => ({
           descricao: l.descricao,
           html: '<tr><td>' + l.descricao + '</td><td>' + (l.cartao||'-') + '</td>' +
@@ -1066,26 +1069,26 @@
     // Clique numa barra do gráfico por Cartão -> lista as compras em aberto daquele cartão.
     function detalheCartao(nomeCartao) {
       const linhas = ultimaListaCompras.filter(c => c.cartao === nomeCartao && Number(c.saldo_aberto) > 0);
-      const header = '<th>Descrição</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Data da Compra</th><th class="num">Valor Total</th><th class="num">Saldo Aberto</th><th>Situação</th>';
+      const header = '<th>Descrição</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Data da Compra</th><th class="num">Valor Total</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th>';
       const linhasObj = linhas.map(c => ({
         descricao: c.descricao,
         html: '<tr><td>' + c.descricao + '</td><td>' + (c.categoria||'-') + '</td>' +
           '<td>' + (c.qtd_parcelas_pagas || 0) + '/' + c.qtd_parcelas + '</td>' +
           '<td>' + (c.qtd_parcelas_pagas || 0) + '</td><td>' + formatarData(c.data_compra) + '</td>' +
-          '<td class="num">' + brl(c.valor_total) + '</td><td class="num">' + brl(c.saldo_aberto) + '</td>' +
+          '<td class="num">' + brl(c.valor_total) + '</td><td class="num">' + brl(valorParcela(c)) + '</td><td class="num">' + brl(c.saldo_aberto) + '</td>' +
           '<td>' + (c.situacao === 'Quitada' ? '<span class="badge quitada">Quitada</span>' : '<span class="badge aberto">Em Aberto</span>') + '</td></tr>',
       }));
       const totalValor = linhas.reduce((s,c) => s + Number(c.valor_total||0), 0);
       const totalSaldo = linhas.reduce((s,c) => s + Number(c.saldo_aberto||0), 0);
       const totalHtml = '<tr style="font-weight:700;background:#f0f4fa;"><td colspan="5">TOTAL</td>' +
-        '<td class="num">' + brl(totalValor) + '</td><td class="num">' + brl(totalSaldo) + '</td><td></td></tr>';
-      abrirDetalheModal('Compras em aberto — ' + nomeCartao, 'Detalhamento do cartão selecionado no gráfico.', header, linhasObj, totalHtml, 8);
+        '<td class="num">' + brl(totalValor) + '</td><td></td><td class="num">' + brl(totalSaldo) + '</td><td></td></tr>';
+      abrirDetalheModal('Compras em aberto — ' + nomeCartao, 'Detalhamento do cartão selecionado no gráfico.', header, linhasObj, totalHtml, 9);
     }
     // Clique numa fatia/barra do gráfico comparativo (ou no card "Total a Pagar") -> lista as parcelas daquele status.
     async function detalheStatus(status) {
       try {
         const linhas = await api('/dashboard/parcelas?status=' + status);
-        const header = '<th>Descrição</th><th>Cartão</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th class="num">Valor</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Saldo Aberto</th>';
+        const header = '<th>Descrição</th><th>Cartão</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th class="num">Valor Parcela</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Saldo Aberto</th>';
         const linhasObj = linhas.map(l => ({
           descricao: l.descricao,
           html: '<tr><td>' + l.descricao + '</td><td>' + (l.cartao||'-') + '</td>' +
@@ -1102,13 +1105,14 @@
 
     function renderResumo(dados) {
       const tbody = document.querySelector('#tabelaResumo tbody');
-      if (!dados.length) { tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#888;">Nenhuma compra cadastrada.</td></tr>'; return; }
+      if (!dados.length) { tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#888;">Nenhuma compra cadastrada.</td></tr>'; return; }
       tbody.innerHTML = dados.map(d => {
         const pct = Math.round((d.pct_concluido || 0) * 100);
         const badge = d.situacao === 'Quitada' ? '<span class="badge quitada">Quitada</span>' : '<span class="badge aberto">Em Aberto</span>';
         return '<tr><td>' + d.descricao + '</td><td>' + (d.cartao||'-') + '</td><td>' + (d.categoria||'-') + '</td>' +
           '<td>' + (d.qtd_parcelas_pagas || 0) + '/' + d.qtd_parcelas + '</td>' +
-          '<td class="num">' + brl(d.valor_total) + '</td><td class="num">' + brl(d.total_pago) + '</td><td class="num">' + brl(d.saldo_aberto) + '</td>' +
+          '<td class="num">' + brl(d.valor_total) + '</td><td class="num">' + brl(valorParcela(d)) + '</td>' +
+          '<td class="num">' + brl(d.total_pago) + '</td><td class="num">' + brl(d.saldo_aberto) + '</td>' +
           '<td><div style="display:flex;align-items:center;gap:8px;"><div class="barra"><div style="width:' + pct + '%"></div></div><span>' + pct + '%</span></div></td>' +
           '<td>' + badge + '</td></tr>';
       }).join('');
@@ -1117,13 +1121,14 @@
       const totalSaldo = dados.reduce((s,d) => s + Number(d.saldo_aberto||0), 0);
       tbody.innerHTML += '<tr style="font-weight:700;background:#f0f4fa;">' +
         '<td colspan="4">TOTAL</td>' +
-        '<td class="num">' + brl(totalValor) + '</td><td class="num">' + brl(totalPago) + '</td><td class="num">' + brl(totalSaldo) + '</td>' +
+        '<td class="num">' + brl(totalValor) + '</td><td></td>' +
+        '<td class="num">' + brl(totalPago) + '</td><td class="num">' + brl(totalSaldo) + '</td>' +
         '<td></td><td></td></tr>';
     }
     function renderTabelaCompras(lista) {
       lista = (lista || ultimaListaCompras).slice().sort((a, b) => a.descricao.localeCompare(b.descricao, 'pt-BR'));
       const tbody = document.querySelector('#tabelaCompras tbody');
-      if (!lista.length) { tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#888;">Nenhum lançamento. Use os botões acima.</td></tr>'; return; }
+      if (!lista.length) { tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:#888;">Nenhum lançamento. Use os botões acima.</td></tr>'; return; }
       tbody.innerHTML = lista.map(d => {
         const situ = d.situacao === 'Quitada' ? '<span class="badge quitada">Quitada</span>' : '<span class="badge aberto">Em Aberto</span>';
         const avista = Number(d.qtd_parcelas) === 1;
@@ -1132,7 +1137,7 @@
         const pagas = (d.qtd_parcelas_pagas || 0);
         const nome = (d.descricao || '').replace(/'/g, "\\'");
         return '<tr><td>' + d.descricao + '</td><td>' + tipo + '</td><td>' + (d.cartao||'-') + '</td><td>' + (d.categoria||'-') + '</td>' +
-          '<td class="num">' + brl(d.valor_total) + '</td><td class="num">' + parc + '</td>' +
+          '<td class="num">' + brl(d.valor_total) + '</td><td class="num">' + brl(valorParcela(d)) + '</td><td class="num">' + parc + '</td>' +
           '<td class="num">' + pagas + '</td>' +
           '<td class="num">' + brl(d.saldo_aberto) + '</td><td>' + situ + '</td>' +
           '<td><button class="link-acao link-parcelas" onclick="abrirParcelas(' + d.compra_id + ", '" + nome + "')" + '">Parcelas</button>' +
@@ -1143,7 +1148,7 @@
       const totalSaldo = lista.reduce((s,d) => s + Number(d.saldo_aberto||0), 0);
       tbody.innerHTML += '<tr style="font-weight:700;background:#f0f4fa;">' +
         '<td colspan="4">TOTAL</td>' +
-        '<td class="num">' + brl(totalValor) + '</td><td></td><td></td>' +
+        '<td class="num">' + brl(totalValor) + '</td><td></td><td></td><td></td>' +
         '<td class="num">' + brl(totalSaldo) + '</td><td></td><td></td></tr>';
     }
 
