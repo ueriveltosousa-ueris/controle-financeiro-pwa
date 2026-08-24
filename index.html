@@ -172,9 +172,9 @@
           <div class="chart-wrap" style="overflow-x:auto;"><div id="projWrapInterno" style="min-width:4800px;height:300px;"><canvas id="graficoProjecao"></canvas></div></div>
         </div>
         <div class="card">
-          <div class="titulo-com-ajuda"><h2 style="margin:0;">Saldo em aberto por cartão</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-cartao', this)">?</button></div>
+          <div class="titulo-com-ajuda"><h2 style="margin:0;">Saldo em Aberto por Despesa</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-cartao', this)">?</button></div>
           <div class="ajuda-balao" id="ajuda-cartao">Quanto falta pagar em cada categoria de despesa (cartão, PIX, etc.), somando todas as parcelas pendentes. Clique numa barra pra ver as compras daquela categoria.</div>
-          <div class="chart-wrap"><canvas id="graficoCartao"></canvas></div>
+          <div class="chart-wrap" style="height:auto;max-height:500px;overflow-y:auto;"><div id="cartaoWrapInterno" style="min-height:300px;"><canvas id="graficoCartao"></canvas></div></div>
         </div>
         <div class="card">
           <div class="titulo-com-ajuda"><h2 style="margin:0;" id="tituloPagoAberto">Total a Pagar das Despesas x Orçamento do Mês</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-pagoaberto', this)">?</button></div>
@@ -416,6 +416,48 @@
     const hojeLocal = () => { const d = new Date(); const off = d.getTimezoneOffset(); return new Date(d.getTime() - off*60000).toISOString().slice(0,10); };
     const parseValor = (s) => { if (typeof s === 'number') return s; s = String(s).trim().replace(/\s/g,''); if (!s) return NaN; if (s.indexOf(',') > -1) s = s.replace(/\./g,'').replace(',', '.'); return Number(s); };
     const paraCampoValor = (n) => Number(n).toFixed(2).replace('.', ',');
+
+    // Quebra um nome longo em várias linhas (por palavra inteira, nunca no meio) medindo a
+    // largura de verdade do texto (canvas), não por número de caracteres — cada gráfico tem um
+    // espaço disponível ligeiramente diferente pro eixo, então só contar caracteres não é preciso
+    // o bastante pra garantir que nada corte. O Chart.js aceita um array de strings como rótulo
+    // e desenha cada item numa linha.
+    const _canvasMedidaTexto = document.createElement('canvas').getContext('2d');
+    function larguraTexto(texto, fonte) {
+      _canvasMedidaTexto.font = fonte;
+      return _canvasMedidaTexto.measureText(texto).width;
+    }
+    function quebrarRotuloPorLargura(texto, larguraMaxima, fonte) {
+      const palavras = String(texto).split(' ');
+      const linhas = [];
+      let linhaAtual = '';
+      for (const palavra of palavras) {
+        const tentativa = linhaAtual ? linhaAtual + ' ' + palavra : palavra;
+        if (larguraTexto(tentativa, fonte) > larguraMaxima && linhaAtual) {
+          linhas.push(linhaAtual);
+          linhaAtual = palavra;
+        } else {
+          linhaAtual = tentativa;
+        }
+      }
+      if (linhaAtual) linhas.push(linhaAtual);
+      return linhas;
+    }
+    // Só quebra em telas estreitas (celular) — em telas largas o nome já cabe numa linha só.
+    const telaEstreita = () => window.innerWidth <= 820;
+    // Estimativa inicial (por caractere) só pra o primeiro layout do Chart.js não nascer
+    // gigante — logo em seguida cada gráfico se ajusta pra largura real com ajustarQuebraGrafico().
+    const rotuloResponsivo = (texto) => telaEstreita() ? quebrarRotuloPorLargura(texto, 130, "11px 'Segoe UI', Arial, sans-serif") : texto;
+    // Depois que o Chart.js já calculou o espaço real do eixo (scales.y.width), requebra os
+    // rótulos pra caber exatamente nesse espaço, sem cortar e sem sobrar espaço à toa.
+    function ajustarQuebraGrafico(chart, textosOriginais) {
+      if (!telaEstreita() || !chart) return;
+      const fonte = (chart.options.scales.y.ticks && chart.options.scales.y.ticks.font && chart.options.scales.y.ticks.font.size || 12) + "px 'Segoe UI', Arial, sans-serif";
+      const largura = chart.scales.y.width - 6; // pequena margem de segurança
+      const novosLabels = textosOriginais.map((t) => quebrarRotuloPorLargura(t, largura, fonte));
+      chart.data.labels = novosLabels;
+      chart.update('none');
+    }
 
     // Sistema de ajuda: cada botão "?" mostra/esconde o balão de ajuda logo abaixo dele.
     function alternarAjuda(id, botao) {
@@ -759,20 +801,30 @@
     }
     function renderCartao(dados) {
       const f = dados.filter(d => (d.compromisso_total || 0) > 0);
+
+      // Altura dinâmica: no celular os nomes quebram em várias linhas (ver rotuloResponsivo),
+      // então cada linha do gráfico precisa de mais espaço vertical pra não ficar apertado/sobreposto.
+      const alturaPorLinha = telaEstreita() ? 46 : 30;
+      const alturaCalculada = Math.max(f.length * alturaPorLinha, 300);
+      const wrapInterno = document.getElementById('cartaoWrapInterno');
+      if (wrapInterno) { wrapInterno.style.height = alturaCalculada + 'px'; wrapInterno.style.minHeight = alturaCalculada + 'px'; }
+
       const ctx = document.getElementById('graficoCartao');
       if (chartCartao) chartCartao.destroy();
       chartCartao = new Chart(ctx, {
         type:'bar',
         plugins: [ChartDataLabels],
-        data:{ labels:f.map(d=>d.cartao), datasets:[{ label:'Saldo em aberto', data:f.map(d=>d.parcelado_pendente), backgroundColor:'#4A86E8',
+        data:{ labels:f.map(d=>rotuloResponsivo(d.cartao)), datasets:[{ label:'Saldo em aberto', data:f.map(d=>d.parcelado_pendente), backgroundColor:'#4A86E8',
           datalabels: { anchor:'end', align:'end', color:'#1F4E78', font:{ size:11, weight:'600' }, formatter:(v) => brl(v) } }] },
         options:{ indexAxis:'y', maintainAspectRatio:false, layout:{ padding:{ right:70 } },
           interaction: { mode:'y', intersect:false }, // clica em qualquer ponto da linha da barra, não só em cima do pedacinho pintado (barras de valor baixo ficam finas demais pra acertar)
           onClick: (evt, elems) => { if (elems.length) detalheCartao(f[elems[0].index].cartao); },
           onHover: (evt, elems) => { evt.native.target.style.cursor = elems.length ? 'pointer' : 'default'; },
           plugins:{ legend:{display:false}, tooltip:{enabled:false} },
-          scales:{ x:{display:false,grid:{display:false}}, y:{grid:{display:false}} } },
+          scales:{ x:{display:false,grid:{display:false}}, y:{grid:{display:false}, ticks:{ font:{ size:11 } }} } },
       });
+      ajustarQuebraGrafico(chartCartao, f.map(d => d.cartao));
+      requestAnimationFrame(() => { if (chartCartao) chartCartao.resize(); });
     }
     function renderPagoAberto(k) {
       const hoje = new Date();
@@ -850,15 +902,18 @@
       const entradas = Object.keys(gruposPago)
         .map(d => ({ descricao: d, pago: gruposPago[d] || 0, aberto: gruposAberto[d] || 0, total: gruposTotal[d] || 0 }))
         .sort((a, b) => b.total - a.total); // maior para o menor (total comprado)
-      const labels = entradas.map(e => e.descricao);
+      const labels = entradas.map(e => e.descricao); // nomes originais (usado pro clique -> detalhePorDescricao)
+      const labelsExibicao = entradas.map(e => rotuloResponsivo(e.descricao)); // versão exibida no gráfico (quebrada em várias linhas no celular)
       const valoresTotal = entradas.map(e => e.total);
       const valoresPago = entradas.map(e => e.pago);
       const valoresAberto = entradas.map(e => e.aberto);
 
       // Altura dinâmica: agora são 3 barras por descrição (Comprado + Pago + A Pagar), precisa de mais espaço por linha.
+      // No celular os nomes quebram em várias linhas (ver rotuloResponsivo), então cada linha do
+      // gráfico precisa de ainda mais espaço vertical pra não ficar apertado/sobreposto.
       // Uso "height" (não só "min-height") para o Chart.js medir um tamanho exato e estável — evita que ele
       // calcule a posição do clique/mouse com base numa medida desatualizada.
-      const alturaCalculada = Math.max(entradas.length * 68, 300);
+      const alturaCalculada = Math.max(entradas.length * (telaEstreita() ? 84 : 68), 300);
       const wrapInterno = document.getElementById('descWrapInterno');
       if (wrapInterno) { wrapInterno.style.height = alturaCalculada + 'px'; wrapInterno.style.minHeight = alturaCalculada + 'px'; }
 
@@ -867,7 +922,7 @@
       chartDescricao = new Chart(ctx, {
         type: 'bar',
         plugins: [ChartDataLabels],
-        data: { labels, datasets: [
+        data: { labels: labelsExibicao, datasets: [
           { label:'Total Comprado', data: valoresTotal, backgroundColor:'#4A86E8',
             datalabels: { anchor:'end', align:'end', color:'#1F4E78', font:{ size:10, weight:'600' }, formatter:(v) => v > 0 ? brl(v) : '' } },
           { label:'Total Pago', data: valoresPago, backgroundColor:'#6AA84F',
@@ -877,11 +932,12 @@
         ] },
         options: { indexAxis:'y', maintainAspectRatio:false, layout:{ padding:{ right:90 } },
           interaction: { mode:'y', intersect:false },
-          onClick: (evt, elems) => { if (elems.length) detalhePorDescricao(chartDescricao.data.labels[elems[0].index]); },
+          onClick: (evt, elems) => { if (elems.length) detalhePorDescricao(labels[elems[0].index]); },
           onHover: (evt, elems) => { evt.native.target.style.cursor = elems.length ? 'pointer' : 'default'; },
           plugins:{ legend:{position:'bottom'}, tooltip:{enabled:true, callbacks:{label:(c)=>c.dataset.label+': '+brl(c.raw)}} },
-          scales:{ x:{display:false,grid:{display:false}}, y:{grid:{display:false}} } },
+          scales:{ x:{display:false,grid:{display:false}}, y:{grid:{display:false}, ticks:{ font:{ size:11 } }} } },
       });
+      ajustarQuebraGrafico(chartDescricao, labels);
       // Força o Chart.js a recalcular o tamanho/posição depois que o layout (altura dinâmica +
       // rolagem) já assentou de verdade — evita que clique/tooltip apontem para a linha errada.
       requestAnimationFrame(() => { if (chartDescricao) chartDescricao.resize(); });
