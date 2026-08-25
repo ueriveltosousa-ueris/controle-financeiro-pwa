@@ -85,8 +85,16 @@
     .overlay.aberto { display:flex; }
     .modal { background:#fff; border-radius:12px; width:100%; max-width:520px; padding:24px 26px; box-shadow:0 10px 40px rgba(0,0,0,.2); position:relative; min-width:0; }
     .tabela-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; overscroll-behavior-x:contain; }
-    .linha-fixa-gastos-1 th { position:sticky; top:0; z-index:2; }
-    .linha-fixa-gastos-2 th { position:sticky; top:34px; z-index:1; }
+    /* Cabeçalho fixo: gruda no topo da própria caixa de rolagem (.tabela-scroll)
+       enquanto o corpo da tabela rola por baixo. Regra genérica pra qualquer
+       tabela de uma linha de cabeçalho só; a de "Gastos do Mês" (duas linhas
+       de cabeçalho empilhadas) precisa de seletor mais específico pra vencer
+       a genérica sem depender da ordem no arquivo. */
+    .tabela-scroll thead th { position:sticky; top:0; z-index:1; }
+    /* Tabelas com 2 linhas de cabeçalho empilhadas (título colorido + nomes das colunas,
+       ex.: "Gastos do Mês", "Itens de Orçamento"): a 2ª linha gruda logo abaixo da 1ª. */
+    .tabela-scroll thead tr.tabela-linha-titulo th { top:0; z-index:2; }
+    .tabela-scroll thead tr.tabela-linha-colunas th { top:34px; z-index:1; }
     .modal h3 { margin:0 0 6px; color:var(--azul); font-size:18px; }
     .modal .obs-topo { font-size:12px; color:#7a8699; margin-bottom:18px; }
     .modal-x { position:absolute; top:14px; right:16px; background:none; border:none; font-size:22px; line-height:1; color:#9aa5b5; cursor:pointer; padding:4px 8px; border-radius:6px; }
@@ -203,7 +211,7 @@
       <section class="card largo">
         <div class="titulo-com-ajuda"><h2 style="margin:0;">Resumo por compra</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-resumo', this)">?</button></div>
         <div class="ajuda-balao" id="ajuda-resumo">Uma linha por compra, com quanto já foi pago e quanto falta. "Parcela do Mês" mostra quantas parcelas já foram pagas do total (ex.: 3/10). "Situação" fica <b>Quitada</b> quando não sobra mais nada pendente.</div>
-        <div style="overflow-x:auto;">
+        <div class="tabela-scroll" style="max-height:500px;overflow-y:auto;">
           <table id="tabelaResumo">
             <thead><tr><th>Descrição</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th class="num">Valor Total</th><th class="num">Valor Parcela</th><th class="num">Pago</th><th class="num">Saldo Aberto</th><th>Concluído</th><th>Situação</th></tr></thead>
             <tbody></tbody>
@@ -224,7 +232,7 @@
           <b>Excluir</b>: apaga a compra e todas as parcelas — não tem como desfazer.<br>
           <span style="color:#8a6100;">⚠️ Mudar valor, nº de parcelas, data da compra ou categoria de despesa recria as parcelas do zero (o controle de pagamento recomeça). Só descrição/observações não mexem nas parcelas.</span>
         </div>
-        <div style="overflow-x:auto;">
+        <div class="tabela-scroll" style="max-height:500px;overflow-y:auto;">
           <table id="tabelaCompras">
             <thead><tr><th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th class="num">Valor Total</th><th class="num">Valor Parcela</th><th class="num">Total de Parcelas</th><th class="num">Parcelas Pagas</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Ações</th></tr></thead>
             <tbody></tbody>
@@ -256,7 +264,7 @@
           <button class="btn btn-verde" onclick="adicionarItemOrcamento()">➕ Adicionar</button>
         </div>
 
-        <div style="overflow-x:auto;">
+        <div class="tabela-scroll" style="max-height:400px;overflow-y:auto;">
           <table id="tabelaOrcamentoItens">
             <thead><tr><th>Descrição</th><th class="num">Valor</th><th>Ações</th></tr></thead>
             <tbody></tbody>
@@ -295,7 +303,7 @@
           <button class="btn btn-verde" onclick="criarCategoriaDespesa()">➕ Adicionar</button>
         </div>
 
-        <div style="overflow-x:auto;">
+        <div class="tabela-scroll" style="max-height:400px;overflow-y:auto;">
           <table id="tabelaCartoes">
             <thead><tr><th>Categoria</th><th>Dia de vencimento</th><th>Ações</th></tr></thead>
             <tbody></tbody>
@@ -352,7 +360,7 @@
         <label>Data da Compra <span style="font-weight:400;color:#9aa5b5;">(informativa)</span></label>
         <input type="date" id="parcelas_data_compra" onchange="salvarDataCompra()" />
       </div>
-      <div style="overflow-x:auto;">
+      <div class="tabela-scroll" style="max-height:400px;overflow-y:auto;">
         <table class="tabela-parcelas">
           <thead><tr><th>Nº</th><th class="num">Valor Parcela</th><th>Data de Vencimento</th><th>Status</th><th>Ação</th></tr></thead>
           <tbody id="corpoParcelas"></tbody>
@@ -370,7 +378,7 @@
       <button class="modal-x" onclick="fecharModal('overlayDetalhe')" aria-label="Fechar">✕</button>
       <h3 id="tituloModalDetalhe">Detalhamento</h3>
       <div class="obs-topo" id="obsModalDetalhe">Clique numa barra ou fatia do gráfico para ver o detalhamento aqui.</div>
-      <div style="overflow-x:auto;">
+      <div class="tabela-scroll" style="max-height:450px;overflow-y:auto;">
         <table class="tabela-parcelas">
           <thead><tr id="cabecalhoDetalhe"></tr></thead>
           <tbody id="corpoDetalhe"></tbody>
@@ -391,16 +399,16 @@
       <div class="chart-wrap" style="height:170px;margin-bottom:18px;"><canvas id="graficoComparativo"></canvas></div>
       <div class="tabela-scroll" style="max-height:220px;overflow-y:auto;margin-bottom:16px;">
         <table class="tabela-parcelas">
-          <thead><tr><th colspan="2" style="background:#e8f5e9;color:#2d6a2d;">Itens de Orçamento</th></tr>
-          <tr><th>Descrição</th><th class="num">Valor</th></tr></thead>
+          <thead><tr class="tabela-linha-titulo"><th colspan="2" style="background:#e8f5e9;color:#2d6a2d;">Itens de Orçamento</th></tr>
+          <tr class="tabela-linha-colunas"><th>Descrição</th><th class="num">Valor</th></tr></thead>
           <tbody id="corpoComparativoOrcamento"></tbody>
         </table>
       </div>
       <div class="tabela-scroll" style="max-height:260px;overflow-y:auto;">
         <table class="tabela-parcelas">
           <thead>
-          <tr class="linha-fixa-gastos-1"><th colspan="6" style="background:#fdecea;color:#a13d3d;">Gastos do Mês (parcelas a pagar)</th></tr>
-          <tr class="linha-fixa-gastos-2"><th>Descrição</th><th>Despesa</th><th class="num">Valor Parcela</th><th>Data da Compra</th><th>Vencimento</th><th class="num">Saldo Aberto</th></tr>
+          <tr class="tabela-linha-titulo"><th colspan="6" style="background:#fdecea;color:#a13d3d;">Gastos do Mês (parcelas a pagar)</th></tr>
+          <tr class="tabela-linha-colunas"><th>Descrição</th><th>Despesa</th><th class="num">Valor Parcela</th><th>Data da Compra</th><th>Vencimento</th><th class="num">Saldo Aberto</th></tr>
           </thead>
           <tbody id="corpoComparativoGastos"></tbody>
         </table>
