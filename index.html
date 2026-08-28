@@ -33,6 +33,10 @@
     #btnAtualizar:hover { opacity:1; background:rgba(255,255,255,.15); }
     .btn-hamburguer { background:transparent; border:none; color:#fff; font-size:22px; cursor:pointer; padding:4px 10px; border-radius:6px; line-height:1; }
     .btn-hamburguer:hover { background:rgba(255,255,255,.15); }
+    .btn-inicio { background:transparent; border:none; color:#fff; font-size:19px; cursor:pointer; padding:4px 9px; border-radius:6px; line-height:1; }
+    .btn-inicio:hover { background:rgba(255,255,255,.15); }
+    #btnSair { background:transparent; color:#fff; border:1px solid rgba(255,255,255,.5); padding:9px 16px; border-radius:6px; font-weight:600; cursor:pointer; font-size:13px; }
+    #btnSair:hover { background:var(--vermelho); border-color:var(--vermelho); }
     .menu-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:190; }
     .menu-overlay.aberto { display:block; }
     .menu-lateral { display:flex; flex-direction:column; gap:2px; background:var(--azul); width:270px; max-width:80vw; position:fixed; top:0; left:0; height:100vh; padding:18px 0; box-shadow:2px 0 12px rgba(0,0,0,.25); overflow-y:auto; z-index:200; transform:translateX(-100%); transition:transform .25s ease; }
@@ -149,12 +153,14 @@
   <header>
     <div style="display:flex;align-items:center;gap:10px;">
       <button class="btn-hamburguer" onclick="alternarMenuLateral()" aria-label="Abrir menu">☰</button>
+      <button class="btn-inicio" onclick="voltarInicio()" title="Voltar ao Início" aria-label="Voltar ao Início">🏠</button>
       <div><h1>💳 CONTROLE FINANCEIRO</h1><div class="sub"><span id="atualizadoEm">Carregando...</span><button id="btnAtualizar" onclick="carregarTudo()" title="Atualizar a tela">🔄</button></div></div>
     </div>
     <div style="display:flex;gap:8px;align-items:center;">
       <button id="btnBackup" onclick="exportarBackup()">💾 Backup</button>
       <button id="btnRestaurar" onclick="document.getElementById('inputRestaurar').click()">📂 Restaurar</button>
       <input type="file" id="inputRestaurar" accept=".sqlite,.db" style="display:none;" onchange="restaurarBackupSelecionado(event)" />
+      <button id="btnSair" onclick="sairApp()" title="Sair do app">🔴 Sair</button>
       <button class="ajuda-btn" style="background:rgba(255,255,255,.25);color:#fff;" aria-expanded="false" onclick="alternarAjuda('ajuda-backup', this)">?</button>
     </div>
   </header>
@@ -1393,6 +1399,20 @@
       document.getElementById('menuLateral').classList.contains('aberto') ? fecharMenuLateral() : abrirMenuLateral();
     }
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fecharMenuLateral(); });
+    // Botão de voltar ao Início, sempre visível no cabeçalho (funciona mesmo com o menu fechado).
+    function voltarInicio() {
+      trocarAba('inicio');
+    }
+    // Botão "Sair" — como o PWA não tem servidor pra encerrar, só avisa que já pode
+    // fechar e tenta fechar a janela (funciona quando instalado como app; numa aba
+    // normal do navegador o fechamento automático é bloqueado, daí o aviso na tela).
+    function sairApp() {
+      if (!confirm('Deseja sair do Controle Financeiro?')) return;
+      document.body.innerHTML =
+        '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:inherit;font-size:18px;color:#1F4E78;background:#F4F6F9;text-align:center;padding:20px;">' +
+        '✅ Pode fechar esta aba ou o aplicativo agora.</div>';
+      window.close();
+    }
     window.addEventListener('resize', ajustarBotaoFixoLancamentos);
     window.addEventListener('load', ajustarBotaoFixoLancamentos);
     ajustarBotaoFixoLancamentos();
