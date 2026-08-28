@@ -31,9 +31,17 @@
     #btnBackup:hover, #btnRestaurar:hover { background:#eaf1fb; }
     #btnAtualizar { background:transparent; color:#fff; opacity:.75; border:none; padding:2px 5px; border-radius:5px; cursor:pointer; font-size:12px; }
     #btnAtualizar:hover { opacity:1; background:rgba(255,255,255,.15); }
-    .abas { display:flex; gap:4px; background:var(--azul); padding:0 28px; overflow-x:auto; -webkit-overflow-scrolling:touch; }
-    .aba { background:transparent; color:#cfe0f5; border:none; padding:12px 20px; cursor:pointer; font-size:14px; font-weight:600; border-bottom:3px solid transparent; white-space:nowrap; flex-shrink:0; }
-    .aba.ativa { color:#fff; border-bottom-color:#fff; } .aba:hover { color:#fff; }
+    .btn-hamburguer { background:transparent; border:none; color:#fff; font-size:22px; cursor:pointer; padding:4px 10px; border-radius:6px; line-height:1; }
+    .btn-hamburguer:hover { background:rgba(255,255,255,.15); }
+    .menu-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:190; }
+    .menu-overlay.aberto { display:block; }
+    .menu-lateral { display:flex; flex-direction:column; gap:2px; background:var(--azul); width:270px; max-width:80vw; position:fixed; top:0; left:0; height:100vh; padding:18px 0; box-shadow:2px 0 12px rgba(0,0,0,.25); overflow-y:auto; z-index:200; transform:translateX(-100%); transition:transform .25s ease; }
+    .menu-lateral.aberto { transform:translateX(0); }
+    .menu-lateral-titulo { display:flex; align-items:center; justify-content:space-between; padding:0 20px 16px; color:#fff; font-weight:700; font-size:15px; border-bottom:1px solid rgba(255,255,255,.15); margin-bottom:8px; }
+    .menu-lateral-fechar { background:transparent; border:none; color:#fff; font-size:20px; cursor:pointer; padding:2px 6px; border-radius:6px; line-height:1; }
+    .menu-lateral-fechar:hover { background:rgba(255,255,255,.15); }
+    .aba { background:transparent; color:#cfe0f5; border:none; padding:14px 24px; cursor:pointer; font-size:14px; font-weight:600; border-left:3px solid transparent; text-align:left; width:100%; }
+    .aba.ativa { color:#fff; border-left-color:#fff; background:rgba(255,255,255,.1); } .aba:hover { color:#fff; background:rgba(255,255,255,.06); }
     main { padding:24px 28px; max-width:1500px; margin:0 auto; }
     .pagina { display:none; } .pagina.ativa { display:block; }
     #aviso { display:none; background:#fdecea; color:#922; border:1px solid #f5c6cb; padding:14px 18px; border-radius:8px; margin-bottom:20px; font-size:14px; }
@@ -116,6 +124,19 @@
     .ajuda-balao b { color:var(--azul); }
     .ajuda-balao .exemplo { display:block; margin-top:8px; padding:8px 10px; background:#fff; border-radius:6px; border:1px dashed var(--azul-claro); }
     .ajuda-balao ul { margin:4px 0 0; padding-left:18px; }
+    .menu-inicio-titulo { margin-bottom:20px; }
+    .menu-inicio-titulo h2 { margin:0 0 6px; color:var(--azul); font-size:21px; }
+    .menu-inicio-titulo p { margin:0; color:#7a8699; font-size:13px; }
+    .menu-inicio { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:18px; }
+    .menu-btn { background:#fff; border:1px solid var(--cinza-borda); border-radius:14px; padding:28px 22px; text-align:left; cursor:pointer; display:flex; flex-direction:column; gap:8px; box-shadow:0 1px 3px rgba(0,0,0,.04); transition:transform .15s,box-shadow .15s,border-color .15s; font-family:inherit; min-width:0; }
+    .menu-btn:hover { transform:translateY(-3px); box-shadow:0 10px 22px rgba(31,78,120,.15); border-color:var(--azul-claro); }
+    .menu-btn-icone { font-size:36px; }
+    .menu-btn-titulo { font-size:16px; font-weight:700; color:var(--azul); }
+    .menu-btn-desc { font-size:12.5px; color:#7a8699; line-height:1.5; }
+    .menu-btn-azul { border-top:4px solid var(--azul-claro); }
+    .menu-btn-verde { border-top:4px solid var(--verde); }
+    .menu-btn-laranja { border-top:4px solid var(--laranja); }
+    .menu-btn-roxo { border-top:4px solid #8E6FC4; }
     @media (max-width:820px){ .graficos{grid-template-columns:1fr;} .linha2{grid-template-columns:1fr;} }
   </style>
 </head>
@@ -126,7 +147,10 @@
   </div>
   <div id="topoFixo">
   <header>
-    <div><h1>💳 CONTROLE FINANCEIRO</h1><div class="sub"><span id="atualizadoEm">Carregando...</span><button id="btnAtualizar" onclick="carregarTudo()" title="Atualizar a tela">🔄</button></div></div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <button class="btn-hamburguer" onclick="alternarMenuLateral()" aria-label="Abrir menu">☰</button>
+      <div><h1>💳 CONTROLE FINANCEIRO</h1><div class="sub"><span id="atualizadoEm">Carregando...</span><button id="btnAtualizar" onclick="carregarTudo()" title="Atualizar a tela">🔄</button></div></div>
+    </div>
     <div style="display:flex;gap:8px;align-items:center;">
       <button id="btnBackup" onclick="exportarBackup()">💾 Backup</button>
       <button id="btnRestaurar" onclick="document.getElementById('inputRestaurar').click()">📂 Restaurar</button>
@@ -137,19 +161,54 @@
   <div class="ajuda-balao" id="ajuda-backup" style="margin:0 28px 10px;">
     Este app não tem servidor — seus dados ficam só neste aparelho (navegador). <b>💾 Backup</b> baixa um arquivo com tudo que você já lançou; guarde em local seguro (e-mail, nuvem). <b>📂 Restaurar</b> importa um desses arquivos, <b>substituindo</b> os dados atuais neste aparelho — peça confirmação antes de qualquer coisa, mas não tem como desfazer depois.
   </div>
+  </div>
 
-  <nav class="abas">
-    <button class="aba ativa" id="abaDashboard" onclick="trocarAba('dashboard')">📊 Dashboard</button>
+  <div class="menu-overlay" id="menuOverlay" onclick="fecharMenuLateral()"></div>
+  <nav class="menu-lateral" id="menuLateral">
+    <div class="menu-lateral-titulo">
+      <span>Menu</span>
+      <button class="menu-lateral-fechar" onclick="fecharMenuLateral()" aria-label="Fechar menu">✕</button>
+    </div>
+    <button class="aba ativa" id="abaInicio" onclick="trocarAba('inicio')">🏠 Início</button>
+    <button class="aba" id="abaDashboard" onclick="trocarAba('dashboard')">📊 Dashboard</button>
     <button class="aba" id="abaLancamentos" onclick="trocarAba('lancamentos')">🧾 Lançamentos de Despesas</button>
     <button class="aba" id="abaOrcamentos" onclick="trocarAba('orcamentos')">💰 Orçamentos</button>
-    <button class="aba" id="abaCartoes" onclick="trocarAba('cartoes')">💸 Despesas</button>
+    <button class="aba" id="abaCartoes" onclick="trocarAba('cartoes')">💸 Cadastro de Despesas</button>
   </nav>
-  </div>
 
   <main>
     <div id="aviso">⚠️ Não consegui carregar os dados. Tente clicar em <b>Atualizar</b>; se persistir, recarregue a página.</div>
 
-    <section class="pagina ativa" id="pagina-dashboard">
+    <section class="pagina ativa" id="pagina-inicio">
+      <div class="menu-inicio-titulo">
+        <h2>O que você quer fazer?</h2>
+        <p>Escolha uma opção abaixo para começar.</p>
+      </div>
+      <div class="menu-inicio">
+        <button class="menu-btn menu-btn-azul" onclick="trocarAba('dashboard')">
+          <span class="menu-btn-icone">📊</span>
+          <span class="menu-btn-titulo">Dashboard</span>
+          <span class="menu-btn-desc">Visão geral, gráficos e projeção dos próximos 24 meses.</span>
+        </button>
+        <button class="menu-btn menu-btn-verde" onclick="trocarAba('lancamentos')">
+          <span class="menu-btn-icone">🧾</span>
+          <span class="menu-btn-titulo">Lançamentos de Despesas</span>
+          <span class="menu-btn-desc">Cadastre compras à vista ou parceladas e controle os pagamentos.</span>
+        </button>
+        <button class="menu-btn menu-btn-laranja" onclick="trocarAba('orcamentos')">
+          <span class="menu-btn-icone">💰</span>
+          <span class="menu-btn-titulo">Orçamentos</span>
+          <span class="menu-btn-desc">Lance os ganhos do mês e acompanhe o orçamento disponível.</span>
+        </button>
+        <button class="menu-btn menu-btn-roxo" onclick="trocarAba('cartoes')">
+          <span class="menu-btn-icone">💸</span>
+          <span class="menu-btn-titulo">Cadastro de Despesas</span>
+          <span class="menu-btn-desc">Configure categorias de despesa e o dia de vencimento de cada uma.</span>
+        </button>
+      </div>
+    </section>
+
+    <section class="pagina" id="pagina-dashboard">
       <div class="titulo-com-ajuda" style="margin-bottom:10px;">
         <button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-kpis', this)">?</button>
         <span style="font-size:12px;color:#7a8699;">O que os cards abaixo mostram</span>
@@ -520,10 +579,12 @@
     let compraEditandoId = null;
 
     function trocarAba(qual) {
+      document.getElementById('pagina-inicio').classList.toggle('ativa', qual === 'inicio');
       document.getElementById('pagina-dashboard').classList.toggle('ativa', qual === 'dashboard');
       document.getElementById('pagina-lancamentos').classList.toggle('ativa', qual === 'lancamentos');
       document.getElementById('pagina-orcamentos').classList.toggle('ativa', qual === 'orcamentos');
       document.getElementById('pagina-cartoes').classList.toggle('ativa', qual === 'cartoes');
+      document.getElementById('abaInicio').classList.toggle('ativa', qual === 'inicio');
       document.getElementById('abaDashboard').classList.toggle('ativa', qual === 'dashboard');
       document.getElementById('abaLancamentos').classList.toggle('ativa', qual === 'lancamentos');
       document.getElementById('abaOrcamentos').classList.toggle('ativa', qual === 'orcamentos');
@@ -535,6 +596,7 @@
         }
         carregarOrcamentosTab();
       }
+      fecharMenuLateral();
     }
 
     async function carregarCartoesTab() {
@@ -1318,6 +1380,19 @@
       const acoes = document.getElementById('acoesLancamentos');
       if (topo && acoes) acoes.style.top = topo.offsetHeight + 'px';
     }
+    // Menu lateral (gaveta): abre/fecha por cima do conteúdo, com fundo escurecido.
+    function abrirMenuLateral() {
+      document.getElementById('menuLateral').classList.add('aberto');
+      document.getElementById('menuOverlay').classList.add('aberto');
+    }
+    function fecharMenuLateral() {
+      document.getElementById('menuLateral').classList.remove('aberto');
+      document.getElementById('menuOverlay').classList.remove('aberto');
+    }
+    function alternarMenuLateral() {
+      document.getElementById('menuLateral').classList.contains('aberto') ? fecharMenuLateral() : abrirMenuLateral();
+    }
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fecharMenuLateral(); });
     window.addEventListener('resize', ajustarBotaoFixoLancamentos);
     window.addEventListener('load', ajustarBotaoFixoLancamentos);
     ajustarBotaoFixoLancamentos();
