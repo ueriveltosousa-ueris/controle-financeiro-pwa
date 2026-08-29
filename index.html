@@ -310,12 +310,12 @@
       <section class="card" style="max-width:640px;">
         <div class="titulo-com-ajuda"><h2 style="margin:0;">Orçamentos do mês</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-orcamento', this)">?</button></div>
         <div class="obs-topo" style="margin-bottom:14px;">
-          Inclua aqui os ganhos do mês — quantos itens quiser, cada um identificado (ex.: "Salário Uel",
-          "13º salário", "Freela", "Economia reserva"). O total do mês é a soma de todos os itens.
+          Inclua aqui todas as suas fontes de renda do mês — quantos itens quiser, cada um identificado (ex.: "Salário",
+          "Renda do negócio", "Comissões", "Freelance"). O total do mês é a soma de todos os itens.
         </div>
         <div class="ajuda-balao" id="ajuda-orcamento">
           Orçamento <b>não é um valor único</b> por mês — é uma lista de itens, cada um com seu próprio valor. O app soma tudo pra ter o total daquele mês.
-          <div class="exemplo">Exemplo: em setembro você pode lançar "Salário: R$ 4.000" + "Freela: R$ 800" → o app usa <b>R$ 4.800</b> como orçamento de setembro no Dashboard e na Projeção.</div>
+          <div class="exemplo">Exemplo: em setembro você pode lançar "Salário: R$ 4.000" + "Vendas do mês: R$ 1.200" → o app usa <b>R$ 5.200</b> como orçamento de setembro no Dashboard e na Projeção.</div>
           Meses diferentes podem ter itens completamente diferentes — não precisa repetir todo mês se não mudou nada, mas também não soma sozinho de um mês pro outro.
         </div>
         <div class="campo" style="max-width:220px;">
@@ -324,7 +324,7 @@
         </div>
 
         <div class="acoes-topo" style="margin-top:6px;">
-          <input type="text" id="orc_nova_descricao" placeholder="Ex.: Salário, Freela, Economia..." style="flex:1;min-width:200px;padding:9px 11px;border:1px solid var(--cinza-borda);border-radius:7px;font-size:14px;" />
+          <input type="text" id="orc_nova_descricao" placeholder="Ex.: Salário, Vendas, Comissões..." style="flex:1;min-width:200px;padding:9px 11px;border:1px solid var(--cinza-borda);border-radius:7px;font-size:14px;" />
           <input type="text" id="orc_novo_valor" inputmode="decimal" placeholder="Valor (ex.: 4000,00)" style="width:160px;padding:9px 11px;border:1px solid var(--cinza-borda);border-radius:7px;font-size:14px;" />
           <button class="btn btn-verde" onclick="adicionarItemOrcamento()">➕ Adicionar</button>
         </div>
@@ -343,23 +343,24 @@
         <div class="titulo-com-ajuda"><h2 style="margin:0;">Categorias de despesa e vencimento</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-cartoes', this)">?</button></div>
         <div class="obs-topo" style="margin-bottom:14px;">
           Aqui ficam todas as categorias de despesa que você usa nos lançamentos: cartões de
-          crédito e também outras formas, como débito à vista e PIX. Configure, uma única vez,
-          o dia do mês em que a fatura de cada cartão vence. Esse dia é usado para calcular
+          crédito, contas, empréstimos, financiamentos e qualquer outra forma de pagamento ou
+          fonte de gasto. Configure, uma única vez, o dia do mês em que cada categoria vence
+          (fatura, boleto, parcela etc.). Esse dia é usado para calcular
           automaticamente o vencimento da 1ª parcela de toda despesa lançada nessa categoria
           (a "Data da Compra" no formulário é só informativa e não entra nesse cálculo). Deixe
-          em branco as categorias sem fatura (ex.: PIX/Débito), onde o vencimento sempre será
+          em branco as categorias sem vencimento fixo (ex.: PIX/Débito), onde o vencimento sempre será
           a própria data da despesa.
         </div>
         <div class="ajuda-balao" id="ajuda-cartoes">
-          Cadastre aqui cada cartão de crédito (um por cartão) e também formas sem fatura, como "PIX" ou "Débito".<br>
-          <b>Mudou o dia de vencimento de um cartão que já tem compras?</b> O app recalcula sozinho o vencimento de todas as parcelas <b>ainda pendentes</b> desse cartão — as que já foram pagas não são mexidas.<br>
+          Cadastre aqui cada categoria de despesa (cartão de crédito, financiamento, conta fixa etc.) e também formas sem vencimento fixo, como "PIX" ou "Débito".<br>
+          <b>Mudou o dia de vencimento de uma categoria que já tem despesas lançadas?</b> O app recalcula sozinho o vencimento de todas as parcelas <b>ainda pendentes</b> dessa categoria — as que já foram pagas não são mexidas.<br>
           Não dá pra excluir uma categoria que já tem despesa lançada nela (só renomear).
         </div>
 
         <div class="acoes-topo" style="align-items:flex-end;">
           <div class="campo" style="margin-bottom:0;flex:1;min-width:200px;">
             <label>Nova categoria de despesa</label>
-            <input type="text" id="nova_categoria_nome" placeholder="Ex.: Cartão Nubank" />
+            <input type="text" id="nova_categoria_nome" placeholder="Ex.: Cartão de crédito, Financiamento..." />
           </div>
           <div class="campo" style="margin-bottom:0;width:150px;">
             <label>Dia de vencimento</label>
