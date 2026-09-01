@@ -446,12 +446,14 @@
           Exemplo: compra em <b>16/08</b>, forma de pagamento com vencimento dia <b>10</b> → 1ª parcela vence em <b>10/09</b> (nunca em agosto, mesmo que o dia 10 daquele mês ainda não tenha passado). As parcelas seguintes vão caindo um mês depois da outra, sempre no mesmo dia.
         </div>
         Se a forma de pagamento não tiver dia de vencimento configurado (ex.: PIX, Dinheiro), o vencimento vira a própria <b>data da compra</b> que você digitar.<br>
-        A "Data da compra" é só uma referência sua — nunca muda nenhuma conta.
+        A "Data da compra" é só uma referência sua — nunca muda nenhuma conta.<br>
+        <b>Grupo de Despesa</b> e <b>Tipo de Despesa</b> são opcionais — servem só pra classificar o gasto (ex.: Alimentação › Supermercado). Escolher o Grupo filtra a lista de Tipo pra ficar mais rápido de achar; sem escolher grupo, a lista mostra todos os tipos agrupados.
       </div>
       <div class="aviso-edicao" id="avisoCompra">⚠️ Alterar o <b>valor</b>, o <b>nº de parcelas</b>, a <b>data da compra</b> ou a <b>forma de pagamento</b> recria as parcelas (o controle de pagamento recomeça). Mudar só descrição não mexe nas parcelas.</div>
       <div class="campo"><label>Descrição <span class="obrig">*</span></label><input type="text" id="c_descricao" placeholder="Ex.: TV 55 polegadas, Abastecimento..." /></div>
+      <div class="campo"><label>Forma de Pagamento <span class="obrig">*</span></label><select id="c_cartao" onchange="atualizarAvisoVencimento('c')"></select><div class="dica" id="c_aviso_vencimento" style="display:none;color:#9C6500;"></div></div>
       <div class="linha2">
-        <div class="campo"><label>Forma de Pagamento <span class="obrig">*</span></label><select id="c_cartao" onchange="atualizarAvisoVencimento('c')"></select><div class="dica" id="c_aviso_vencimento" style="display:none;color:#9C6500;"></div></div>
+        <div class="campo"><label>Grupo de Despesa</label><select id="c_grupo" onchange="atualizarTiposPorGrupo()"></select></div>
         <div class="campo"><label>Tipo de Despesa</label><select id="c_categoria"></select></div>
       </div>
       <div class="linha2">
@@ -913,6 +915,7 @@
       try {
         if (!cartoes.length) {
           cartoes = await api('/referencias/cartoes');
+          grupos = await api('/referencias/grupos-despesa');
           categorias = await api('/referencias/categorias');
           preencherSelects();
         }
@@ -938,19 +941,44 @@
       const optCartao = cartoes.map(c => '<option value="' + c.id + '">' + c.nome + '</option>').join('');
       document.getElementById('c_cartao').innerHTML = optCartao;
 
-      // Tipo de Despesa agrupado por Grupo de Despesa (<optgroup>), na ordem
-      // em que já vêm da API (ordenados por grupo, depois nome — ver
-      // listarCategorias() em js/dados.js).
-      const porGrupo = [];
-      const indicePorGrupo = {};
-      categorias.forEach((t) => {
-        if (!(t.grupo in indicePorGrupo)) { indicePorGrupo[t.grupo] = porGrupo.length; porGrupo.push({ grupo: t.grupo, tipos: [] }); }
-        porGrupo[indicePorGrupo[t.grupo]].tipos.push(t);
-      });
-      const optCat = porGrupo.map((g) =>
-        '<optgroup label="' + g.grupo + '">' + g.tipos.map((t) => '<option value="' + t.id + '">' + t.nome + '</option>').join('') + '</optgroup>'
-      ).join('');
-      document.getElementById('c_categoria').innerHTML = '<option value="">— nenhum —</option>' + optCat;
+      const selGrupo = document.getElementById('c_grupo');
+      if (selGrupo) selGrupo.innerHTML = '<option value="">— todos —</option>' + grupos.map(g => '<option value="' + g.id + '">' + g.nome + '</option>').join('');
+
+      atualizarTiposPorGrupo();
+    }
+
+    // Preenche "Tipo de Despesa" de acordo com o "Grupo de Despesa" escolhido:
+    // sem grupo selecionado, mostra todos os tipos agrupados por <optgroup>;
+    // com um grupo selecionado, mostra só os tipos daquele grupo (lista plana).
+    function atualizarTiposPorGrupo() {
+      const selCat = document.getElementById('c_categoria');
+      if (!selCat) return;
+      const selGrupo = document.getElementById('c_grupo');
+      const grupoId = selGrupo ? selGrupo.value : '';
+      const valorAtual = selCat.value;
+
+      let opcoes;
+      if (grupoId) {
+        opcoes = categorias.filter((t) => String(t.grupo_id) === String(grupoId))
+          .map((t) => '<option value="' + t.id + '">' + t.nome + '</option>').join('');
+      } else {
+        // Agrupado por Grupo de Despesa (<optgroup>), na ordem em que já vêm
+        // da API (ordenados por grupo, depois nome — ver listarCategorias()
+        // em js/dados.js).
+        const porGrupo = [];
+        const indicePorGrupo = {};
+        categorias.forEach((t) => {
+          if (!(t.grupo in indicePorGrupo)) { indicePorGrupo[t.grupo] = porGrupo.length; porGrupo.push({ grupo: t.grupo, tipos: [] }); }
+          porGrupo[indicePorGrupo[t.grupo]].tipos.push(t);
+        });
+        opcoes = porGrupo.map((g) =>
+          '<optgroup label="' + g.grupo + '">' + g.tipos.map((t) => '<option value="' + t.id + '">' + t.nome + '</option>').join('') + '</optgroup>'
+        ).join('');
+      }
+      selCat.innerHTML = '<option value="">— nenhum —</option>' + opcoes;
+      // Mantém a escolha anterior se ela ainda existir na lista nova (ex.:
+      // trocou de grupo e voltou pro mesmo) — senão volta pra "— nenhum —".
+      if ([...selCat.options].some((o) => o.value === valorAtual)) selCat.value = valorAtual;
     }
 
     // Mostra um aviso no formulário quando o cartão escolhido ainda não tem
@@ -1420,6 +1448,8 @@
       document.getElementById('avisoCompra').style.display = 'none';
       document.getElementById('c_descricao').value = '';
       document.getElementById('c_cartao').selectedIndex = 0;
+      document.getElementById('c_grupo').value = '';
+      atualizarTiposPorGrupo();
       document.getElementById('c_categoria').value = '';
       document.getElementById('c_valor').value = '';
       document.getElementById('c_parcelas').value = 1;
@@ -1460,6 +1490,9 @@
         document.getElementById('avisoCompra').style.display = 'block';
         document.getElementById('c_descricao').value = c.descricao || '';
         document.getElementById('c_cartao').value = c.cartao_id;
+        const tipoAtual = categorias.find((t) => t.id === c.categoria_id);
+        document.getElementById('c_grupo').value = tipoAtual ? tipoAtual.grupo_id : '';
+        atualizarTiposPorGrupo();
         document.getElementById('c_categoria').value = c.categoria_id || '';
         document.getElementById('c_valor').value = paraCampoValor(c.valor_total);
         document.getElementById('c_parcelas').value = c.qtd_parcelas;
