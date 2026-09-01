@@ -28,6 +28,18 @@ async function despachar(metodo, caminho, params, corpo) {
       if (partes.length === 3 && metodo === 'DELETE') return Dados.excluirCartao(partes[2]);
     }
     if (partes[1] === 'categorias' && partes.length === 2 && metodo === 'GET') return Dados.listarCategorias();
+    if (partes[1] === 'grupos-despesa') {
+      if (partes.length === 2 && metodo === 'GET') return Dados.listarGruposDespesa();
+      if (partes.length === 2 && metodo === 'POST') return Dados.criarGrupoDespesa(corpo);
+      if (partes.length === 3 && metodo === 'PUT') return Dados.atualizarGrupoDespesa(partes[2], corpo);
+      if (partes.length === 3 && metodo === 'DELETE') return Dados.excluirGrupoDespesa(partes[2]);
+    }
+    if (partes[1] === 'tipos-despesa') {
+      if (partes.length === 2 && metodo === 'GET') return Dados.listarCategorias();
+      if (partes.length === 2 && metodo === 'POST') return Dados.criarTipoDespesa(corpo);
+      if (partes.length === 3 && metodo === 'PUT') return Dados.atualizarTipoDespesa(partes[2], corpo);
+      if (partes.length === 3 && metodo === 'DELETE') return Dados.excluirTipoDespesa(partes[2]);
+    }
   }
 
   if (partes[0] === 'orcamento') {

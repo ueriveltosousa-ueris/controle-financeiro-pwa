@@ -247,7 +247,7 @@
         </div>
         <div class="card">
           <div class="titulo-com-ajuda"><h2 style="margin:0;">Saldo em Aberto por Despesa</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-cartao', this)">?</button></div>
-          <div class="ajuda-balao" id="ajuda-cartao">Quanto falta pagar em cada categoria de despesa (cartão, PIX, etc.), somando todas as parcelas pendentes. Clique numa barra pra ver as compras daquela categoria.</div>
+          <div class="ajuda-balao" id="ajuda-cartao">Quanto falta pagar em cada forma de pagamento (cartão, PIX, etc.), somando todas as parcelas pendentes. Clique numa barra pra ver as compras daquela forma de pagamento.</div>
           <div class="chart-wrap" style="height:auto;max-height:500px;overflow-y:auto;"><div id="cartaoWrapInterno" style="min-height:300px;"><canvas id="graficoCartao"></canvas></div></div>
         </div>
         <div class="card">
@@ -295,7 +295,7 @@
           <b>Parcelas</b>: marca pagamento, desfaz por engano, ou corrige a data de uma parcela específica.<br>
           <b>Editar</b>: muda a compra inteira.<br>
           <b>Excluir</b>: apaga a compra e todas as parcelas — não tem como desfazer.<br>
-          <span style="color:#8a6100;">⚠️ Mudar valor, nº de parcelas, data da compra ou categoria de despesa recria as parcelas do zero (o controle de pagamento recomeça). Só descrição/observações não mexem nas parcelas.</span>
+          <span style="color:#8a6100;">⚠️ Mudar valor, nº de parcelas, data da compra ou forma de pagamento recria as parcelas do zero (o controle de pagamento recomeça). Só descrição/observações não mexem nas parcelas.</span>
         </div>
         <div class="tabela-scroll" style="max-height:500px;overflow-y:auto;">
           <table id="tabelaCompras">
@@ -340,27 +340,78 @@
 
     <section class="pagina" id="pagina-cartoes">
       <section class="card">
-        <div class="titulo-com-ajuda"><h2 style="margin:0;">Categorias de despesa e vencimento</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-cartoes', this)">?</button></div>
+        <div class="titulo-com-ajuda"><h2 style="margin:0;">Grupo de Despesa</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-grupos', this)">?</button></div>
         <div class="obs-topo" style="margin-bottom:14px;">
-          Aqui ficam todas as categorias de despesa que você usa nos lançamentos: cartões de
-          crédito, contas, empréstimos, financiamentos e qualquer outra forma de pagamento ou
-          fonte de gasto. Configure, uma única vez, o dia do mês em que cada categoria vence
-          (fatura, boleto, parcela etc.). Esse dia é usado para calcular
-          automaticamente o vencimento da 1ª parcela de toda despesa lançada nessa categoria
-          (a "Data da Compra" no formulário é só informativa e não entra nesse cálculo). Deixe
-          em branco as categorias sem vencimento fixo (ex.: PIX/Débito), onde o vencimento sempre será
-          a própria data da despesa.
+          Classificação ampla do gasto (ex.: Alimentação, Transporte, Moradia, Saúde). Cada Tipo de Despesa, logo abaixo, pertence a um grupo.
+        </div>
+        <div class="ajuda-balao" id="ajuda-grupos">
+          É o nível mais geral da classificação — pense nele como a "área" do gasto. Em Tipo de Despesa você detalha (ex.: dentro de "Alimentação", os tipos "Supermercado" e "Restaurantes").<br>
+          Não dá pra excluir um grupo que já tem tipo de despesa cadastrado nele (mova ou exclua os tipos primeiro).
+        </div>
+        <div class="acoes-topo" style="align-items:flex-end;">
+          <div class="campo" style="margin-bottom:0;flex:1;min-width:200px;">
+            <label>Novo grupo de despesa</label>
+            <input type="text" id="novo_grupo_nome" placeholder="Ex.: Alimentação, Transporte, Moradia..." />
+          </div>
+          <button class="btn btn-verde" onclick="criarGrupoDespesa()">➕ Adicionar</button>
+        </div>
+        <div class="tabela-scroll" style="max-height:300px;overflow-y:auto;">
+          <table id="tabelaGrupos">
+            <thead><tr><th>Grupo de Despesa</th><th>Ações</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="titulo-com-ajuda"><h2 style="margin:0;">Tipo de Despesa</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-tipos', this)">?</button></div>
+        <div class="obs-topo" style="margin-bottom:14px;">
+          Classificação específica do gasto, sempre dentro de um Grupo de Despesa (ex.: Supermercado e Restaurantes dentro de Alimentação).
+        </div>
+        <div class="ajuda-balao" id="ajuda-tipos">
+          É o que você escolhe em "Tipo de Despesa" na hora de lançar uma despesa — serve só pra classificar/agrupar seus gastos, não afeta vencimento nem parcelas (isso é configurado em Forma de Pagamento, mais abaixo).<br>
+          Não dá pra excluir um tipo que já tem despesa lançada nele (só renomear).
+        </div>
+        <div class="acoes-topo" style="align-items:flex-end;">
+          <div class="campo" style="margin-bottom:0;flex:1;min-width:200px;">
+            <label>Novo tipo de despesa</label>
+            <input type="text" id="novo_tipo_nome" placeholder="Ex.: Supermercado, Combustível, Medicamentos..." />
+          </div>
+          <div class="campo" style="margin-bottom:0;min-width:180px;">
+            <label>Grupo de despesa</label>
+            <select id="novo_tipo_grupo"></select>
+          </div>
+          <button class="btn btn-verde" onclick="criarTipoDespesa()">➕ Adicionar</button>
+        </div>
+        <div class="tabela-scroll" style="max-height:400px;overflow-y:auto;">
+          <table id="tabelaTipos">
+            <thead><tr><th>Tipo de Despesa</th><th>Grupo</th><th>Ações</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="titulo-com-ajuda"><h2 style="margin:0;">Forma de Pagamento e vencimento</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-cartoes', this)">?</button></div>
+        <div class="obs-topo" style="margin-bottom:14px;">
+          Aqui ficam todas as formas de pagamento que você usa nos lançamentos: cartão de
+          crédito, cartão de débito, PIX, boleto, dinheiro e qualquer outra forma de pagamento.
+          Configure, uma única vez, o dia do mês em que cada uma vence (fatura, boleto etc.).
+          Esse dia é usado para calcular automaticamente o vencimento da 1ª parcela de toda
+          despesa lançada nela (a "Data da Compra" no formulário é só informativa e não entra
+          nesse cálculo). Deixe em branco as formas sem vencimento fixo (ex.: PIX/Dinheiro), onde
+          o vencimento sempre será a própria data da despesa.
         </div>
         <div class="ajuda-balao" id="ajuda-cartoes">
-          Cadastre aqui cada categoria de despesa (cartão de crédito, financiamento, conta fixa etc.) e também formas sem vencimento fixo, como "PIX" ou "Débito".<br>
-          <b>Mudou o dia de vencimento de uma categoria que já tem despesas lançadas?</b> O app recalcula sozinho o vencimento de todas as parcelas <b>ainda pendentes</b> dessa categoria — as que já foram pagas não são mexidas.<br>
-          Não dá pra excluir uma categoria que já tem despesa lançada nela (só renomear).
+          Cadastre aqui cada forma de pagamento (cartão de crédito, financiamento, boleto etc.) e também formas sem vencimento fixo, como "PIX" ou "Dinheiro".<br>
+          <b>Mudou o dia de vencimento de uma forma de pagamento que já tem despesas lançadas?</b> O app recalcula sozinho o vencimento de todas as parcelas <b>ainda pendentes</b> dela — as que já foram pagas não são mexidas.<br>
+          Não dá pra excluir uma forma de pagamento que já tem despesa lançada nela (só renomear).
         </div>
 
         <div class="acoes-topo" style="align-items:flex-end;">
           <div class="campo" style="margin-bottom:0;flex:1;min-width:200px;">
-            <label>Nova categoria de despesa</label>
-            <input type="text" id="nova_categoria_nome" placeholder="Ex.: Cartão de crédito, Financiamento..." />
+            <label>Nova forma de pagamento</label>
+            <input type="text" id="nova_categoria_nome" placeholder="Ex.: Cartão de crédito, PIX, Boleto..." />
           </div>
           <div class="campo" style="margin-bottom:0;width:150px;">
             <label>Dia de vencimento</label>
@@ -371,7 +422,7 @@
 
         <div class="tabela-scroll" style="max-height:400px;overflow-y:auto;">
           <table id="tabelaCartoes">
-            <thead><tr><th>Categoria</th><th>Dia de vencimento</th><th>Ações</th></tr></thead>
+            <thead><tr><th>Forma de Pagamento</th><th>Dia de vencimento</th><th>Ações</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -391,23 +442,23 @@
       <div class="ajuda-balao" id="ajuda-lancamento">
         Não existe "compra parcelada" e "compra à vista" como coisas separadas — é sempre este mesmo formulário. <b>1 parcela = à vista. 2 ou mais = parcelado.</b>
         <div class="exemplo">
-          <b>Como o vencimento é calculado:</b> a 1ª parcela sempre cai no <b>mês seguinte</b> ao da compra, no dia configurado na categoria de despesa (aba "Despesas").<br>
-          Exemplo: compra em <b>16/08</b>, categoria com vencimento dia <b>10</b> → 1ª parcela vence em <b>10/09</b> (nunca em agosto, mesmo que o dia 10 daquele mês ainda não tenha passado). As parcelas seguintes vão caindo um mês depois da outra, sempre no mesmo dia.
+          <b>Como o vencimento é calculado:</b> a 1ª parcela sempre cai no <b>mês seguinte</b> ao da compra, no dia configurado na forma de pagamento (aba "Despesas").<br>
+          Exemplo: compra em <b>16/08</b>, forma de pagamento com vencimento dia <b>10</b> → 1ª parcela vence em <b>10/09</b> (nunca em agosto, mesmo que o dia 10 daquele mês ainda não tenha passado). As parcelas seguintes vão caindo um mês depois da outra, sempre no mesmo dia.
         </div>
-        Se a categoria de despesa não tiver dia de vencimento configurado (ex.: PIX, Débito), o vencimento vira a própria <b>data da compra</b> que você digitar.<br>
+        Se a forma de pagamento não tiver dia de vencimento configurado (ex.: PIX, Dinheiro), o vencimento vira a própria <b>data da compra</b> que você digitar.<br>
         A "Data da compra" é só uma referência sua — nunca muda nenhuma conta.
       </div>
-      <div class="aviso-edicao" id="avisoCompra">⚠️ Alterar o <b>valor</b>, o <b>nº de parcelas</b>, a <b>data da compra</b> ou a <b>categoria de despesa</b> recria as parcelas (o controle de pagamento recomeça). Mudar só descrição não mexe nas parcelas.</div>
+      <div class="aviso-edicao" id="avisoCompra">⚠️ Alterar o <b>valor</b>, o <b>nº de parcelas</b>, a <b>data da compra</b> ou a <b>forma de pagamento</b> recria as parcelas (o controle de pagamento recomeça). Mudar só descrição não mexe nas parcelas.</div>
       <div class="campo"><label>Descrição <span class="obrig">*</span></label><input type="text" id="c_descricao" placeholder="Ex.: TV 55 polegadas, Abastecimento..." /></div>
       <div class="linha2">
-        <div class="campo"><label>Categoria de despesa <span class="obrig">*</span></label><select id="c_cartao" onchange="atualizarAvisoVencimento('c')"></select><div class="dica" id="c_aviso_vencimento" style="display:none;color:#9C6500;"></div></div>
-        <div class="campo"><label>Categoria</label><select id="c_categoria"></select></div>
+        <div class="campo"><label>Forma de Pagamento <span class="obrig">*</span></label><select id="c_cartao" onchange="atualizarAvisoVencimento('c')"></select><div class="dica" id="c_aviso_vencimento" style="display:none;color:#9C6500;"></div></div>
+        <div class="campo"><label>Tipo de Despesa</label><select id="c_categoria"></select></div>
       </div>
       <div class="linha2">
         <div class="campo"><label>Valor total <span class="obrig">*</span></label><input type="text" id="c_valor" inputmode="decimal" placeholder="3500,00" /><div class="dica">Use vírgula para os centavos.</div></div>
         <div class="campo"><label>Nº de parcelas <span class="obrig">*</span></label><input type="number" id="c_parcelas" min="1" value="1" /><div class="dica">1 = à vista. 2 ou mais = parcelado.</div></div>
       </div>
-      <div class="campo"><label>Data da compra <span class="obrig">*</span></label><input type="date" id="c_data" /><div class="dica">Apenas referência — não afeta o cálculo. O vencimento da 1ª parcela usa o dia de vencimento configurado na aba "Despesas" (se a categoria não tiver vencimento configurado, usa esta data).</div></div>
+      <div class="campo"><label>Data da compra <span class="obrig">*</span></label><input type="date" id="c_data" /><div class="dica">Apenas referência — não afeta o cálculo. O vencimento da 1ª parcela usa o dia de vencimento configurado na aba "Despesas" (se a forma de pagamento não tiver vencimento configurado, usa esta data).</div></div>
       <div class="campo"><label>Observações</label><input type="text" id="c_obs" placeholder="(opcional)" /></div>
       <div class="modal-rodape">
         <button class="btn btn-cinza" onclick="fecharModal('overlayCompra')">Cancelar</button>
@@ -578,7 +629,7 @@
     // api(rota, opcoes) é fornecida por js/app.js — mesma assinatura da
     // versão servidor (fetch), mas despachando direto pro banco local.
 
-    let cartoes = [], categorias = [];
+    let cartoes = [], categorias = [], grupos = [];
     let ultimaListaCompras = [];
     let orcamentoPorMes = {}; // chave "YYYY-MM" -> valor daquele mês
     let ultimaProjecaoDados = []; // guarda os 24 meses para o filtro reaplicar sem nova chamada à API
@@ -596,7 +647,7 @@
       document.getElementById('abaLancamentos').classList.toggle('ativa', qual === 'lancamentos');
       document.getElementById('abaOrcamentos').classList.toggle('ativa', qual === 'orcamentos');
       document.getElementById('abaCartoes').classList.toggle('ativa', qual === 'cartoes');
-      if (qual === 'cartoes') carregarCartoesTab();
+      if (qual === 'cartoes') carregarPaginaDespesas();
       if (qual === 'orcamentos') {
         if (!document.getElementById('orcamentoMesSelecionado').value) {
           document.getElementById('orcamentoMesSelecionado').value = new Date().toISOString().slice(0,7);
@@ -606,6 +657,124 @@
       fecharMenuLateral();
     }
 
+    // Carrega os 3 cards da página "Despesas" em sequência (Tipos depende dos
+    // Grupos já carregados, pro combo/coluna "Grupo" vir preenchido).
+    async function carregarPaginaDespesas() {
+      await carregarGruposTab();
+      await carregarTiposTab();
+      await carregarCartoesTab();
+    }
+
+    // ---- GRUPO DE DESPESA ----
+    async function carregarGruposTab() {
+      const tbody = document.querySelector('#tabelaGrupos tbody');
+      tbody.innerHTML = '<tr><td colspan="2" style="text-align:center;color:#888;">Carregando...</td></tr>';
+      try {
+        grupos = await api('/referencias/grupos-despesa');
+        tbody.innerHTML = !grupos.length
+          ? '<tr><td colspan="2" style="text-align:center;color:#888;">Nenhum grupo cadastrado.</td></tr>'
+          : grupos.map(g => `<tr>
+              <td>
+                <input type="text" style="width:260px;padding:6px 8px;border:1px solid var(--cinza-borda);border-radius:6px;"
+                       id="grupo_nome_${g.id}" value="${(g.nome||'').replace(/"/g,'&quot;')}" />
+              </td>
+              <td>
+                <button class="btn btn-azul" style="padding:6px 12px;" onclick="salvarGrupo(${g.id})">Salvar</button>
+                <button class="link-acao link-excluir" onclick="excluirGrupo(${g.id}, '${(g.nome||'').replace(/'/g,"\\'")}')">Excluir</button>
+              </td>
+            </tr>`).join('');
+        const selGrupo = document.getElementById('novo_tipo_grupo');
+        if (selGrupo) selGrupo.innerHTML = grupos.map(g => '<option value="' + g.id + '">' + g.nome + '</option>').join('');
+      } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="2" style="text-align:center;color:#922;">Erro ao carregar: ' + e.message + '</td></tr>';
+      }
+    }
+    async function criarGrupoDespesa() {
+      const nome = document.getElementById('novo_grupo_nome').value.trim();
+      if (!nome) { alert('Digite um nome para o grupo (ex.: Alimentação).'); return; }
+      try {
+        await api('/referencias/grupos-despesa', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ nome }) });
+        document.getElementById('novo_grupo_nome').value = '';
+        await carregarGruposTab();
+      } catch (e) { alert('Erro ao criar grupo de despesa: ' + e.message); }
+    }
+    async function salvarGrupo(id) {
+      const campo = document.getElementById('grupo_nome_' + id);
+      const nome = campo.value.trim();
+      if (!nome) { alert('O nome do grupo não pode ficar vazio.'); return; }
+      try {
+        await api('/referencias/grupos-despesa/' + id, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ nome }) });
+        campo.style.borderColor = 'var(--verde)';
+        setTimeout(() => { campo.style.borderColor = ''; }, 1200);
+        await carregarGruposTab();
+        await carregarTiposTab(); // o nome do grupo aparece na coluna "Grupo" da tabela de tipos
+      } catch (e) { alert('Erro ao salvar: ' + e.message); }
+    }
+    async function excluirGrupo(id, nome) {
+      if (!confirm('Excluir o grupo "' + nome + '"?\nSó é possível excluir grupos sem tipos de despesa cadastrados.')) return;
+      try {
+        await api('/referencias/grupos-despesa/' + id, { method:'DELETE' });
+        await carregarGruposTab();
+      } catch (e) { alert(e.message); }
+    }
+
+    // ---- TIPO DE DESPESA ----
+    async function carregarTiposTab() {
+      const tbody = document.querySelector('#tabelaTipos tbody');
+      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#888;">Carregando...</td></tr>';
+      try {
+        categorias = await api('/referencias/categorias'); // tipos de despesa, com grupo_id/grupo
+        const optGrupos = grupos.map(g => '<option value="' + g.id + '">' + g.nome + '</option>').join('');
+        tbody.innerHTML = !categorias.length
+          ? '<tr><td colspan="3" style="text-align:center;color:#888;">Nenhum tipo de despesa cadastrado.</td></tr>'
+          : categorias.map(t => `<tr>
+              <td>
+                <input type="text" style="width:220px;padding:6px 8px;border:1px solid var(--cinza-borda);border-radius:6px;"
+                       id="tipo_nome_${t.id}" value="${(t.nome||'').replace(/"/g,'&quot;')}" />
+              </td>
+              <td>
+                <select id="tipo_grupo_${t.id}" style="padding:6px 8px;border:1px solid var(--cinza-borda);border-radius:6px;">${optGrupos}</select>
+              </td>
+              <td>
+                <button class="btn btn-azul" style="padding:6px 12px;" onclick="salvarTipo(${t.id})">Salvar</button>
+                <button class="link-acao link-excluir" onclick="excluirTipo(${t.id}, '${(t.nome||'').replace(/'/g,"\\'")}')">Excluir</button>
+              </td>
+            </tr>`).join('');
+        categorias.forEach(t => { const sel = document.getElementById('tipo_grupo_' + t.id); if (sel) sel.value = t.grupo_id; });
+        preencherSelects(); // repopula o "Tipo de Despesa" (agrupado por Grupo) do formulário de lançamento
+      } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#922;">Erro ao carregar: ' + e.message + '</td></tr>';
+      }
+    }
+    async function criarTipoDespesa() {
+      const nome = document.getElementById('novo_tipo_nome').value.trim();
+      const grupoId = document.getElementById('novo_tipo_grupo').value;
+      if (!nome) { alert('Digite um nome para o tipo de despesa (ex.: Supermercado).'); return; }
+      if (!grupoId) { alert('Cadastre um grupo de despesa primeiro.'); return; }
+      try {
+        await api('/referencias/tipos-despesa', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ nome, grupo_id: Number(grupoId) }) });
+        document.getElementById('novo_tipo_nome').value = '';
+        await carregarTiposTab();
+      } catch (e) { alert('Erro ao criar tipo de despesa: ' + e.message); }
+    }
+    async function salvarTipo(id) {
+      const nome = document.getElementById('tipo_nome_' + id).value.trim();
+      const grupoId = document.getElementById('tipo_grupo_' + id).value;
+      if (!nome) { alert('O nome não pode ficar vazio.'); return; }
+      try {
+        await api('/referencias/tipos-despesa/' + id, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ nome, grupo_id: Number(grupoId) }) });
+        await carregarTiposTab();
+      } catch (e) { alert('Erro ao salvar: ' + e.message); }
+    }
+    async function excluirTipo(id, nome) {
+      if (!confirm('Excluir o tipo de despesa "' + nome + '"?\nSó é possível excluir tipos sem despesas cadastradas.')) return;
+      try {
+        await api('/referencias/tipos-despesa/' + id, { method:'DELETE' });
+        await carregarTiposTab();
+      } catch (e) { alert(e.message); }
+    }
+
+    // ---- FORMA DE PAGAMENTO ----
     async function carregarCartoesTab() {
       const tbody = document.querySelector('#tabelaCartoes tbody');
       tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#888;">Carregando...</td></tr>';
@@ -632,7 +801,7 @@
     async function criarCategoriaDespesa() {
       const nome = document.getElementById('nova_categoria_nome').value.trim();
       const diaTexto = document.getElementById('nova_categoria_dia').value.trim();
-      if (!nome) { alert('Digite um nome para a categoria (ex.: Cartão Nubank).'); return; }
+      if (!nome) { alert('Digite um nome para a forma de pagamento (ex.: Cartão de crédito).'); return; }
       if (diaTexto && (Number(diaTexto) < 1 || Number(diaTexto) > 31)) { alert('O dia de vencimento deve ser entre 1 e 31 (ou vazio).'); return; }
       try {
         await api('/referencias/cartoes', {
@@ -643,16 +812,16 @@
         document.getElementById('nova_categoria_dia').value = '';
         cartoes = []; // força recarregar a lista (usada nos formulários de lançamento)
         await carregarCartoesTab();
-        await carregarTudo(); // repopula o combo "Categoria de despesa" do lançamento (senão fica vazio até "Atualizar")
-      } catch (e) { alert('Erro ao criar categoria: ' + e.message); }
+        await carregarTudo(); // repopula o combo "Forma de Pagamento" do lançamento (senão fica vazio até "Atualizar")
+      } catch (e) { alert('Erro ao criar forma de pagamento: ' + e.message); }
     }
     async function excluirCategoriaDespesa(id, nome) {
-      if (!confirm('Excluir a categoria "' + nome + '"?\nSó é possível excluir categorias sem despesas cadastradas.')) return;
+      if (!confirm('Excluir a forma de pagamento "' + nome + '"?\nSó é possível excluir formas de pagamento sem despesas cadastradas.')) return;
       try {
         await api('/referencias/cartoes/' + id, { method:'DELETE' });
         cartoes = [];
         await carregarCartoesTab();
-        await carregarTudo(); // repopula o combo "Categoria de despesa" do lançamento
+        await carregarTudo(); // repopula o combo "Forma de Pagamento" do lançamento
       } catch (e) { alert(e.message); }
     }
     // ---- ORÇAMENTOS: itens identificados por mês (salário, extras, economias...) ----
@@ -767,9 +936,21 @@
 
     function preencherSelects() {
       const optCartao = cartoes.map(c => '<option value="' + c.id + '">' + c.nome + '</option>').join('');
-      const optCat = '<option value="">— nenhuma —</option>' + categorias.map(c => '<option value="' + c.id + '">' + c.nome + '</option>').join('');
       document.getElementById('c_cartao').innerHTML = optCartao;
-      document.getElementById('c_categoria').innerHTML = optCat;
+
+      // Tipo de Despesa agrupado por Grupo de Despesa (<optgroup>), na ordem
+      // em que já vêm da API (ordenados por grupo, depois nome — ver
+      // listarCategorias() em js/dados.js).
+      const porGrupo = [];
+      const indicePorGrupo = {};
+      categorias.forEach((t) => {
+        if (!(t.grupo in indicePorGrupo)) { indicePorGrupo[t.grupo] = porGrupo.length; porGrupo.push({ grupo: t.grupo, tipos: [] }); }
+        porGrupo[indicePorGrupo[t.grupo]].tipos.push(t);
+      });
+      const optCat = porGrupo.map((g) =>
+        '<optgroup label="' + g.grupo + '">' + g.tipos.map((t) => '<option value="' + t.id + '">' + t.nome + '</option>').join('') + '</optgroup>'
+      ).join('');
+      document.getElementById('c_categoria').innerHTML = '<option value="">— nenhum —</option>' + optCat;
     }
 
     // Mostra um aviso no formulário quando o cartão escolhido ainda não tem
@@ -779,7 +960,7 @@
       const aviso = document.getElementById(prefixo + '_aviso_vencimento');
       const cartao = cartoes.find(c => String(c.id) === String(select.value));
       if (cartao && !cartao.dia_vencimento) {
-        aviso.textContent = '⚠️ "' + cartao.nome + '" ainda não tem vencimento configurado — a data acima será usada diretamente. Configure em "Cartões" para calcular automaticamente.';
+        aviso.textContent = '⚠️ "' + cartao.nome + '" ainda não tem vencimento configurado — a data acima será usada diretamente. Configure em "Despesas" para calcular automaticamente.';
         aviso.style.display = 'block';
       } else {
         aviso.style.display = 'none';

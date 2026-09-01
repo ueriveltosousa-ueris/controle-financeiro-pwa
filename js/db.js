@@ -16,7 +16,9 @@
 const CHAVE_INDEXEDDB = 'financeiro-sqlite-v1';
 const NOME_ARQUIVO_DB = 'db';
 const NOME_METADADOS = 'meta';
-const VERSAO_ATUAL_VIEWS = 1;
+// v2 passou a cobrir não só as views como também a migração de schema das
+// bases editáveis (Grupo de Despesa / Tipo de Despesa / Forma de Pagamento).
+const VERSAO_ATUAL_VIEWS = 2;
 
 let SQL = null;   // módulo sql.js carregado (initSqlJs())
 let db = null;    // instância do banco (SQL.Database)
@@ -94,6 +96,76 @@ function versaoViewsAtual() {
   return r.length ? r[0].values[0][0] : 0;
 }
 
+function tabelaExiste(nome) {
+  return !!primeiraLinha("SELECT name FROM sqlite_master WHERE type='table' AND name = ?", [nome]);
+}
+function colunaExiste(tabela, coluna) {
+  return todasLinhas('PRAGMA table_info(' + tabela + ')').some((c) => c.name === coluna);
+}
+
+// Migra as tabelas antigas ("cartoes", "categorias") para a nova estrutura em
+// 3 bases editáveis (Grupo de Despesa > Tipo de Despesa, e Forma de
+// Pagamento) SEM apagar nenhum dado — só renomeia e completa o que faltar.
+// Idempotente: cada passo confere antes de agir, seguro rodar de novo (e é
+// um no-op numa instalação nova, onde schema.sql já cria os nomes certos).
+function migrarParaBasesEditaveis() {
+  if (tabelaExiste('cartoes') && !tabelaExiste('formas_pagamento')) {
+    db.exec('ALTER TABLE cartoes RENAME TO formas_pagamento');
+  }
+  if (!tabelaExiste('grupos_despesa')) {
+    db.exec('CREATE TABLE grupos_despesa (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT NOT NULL UNIQUE)');
+  }
+  if (tabelaExiste('categorias') && !tabelaExiste('tipos_despesa')) {
+    db.exec('ALTER TABLE categorias RENAME TO tipos_despesa');
+  }
+  if (!tabelaExiste('tipos_despesa')) {
+    db.exec('CREATE TABLE tipos_despesa (id INTEGER PRIMARY KEY AUTOINCREMENT, grupo_id INTEGER, nome TEXT NOT NULL)');
+  }
+  if (!colunaExiste('tipos_despesa', 'grupo_id')) {
+    db.exec('ALTER TABLE tipos_despesa ADD COLUMN grupo_id INTEGER REFERENCES grupos_despesa(id)');
+  }
+  // Tipo de despesa órfão (sem grupo, sobra de banco antigo) vai pra "Outros".
+  const orfaos = primeiraLinha('SELECT COUNT(*) AS n FROM tipos_despesa WHERE grupo_id IS NULL').n;
+  if (orfaos > 0) {
+    executar("INSERT OR IGNORE INTO grupos_despesa (nome) VALUES ('Outros')");
+    const outros = primeiraLinha("SELECT id FROM grupos_despesa WHERE nome = 'Outros'").id;
+    executar('UPDATE tipos_despesa SET grupo_id = ? WHERE grupo_id IS NULL', [outros]);
+  }
+}
+
+const GRUPOS_TIPOS_PADRAO = {
+  'Alimentação': ['Supermercado', 'Restaurantes'],
+  'Transporte': ['Combustível', 'Transporte por aplicativo'],
+  'Moradia': ['Aluguel/Financiamento', 'Energia Elétrica', 'Água', 'Internet'],
+  'Saúde': ['Medicamentos', 'Plano de Saúde', 'Consultas e Exames'],
+  'Educação': ['Mensalidade', 'Cursos'],
+  'Lazer': ['Assinaturas e Streaming', 'Viagens'],
+  'Outros': ['Outros'],
+};
+const FORMAS_PAGAMENTO_PADRAO = ['Cartão de Crédito', 'Cartão de Débito', 'PIX', 'Boleto', 'Dinheiro'];
+
+// Semeia exemplos só se a base estiver completamente vazia (instalação nova,
+// ou 1ª vez que a migração roda numa instalação antiga sem nada cadastrado)
+// — nunca duplica nem mexe se o usuário já tiver qualquer item próprio.
+function semearBasesPadrao() {
+  const nGrupos = primeiraLinha('SELECT COUNT(*) AS n FROM grupos_despesa').n;
+  if (nGrupos === 0) {
+    for (const grupo of Object.keys(GRUPOS_TIPOS_PADRAO)) {
+      executar('INSERT INTO grupos_despesa (nome) VALUES (?)', [grupo]);
+      const grupoId = ultimoIdInserido();
+      for (const tipo of GRUPOS_TIPOS_PADRAO[grupo]) {
+        executar('INSERT INTO tipos_despesa (grupo_id, nome) VALUES (?, ?)', [grupoId, tipo]);
+      }
+    }
+  }
+  const nFormas = primeiraLinha('SELECT COUNT(*) AS n FROM formas_pagamento').n;
+  if (nFormas === 0) {
+    for (const nome of FORMAS_PAGAMENTO_PADRAO) {
+      executar('INSERT INTO formas_pagamento (nome) VALUES (?)', [nome]);
+    }
+  }
+}
+
 async function inicializarBanco() {
   SQL = await initSqlJs({ locateFile: (f) => 'vendor/sqljs/' + f });
 
@@ -102,6 +174,10 @@ async function inicializarBanco() {
     db = new SQL.Database(new Uint8Array(bytesSalvos));
     db.exec('PRAGMA foreign_keys = ON;');
     if (versaoViewsAtual() < VERSAO_ATUAL_VIEWS) {
+      transacao(() => {
+        migrarParaBasesEditaveis();
+        semearBasesPadrao();
+      });
       const views = await buscarTexto('db/views.sql');
       db.exec(views);
       db.exec('PRAGMA user_version = ' + VERSAO_ATUAL_VIEWS);
@@ -115,6 +191,7 @@ async function inicializarBanco() {
   const [schema, views] = await Promise.all([buscarTexto('db/schema.sql'), buscarTexto('db/views.sql')]);
   db.exec(schema);
   db.exec(views);
+  semearBasesPadrao();
   db.exec('PRAGMA user_version = ' + VERSAO_ATUAL_VIEWS);
   await salvarBanco();
   return { criadoAgora: true };

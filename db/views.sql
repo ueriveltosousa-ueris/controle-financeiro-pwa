@@ -74,12 +74,12 @@ SELECT
     CASE WHEN IFNULL(SUM(CASE WHEN p.status = 'Pendente' THEN p.valor_centavos END),0) = 0
          THEN 'Quitada' ELSE 'Em Aberto' END                                      AS situacao
 FROM compras c
-JOIN cartoes ca         ON ca.id  = c.cartao_id
-LEFT JOIN categorias cat ON cat.id = c.categoria_id
+JOIN formas_pagamento ca ON ca.id  = c.cartao_id
+LEFT JOIN tipos_despesa cat ON cat.id = c.categoria_id
 LEFT JOIN parcelas p     ON p.compra_id = c.id
 GROUP BY c.id, c.descricao, c.data_compra, ca.nome, cat.nome, c.valor_total_centavos, c.qtd_parcelas;
 
-/* Saldo em aberto por cartão (categoria de despesa) */
+/* Saldo em aberto por forma de pagamento */
 CREATE VIEW vw_saldo_por_cartao AS
 SELECT
     ca.nome AS cartao,
@@ -90,16 +90,16 @@ SELECT
             FROM parcelas p JOIN compras c ON c.id = p.compra_id
             WHERE c.cartao_id = ca.id AND p.status = 'Pendente'
               AND p.data_vencimento < date('now','localtime')),0)                 AS parcelas_atraso_centavos
-FROM cartoes ca;
+FROM formas_pagamento ca;
 
-/* Saldo em aberto por categoria de gasto */
+/* Saldo em aberto por tipo de despesa */
 CREATE VIEW vw_saldo_por_categoria AS
 SELECT
     cat.nome AS categoria,
     IFNULL((SELECT SUM(p.valor_centavos)
             FROM parcelas p JOIN compras c ON c.id = p.compra_id
             WHERE c.categoria_id = cat.id AND p.status = 'Pendente'),0)           AS parcelado_pendente_centavos
-FROM categorias cat;
+FROM tipos_despesa cat;
 
 /* Projeção dos próximos 24 meses (apenas parcelas pendentes) */
 CREATE VIEW vw_projecao_mensal AS

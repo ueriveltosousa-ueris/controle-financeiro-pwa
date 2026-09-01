@@ -21,7 +21,7 @@ const Dados = (function () {
 // Referências: cartões (categorias de despesa) e categorias de gasto
 // ---------------------------------------------------------------------
 function listarCartoes() {
-  return todasLinhas('SELECT id, nome, dia_vencimento, ativo FROM cartoes ORDER BY nome');
+  return todasLinhas('SELECT id, nome, dia_vencimento, ativo FROM formas_pagamento ORDER BY nome');
 }
 
 async function criarCartao({ nome, dia_vencimento }) {
@@ -32,14 +32,14 @@ async function criarCartao({ nome, dia_vencimento }) {
   }
   const diaFinal = (dia_vencimento === undefined || dia_vencimento === null || dia_vencimento === '') ? null : Number(dia_vencimento);
   try {
-    executar('INSERT INTO cartoes (nome, dia_vencimento) VALUES (?, ?)', [nome, diaFinal]);
+    executar('INSERT INTO formas_pagamento (nome, dia_vencimento) VALUES (?, ?)', [nome, diaFinal]);
   } catch (e) {
-    if (/UNIQUE/i.test(e.message || '')) throw new Error('Já existe uma categoria de despesa com esse nome.');
+    if (/UNIQUE/i.test(e.message || '')) throw new Error('Já existe uma forma de pagamento com esse nome.');
     throw e;
   }
   const id = ultimoIdInserido();
   await salvarBanco();
-  return { id, mensagem: 'Categoria de despesa criada' };
+  return { id, mensagem: 'Forma de pagamento criada' };
 }
 
 async function atualizarCartao(id, { nome, dia_vencimento }) {
@@ -52,17 +52,17 @@ async function atualizarCartao(id, { nome, dia_vencimento }) {
   if (nomeInformado && !nomeFinal) throw new Error('Nome não pode ficar vazio');
   const diaFinal = (dia_vencimento === undefined || dia_vencimento === null || dia_vencimento === '') ? null : Number(dia_vencimento);
 
-  const existe = primeiraLinha('SELECT COUNT(*) AS n FROM cartoes WHERE id = ?', [id]);
-  if (!existe || existe.n === 0) throw new Error('Categoria de despesa não encontrada');
+  const existe = primeiraLinha('SELECT COUNT(*) AS n FROM formas_pagamento WHERE id = ?', [id]);
+  if (!existe || existe.n === 0) throw new Error('Forma de pagamento não encontrada');
 
   let parcelasRecalculadas = 0;
   try {
     transacao(() => {
-      if (nomeInformado) executar('UPDATE cartoes SET nome = ?, dia_vencimento = ? WHERE id = ?', [nomeFinal, diaFinal, id]);
-      else executar('UPDATE cartoes SET dia_vencimento = ? WHERE id = ?', [diaFinal, id]);
+      if (nomeInformado) executar('UPDATE formas_pagamento SET nome = ?, dia_vencimento = ? WHERE id = ?', [nomeFinal, diaFinal, id]);
+      else executar('UPDATE formas_pagamento SET dia_vencimento = ? WHERE id = ?', [diaFinal, id]);
 
       // Recalcula, em JS (ver datas.js — SQLite não faz o ajuste de mês
-      // curto sozinho), o vencimento de cada parcela PENDENTE desse cartão.
+      // curto sozinho), o vencimento de cada parcela PENDENTE dessa forma de pagamento.
       const pendentes = todasLinhas(`
         SELECT p.id, p.num_parcela, c.data_compra
         FROM parcelas p JOIN compras c ON c.id = p.compra_id
@@ -76,30 +76,130 @@ async function atualizarCartao(id, { nome, dia_vencimento }) {
       parcelasRecalculadas = pendentes.length;
     });
   } catch (e) {
-    if (/UNIQUE/i.test(e.message || '')) throw new Error('Já existe uma categoria de despesa com esse nome.');
+    if (/UNIQUE/i.test(e.message || '')) throw new Error('Já existe uma forma de pagamento com esse nome.');
     throw e;
   }
 
   await salvarBanco();
-  return { mensagem: 'Categoria de despesa atualizada', parcelas_recalculadas: parcelasRecalculadas };
+  return { mensagem: 'Forma de pagamento atualizada', parcelas_recalculadas: parcelasRecalculadas };
 }
 
 async function excluirCartao(id) {
   try {
-    const r = executar('DELETE FROM cartoes WHERE id = ?', [Number(id)]);
-    if (r.changes === 0) throw new Error('Categoria de despesa não encontrada');
+    const r = executar('DELETE FROM formas_pagamento WHERE id = ?', [Number(id)]);
+    if (r.changes === 0) throw new Error('Forma de pagamento não encontrada');
   } catch (e) {
     if (/FOREIGN KEY/i.test(e.message || '')) {
-      throw new Error('Não é possível excluir: existem despesas cadastradas nesta categoria. Renomeie-a se precisar corrigir o nome, em vez de excluir.');
+      throw new Error('Não é possível excluir: existem despesas cadastradas nesta forma de pagamento. Renomeie-a se precisar corrigir o nome, em vez de excluir.');
     }
     throw e;
   }
   await salvarBanco();
-  return { mensagem: 'Categoria de despesa removida' };
+  return { mensagem: 'Forma de pagamento removida' };
 }
 
+// ---------------------------------------------------------------------
+// Grupo de Despesa (ex.: Alimentação, Transporte, Moradia, Saúde)
+// ---------------------------------------------------------------------
+function listarGruposDespesa() {
+  return todasLinhas('SELECT id, nome FROM grupos_despesa ORDER BY nome');
+}
+
+async function criarGrupoDespesa({ nome }) {
+  nome = (nome || '').trim();
+  if (!nome) throw new Error('Nome é obrigatório');
+  try {
+    executar('INSERT INTO grupos_despesa (nome) VALUES (?)', [nome]);
+  } catch (e) {
+    if (/UNIQUE/i.test(e.message || '')) throw new Error('Já existe um grupo de despesa com esse nome.');
+    throw e;
+  }
+  const id = ultimoIdInserido();
+  await salvarBanco();
+  return { id, mensagem: 'Grupo de despesa criado' };
+}
+
+async function atualizarGrupoDespesa(id, { nome }) {
+  nome = (nome || '').trim();
+  if (!nome) throw new Error('Nome é obrigatório');
+  try {
+    const r = executar('UPDATE grupos_despesa SET nome = ? WHERE id = ?', [nome, Number(id)]);
+    if (r.changes === 0) throw new Error('Grupo de despesa não encontrado');
+  } catch (e) {
+    if (/UNIQUE/i.test(e.message || '')) throw new Error('Já existe um grupo de despesa com esse nome.');
+    throw e;
+  }
+  await salvarBanco();
+  return { mensagem: 'Grupo de despesa atualizado' };
+}
+
+async function excluirGrupoDespesa(id) {
+  try {
+    const r = executar('DELETE FROM grupos_despesa WHERE id = ?', [Number(id)]);
+    if (r.changes === 0) throw new Error('Grupo de despesa não encontrado');
+  } catch (e) {
+    if (/FOREIGN KEY/i.test(e.message || '')) {
+      throw new Error('Não é possível excluir: existem tipos de despesa cadastrados neste grupo. Mova-os ou exclua-os primeiro.');
+    }
+    throw e;
+  }
+  await salvarBanco();
+  return { mensagem: 'Grupo de despesa removido' };
+}
+
+// ---------------------------------------------------------------------
+// Tipo de Despesa (ex.: Supermercado, Combustível, Medicamentos) — sempre
+// dentro de um Grupo de Despesa.
+// ---------------------------------------------------------------------
 function listarCategorias() {
-  return todasLinhas('SELECT id, nome FROM categorias ORDER BY nome');
+  return todasLinhas(`
+    SELECT t.id, t.nome, t.grupo_id, g.nome AS grupo
+    FROM tipos_despesa t JOIN grupos_despesa g ON g.id = t.grupo_id
+    ORDER BY g.nome, t.nome`);
+}
+
+async function criarTipoDespesa({ nome, grupo_id }) {
+  nome = (nome || '').trim();
+  if (!nome) throw new Error('Nome é obrigatório');
+  if (!grupo_id) throw new Error('Grupo de despesa é obrigatório');
+  try {
+    executar('INSERT INTO tipos_despesa (grupo_id, nome) VALUES (?, ?)', [Number(grupo_id), nome]);
+  } catch (e) {
+    if (/UNIQUE/i.test(e.message || '')) throw new Error('Já existe um tipo de despesa com esse nome nesse grupo.');
+    throw e;
+  }
+  const id = ultimoIdInserido();
+  await salvarBanco();
+  return { id, mensagem: 'Tipo de despesa criado' };
+}
+
+async function atualizarTipoDespesa(id, { nome, grupo_id }) {
+  nome = (nome || '').trim();
+  if (!nome) throw new Error('Nome é obrigatório');
+  if (!grupo_id) throw new Error('Grupo de despesa é obrigatório');
+  try {
+    const r = executar('UPDATE tipos_despesa SET nome = ?, grupo_id = ? WHERE id = ?', [nome, Number(grupo_id), Number(id)]);
+    if (r.changes === 0) throw new Error('Tipo de despesa não encontrado');
+  } catch (e) {
+    if (/UNIQUE/i.test(e.message || '')) throw new Error('Já existe um tipo de despesa com esse nome nesse grupo.');
+    throw e;
+  }
+  await salvarBanco();
+  return { mensagem: 'Tipo de despesa atualizado' };
+}
+
+async function excluirTipoDespesa(id) {
+  try {
+    const r = executar('DELETE FROM tipos_despesa WHERE id = ?', [Number(id)]);
+    if (r.changes === 0) throw new Error('Tipo de despesa não encontrado');
+  } catch (e) {
+    if (/FOREIGN KEY/i.test(e.message || '')) {
+      throw new Error('Não é possível excluir: existem despesas cadastradas nesse tipo. Renomeie-o se precisar corrigir, em vez de excluir.');
+    }
+    throw e;
+  }
+  await salvarBanco();
+  return { mensagem: 'Tipo de despesa removido' };
 }
 
 // ---------------------------------------------------------------------
@@ -114,8 +214,8 @@ function obterCompra(id) {
   const compra = primeiraLinha(`
     SELECT c.*, ca.nome AS cartao, ca.dia_vencimento AS cartao_dia_vencimento, cat.nome AS categoria
     FROM compras c
-    JOIN cartoes ca ON ca.id = c.cartao_id
-    LEFT JOIN categorias cat ON cat.id = c.categoria_id
+    JOIN formas_pagamento ca ON ca.id = c.cartao_id
+    LEFT JOIN tipos_despesa cat ON cat.id = c.categoria_id
     WHERE c.id = ?`, [id]);
   if (!compra) throw new Error('Compra não encontrada');
 
@@ -154,7 +254,7 @@ async function criarCompra({ descricao, cartao_id, categoria_id, valor_total, qt
   }
 
   const resultado = transacao(() => {
-    const cartao = primeiraLinha('SELECT dia_vencimento FROM cartoes WHERE id = ?', [cartao_id]);
+    const cartao = primeiraLinha('SELECT dia_vencimento FROM formas_pagamento WHERE id = ?', [cartao_id]);
     const diaVencimentoCartao = cartao ? cartao.dia_vencimento : null;
     const primeiroVencimento = calcularPrimeiroVencimento(data_primeira_parcela, diaVencimentoCartao);
     const valorTotalCentavos = paraCentavos(valor_total);
@@ -197,7 +297,7 @@ async function atualizarCompra(id, { descricao, cartao_id, categoria_id, valor_t
       [descricao, cartao_id, categoria_id || null, valorTotalCentavos, qtd_parcelas, data_primeira_parcela, observacoes || null, id]);
 
     if (precisaRecriar) {
-      const cartao = primeiraLinha('SELECT dia_vencimento FROM cartoes WHERE id = ?', [cartao_id]);
+      const cartao = primeiraLinha('SELECT dia_vencimento FROM formas_pagamento WHERE id = ?', [cartao_id]);
       const diaVencimentoCartao = cartao ? cartao.dia_vencimento : null;
       const primeiroVencimento = calcularPrimeiroVencimento(data_primeira_parcela, diaVencimentoCartao);
 
@@ -284,8 +384,8 @@ function dashboardParcelas({ status, mes }) {
            (SELECT IFNULL(SUM(valor_centavos),0) FROM parcelas p3 WHERE p3.compra_id = p.compra_id AND p3.status = 'Pendente') AS saldo_aberto_centavos
     FROM parcelas p
     JOIN compras c  ON c.id  = p.compra_id
-    JOIN cartoes ca ON ca.id = c.cartao_id
-    LEFT JOIN categorias cat ON cat.id = c.categoria_id
+    JOIN formas_pagamento ca ON ca.id = c.cartao_id
+    LEFT JOIN tipos_despesa cat ON cat.id = c.categoria_id
     WHERE ${condicoes.join(' AND ')}
     ORDER BY p.data_vencimento`, params);
 
@@ -350,6 +450,8 @@ async function excluirItemOrcamento(id) {
 
 return {
   listarCartoes, criarCartao, atualizarCartao, excluirCartao, listarCategorias,
+  listarGruposDespesa, criarGrupoDespesa, atualizarGrupoDespesa, excluirGrupoDespesa,
+  criarTipoDespesa, atualizarTipoDespesa, excluirTipoDespesa,
   listarComprasResumo, obterCompra, criarCompra, atualizarCompra,
   marcarParcelaPaga, desfazerPagamento, corrigirVencimentoParcela, corrigirDataCompra, excluirCompra,
   dashboardKpis, dashboardSaldoPorCartao, dashboardSaldoPorCategoria, dashboardResumoPorCompra, dashboardProjecao, dashboardParcelas,
