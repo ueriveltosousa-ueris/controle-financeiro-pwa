@@ -166,6 +166,34 @@ function semearBasesPadrao() {
   }
 }
 
+// O banco está no formato que este código espera? Confere as TABELAS de
+// verdade, não só o PRAGMA user_version: um backup restaurado traz junto o
+// user_version que ele tinha, e um banco pode acabar com a versão "nova" mas
+// as tabelas antigas. Checar a estrutura real deixa isso auto-corrigível.
+function bancoPrecisaPreparo() {
+  return versaoViewsAtual() < VERSAO_ATUAL_VIEWS
+    || !tabelaExiste('formas_pagamento')
+    || !tabelaExiste('grupos_despesa')
+    || !tabelaExiste('tipos_despesa');
+}
+
+// Põe um banco já existente no formato atual: migra as tabelas, recria as
+// views e carimba a versão. Idempotente — roda no carregamento e também
+// depois de restaurar um backup (que pode ser de uma versão bem antiga).
+async function prepararBancoExistente() {
+  const semear = versaoViewsAtual() < VERSAO_ATUAL_VIEWS;
+  transacao(() => {
+    migrarParaBasesEditaveis();
+    // Só semeia exemplos quando o banco ainda não tinha passado por esta
+    // versão — não repovoa bases que o usuário esvaziou de propósito.
+    if (semear) semearBasesPadrao();
+  });
+  const views = await buscarTexto('db/views.sql');
+  db.exec(views);
+  db.exec('PRAGMA user_version = ' + VERSAO_ATUAL_VIEWS);
+  await salvarBanco();
+}
+
 async function inicializarBanco() {
   SQL = await initSqlJs({ locateFile: (f) => 'vendor/sqljs/' + f });
 
@@ -173,16 +201,7 @@ async function inicializarBanco() {
   if (bytesSalvos) {
     db = new SQL.Database(new Uint8Array(bytesSalvos));
     db.exec('PRAGMA foreign_keys = ON;');
-    if (versaoViewsAtual() < VERSAO_ATUAL_VIEWS) {
-      transacao(() => {
-        migrarParaBasesEditaveis();
-        semearBasesPadrao();
-      });
-      const views = await buscarTexto('db/views.sql');
-      db.exec(views);
-      db.exec('PRAGMA user_version = ' + VERSAO_ATUAL_VIEWS);
-      await salvarBanco();
-    }
+    if (bancoPrecisaPreparo()) await prepararBancoExistente();
     return { criadoAgora: false };
   }
 
@@ -232,8 +251,13 @@ function exportarBytes() {
 }
 
 // Substitui o banco atual pelos bytes de um backup importado.
+// O backup pode ter sido gerado por uma versão bem mais antiga do app, então
+// passa pela mesma migração/recriação de views do carregamento normal — sem
+// isso o app fica rodando código novo sobre tabelas antigas (ex.: consultas
+// que fazem JOIN em formas_pagamento quebravam com "no such table").
 async function importarBytes(bytes) {
   db = new SQL.Database(new Uint8Array(bytes));
   db.exec('PRAGMA foreign_keys = ON;');
-  await salvarBanco();
+  if (bancoPrecisaPreparo()) await prepararBancoExistente();
+  else await salvarBanco();
 }
