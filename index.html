@@ -34,7 +34,7 @@
     .menu-topo-wrap { position:relative; }
     #btnMenuTopo { background:#fff; color:var(--azul); border:none; width:36px; height:36px; border-radius:6px; font-weight:700; cursor:pointer; font-size:18px; line-height:1; }
     #btnMenuTopo:hover, #btnMenuTopo[aria-expanded="true"] { background:#eaf1fb; }
-    .menu-topo-dropdown { display:none; flex-direction:column; gap:2px; position:absolute; top:calc(100% + 8px); right:0; background:#fff; border-radius:9px; box-shadow:0 10px 28px rgba(0,0,0,.2); padding:6px; min-width:180px; z-index:120; }
+    .menu-topo-dropdown { display:none; flex-direction:column; gap:2px; position:fixed; background:#fff; border-radius:9px; box-shadow:0 10px 28px rgba(0,0,0,.2); padding:6px; width:180px; max-width:calc(100vw - 20px); z-index:120; }
     .menu-topo-dropdown.aberto { display:flex; }
     .menu-topo-dropdown button { background:none; border:none; text-align:left; padding:10px 12px; border-radius:6px; font-size:13.5px; font-weight:600; color:var(--texto); cursor:pointer; font-family:inherit; }
     .menu-topo-dropdown button:hover { background:#eaf1fb; color:var(--azul); }
@@ -172,13 +172,13 @@
       /* Cards do menu ficam pequenos por padrão no mobile: ícone + título numa
          linha enxuta, com a descrição sempre escondida atrás do "?" (só o
          card ATIVO ou com "?" tocado mostra a descrição, crescendo pra caber). */
-      .menu-btn { flex:0 0 auto; width:auto; min-width:auto; padding:7px 10px; gap:3px; }
-      .menu-btn-topo { gap:6px; }
-      .menu-btn-icone { font-size:16px; }
-      .menu-btn-titulo { font-size:10.5px; white-space:nowrap; }
-      .menu-btn-ajuda { width:15px; height:15px; font-size:9px; }
+      .menu-btn { flex:0 0 auto; width:auto; min-width:auto; padding:6px 8px; gap:2px; }
+      .menu-btn-topo { gap:5px; }
+      .menu-btn-icone { font-size:19px; }
+      .menu-btn-titulo { font-size:10px; line-height:1.15; white-space:normal; }
+      .menu-btn-ajuda { width:14px; height:14px; font-size:8px; }
       .menu-btn.ativa, .menu-btn.desc-aberta { min-width:190px; max-width:230px; padding:10px 12px; }
-      .menu-btn.ativa .menu-btn-titulo, .menu-btn.desc-aberta .menu-btn-titulo { font-size:12.5px; white-space:normal; }
+      .menu-btn.ativa .menu-btn-titulo, .menu-btn.desc-aberta .menu-btn-titulo { font-size:12.5px; }
       .menu-cards-lateral.recolhido { width:auto; }
       .menu-cards-lateral.recolhido .menu-btn { min-width:44px; }
       main { padding:24px 20px; }
@@ -196,13 +196,11 @@
     <div style="display:flex;align-items:center;gap:10px;">
       <div><h1>💳 CONTROLE FINANCEIRO</h1><div class="sub"><span id="atualizadoEm">Carregando...</span><button id="btnAtualizar" onclick="carregarTudo()" title="Atualizar a tela">🔄 Atualizar</button></div></div>
     </div>
-    <div style="display:flex;gap:8px;align-items:center;">
-      <div class="menu-topo-wrap">
-        <button id="btnMenuTopo" onclick="alternarMenuTopo(event)" title="Mais opções (backup e restaurar)" aria-haspopup="true" aria-expanded="false">⋮</button>
-        <div class="menu-topo-dropdown" id="menuTopoDropdown">
-          <button onclick="exportarBackup(); fecharMenuTopo();">💾 Backup</button>
-          <button onclick="document.getElementById('inputRestaurar').click(); fecharMenuTopo();">📂 Restaurar</button>
-        </div>
+    <div class="menu-topo-wrap" style="display:flex;gap:8px;align-items:center;">
+      <button id="btnMenuTopo" onclick="alternarMenuTopo(event)" title="Mais opções (backup e restaurar)" aria-haspopup="true" aria-expanded="false">⋮</button>
+      <div class="menu-topo-dropdown" id="menuTopoDropdown">
+        <button onclick="exportarBackup(); fecharMenuTopo();">💾 Backup</button>
+        <button onclick="document.getElementById('inputRestaurar').click(); fecharMenuTopo();">📂 Restaurar</button>
       </div>
       <input type="file" id="inputRestaurar" accept=".sqlite,.db" style="display:none;" onchange="restaurarBackupSelecionado(event)" />
       <button id="btnSair" onclick="sairApp()" title="Sair do app">🔴 Sair</button>
@@ -233,7 +231,7 @@
           <span class="menu-btn-icone">🧾</span>
           <button class="menu-btn-ajuda" onclick="event.stopPropagation();alternarDescricaoCard(this)" title="O que é isso?" aria-label="O que é isso?">?</button>
         </span>
-        <span class="menu-btn-titulo">Lançamentos de Despesas</span>
+        <span class="menu-btn-titulo">Lançamentos<br>Despesas</span>
         <span class="menu-btn-desc">Cadastre compras à vista ou parceladas e controle os pagamentos.</span>
       </div>
       <div class="menu-btn menu-btn-laranja" id="menuBtnOrcamentos" role="button" tabindex="0" onclick="trocarAba('orcamentos')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();trocarAba('orcamentos');}">
@@ -241,7 +239,7 @@
           <span class="menu-btn-icone">💰</span>
           <button class="menu-btn-ajuda" onclick="event.stopPropagation();alternarDescricaoCard(this)" title="O que é isso?" aria-label="O que é isso?">?</button>
         </span>
-        <span class="menu-btn-titulo">Cadastro de Orçamentos</span>
+        <span class="menu-btn-titulo">Cadastro<br>Orçamentos</span>
         <span class="menu-btn-desc">Lance os ganhos do mês e acompanhe o orçamento disponível.</span>
       </div>
       <div class="menu-btn menu-btn-roxo" id="menuBtnCartoes" role="button" tabindex="0" onclick="trocarAba('cartoes')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();trocarAba('cartoes');}">
@@ -249,7 +247,7 @@
           <span class="menu-btn-icone">💸</span>
           <button class="menu-btn-ajuda" onclick="event.stopPropagation();alternarDescricaoCard(this)" title="O que é isso?" aria-label="O que é isso?">?</button>
         </span>
-        <span class="menu-btn-titulo">Cadastro de Despesas</span>
+        <span class="menu-btn-titulo">Cadastro<br>Despesas</span>
         <span class="menu-btn-desc">Configure categorias de despesa e o dia de vencimento de cada uma.</span>
       </div>
     </div>
@@ -1705,11 +1703,28 @@
 
     // Menu "⋮" do topo (Backup/Restaurar) — dropdown simples que fecha ao
     // clicar fora, escolher uma opção, ou apertar Esc.
+    // Calcula a posição do dropdown em pixels de tela (position:fixed) a
+    // partir do botão "⋮", grudando embaixo dele mas sempre com uma margem
+    // mínima das bordas — em telas estreitas isso evita o menu nascer cortado
+    // (o "right:0" relativo a um elemento perto da borda podia empurrar o
+    // dropdown pra fora da tela pela esquerda).
+    function posicionarMenuTopo() {
+      const dd = document.getElementById('menuTopoDropdown');
+      const btn = document.getElementById('btnMenuTopo');
+      const margem = 10;
+      const largura = parseFloat(getComputedStyle(dd).width) || 180;
+      const r = btn.getBoundingClientRect();
+      let esquerda = r.right - largura;
+      esquerda = Math.max(margem, Math.min(esquerda, window.innerWidth - largura - margem));
+      dd.style.left = esquerda + 'px';
+      dd.style.top = (r.bottom + 8) + 'px';
+    }
     function alternarMenuTopo(evento) {
       if (evento) evento.stopPropagation();
       const dd = document.getElementById('menuTopoDropdown');
       const btn = document.getElementById('btnMenuTopo');
       const abrir = !dd.classList.contains('aberto');
+      if (abrir) posicionarMenuTopo();
       dd.classList.toggle('aberto', abrir);
       if (btn) btn.setAttribute('aria-expanded', abrir ? 'true' : 'false');
     }
