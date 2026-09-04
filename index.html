@@ -314,6 +314,13 @@
           <b>Excluir</b>: apaga a compra e todas as parcelas — não tem como desfazer.<br>
           <span style="color:#8a6100;">⚠️ Mudar valor, nº de parcelas, data da compra ou forma de pagamento recria as parcelas do zero (o controle de pagamento recomeça). Só descrição/observações não mexem nas parcelas.</span>
         </div>
+        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;">
+          <div class="campo" style="margin-bottom:0;max-width:360px;flex:1;">
+            <label>Pesquisar (qualquer coluna: descrição, tipo, despesa, categoria, valor...)</label>
+            <input type="text" id="filtroLancamentos" placeholder="Digite para filtrar..." oninput="aplicarFiltroLancamentos()" />
+          </div>
+          <button class="btn btn-cinza" onclick="document.getElementById('filtroLancamentos').value='';aplicarFiltroLancamentos();">Limpar</button>
+        </div>
         <div class="tabela-scroll" style="max-height:500px;overflow-y:auto;">
           <table id="tabelaCompras">
             <thead><tr><th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th class="num">Valor Total</th><th class="num">Valor Parcela</th><th class="num">Total de Parcelas</th><th class="num">Parcelas Pagas</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Ações</th></tr></thead>
@@ -1440,10 +1447,38 @@
         '<td class="num">' + brl(totalPago) + '</td><td class="num">' + brl(totalSaldo) + '</td>' +
         '<td></td><td></td></tr>';
     }
+    // Ponto de entrada chamado sempre que a lista de compras é recarregada:
+    // atualiza a lista completa (mesma variável usada pelos detalhamentos dos
+    // gráficos) e desenha a tabela já respeitando o filtro digitado.
     function renderTabelaCompras(lista) {
-      lista = (lista || ultimaListaCompras).slice().sort((a, b) => a.descricao.localeCompare(b.descricao, 'pt-BR'));
+      if (lista) ultimaListaCompras = lista;
+      aplicarFiltroLancamentos();
+    }
+    // Filtro de texto livre que casa contra QUALQUER coluna visível da tabela
+    // (descrição, tipo, forma de pagamento, categoria, valores, parcelas,
+    // situação etc.) — mesmo padrão do filtro do Resumo por compra.
+    function aplicarFiltroLancamentos() {
+      const termo = (document.getElementById('filtroLancamentos').value || '').trim().toLowerCase();
+      if (!termo) { desenharTabelaCompras(ultimaListaCompras); return; }
+      const filtrados = ultimaListaCompras.filter((d) => {
+        const avista = Number(d.qtd_parcelas) === 1;
+        const textoLinha = [
+          d.descricao, avista ? 'à vista' : 'parcelada', d.cartao, d.categoria,
+          brl(d.valor_total), brl(valorParcela(d)), avista ? '1x' : (d.qtd_parcelas + 'x'),
+          (d.qtd_parcelas_pagas || 0), brl(d.saldo_aberto), d.situacao,
+        ].join(' ').toLowerCase();
+        return textoLinha.includes(termo);
+      });
+      desenharTabelaCompras(filtrados);
+    }
+    function desenharTabelaCompras(lista) {
+      lista = (lista || []).slice().sort((a, b) => a.descricao.localeCompare(b.descricao, 'pt-BR'));
       const tbody = document.querySelector('#tabelaCompras tbody');
-      if (!lista.length) { tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:#888;">Nenhum lançamento. Use os botões acima.</td></tr>'; return; }
+      if (!lista.length) {
+        const msg = ultimaListaCompras.length ? 'Nenhum resultado para o filtro aplicado.' : 'Nenhum lançamento. Use os botões acima.';
+        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:#888;">' + msg + '</td></tr>';
+        return;
+      }
       tbody.innerHTML = lista.map(d => {
         const situ = d.situacao === 'Quitada' ? '<span class="badge quitada">Quitada</span>' : '<span class="badge aberto">Em Aberto</span>';
         const avista = Number(d.qtd_parcelas) === 1;
