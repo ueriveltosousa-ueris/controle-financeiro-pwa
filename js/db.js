@@ -20,7 +20,12 @@ const NOME_METADADOS = 'meta';
 // bases editáveis (Grupo de Despesa / Tipo de Despesa / Forma de Pagamento).
 // v3: Tipo de Despesa deixa de exigir um Grupo fixo — o grupo passa a ser
 // escolhido livremente em cada lançamento (compras.grupo_despesa_id).
-const VERSAO_ATUAL_VIEWS = 3;
+// v4: vw_resumo_por_compra trocou JOIN por LEFT JOIN em formas_pagamento —
+// uma compra com cartao_id inválido/órfão (ex.: sobra de uma migração antiga)
+// sumia inteira da tabela "Resumo por compra" em vez de só aparecer com
+// forma de pagamento em branco, causando totais divergentes de outras telas
+// (ex.: Projeção) que somam direto de "parcelas", sem esse JOIN.
+const VERSAO_ATUAL_VIEWS = 4;
 
 let SQL = null;   // módulo sql.js carregado (initSqlJs())
 let db = null;    // instância do banco (SQL.Database)

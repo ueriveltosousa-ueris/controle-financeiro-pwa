@@ -230,7 +230,7 @@ function obterCompra(id) {
   const compra = primeiraLinha(`
     SELECT c.*, ca.nome AS cartao, ca.dia_vencimento AS cartao_dia_vencimento, cat.nome AS categoria, gr.nome AS grupo
     FROM compras c
-    JOIN formas_pagamento ca ON ca.id = c.cartao_id
+    LEFT JOIN formas_pagamento ca ON ca.id = c.cartao_id
     LEFT JOIN tipos_despesa cat ON cat.id = c.categoria_id
     LEFT JOIN grupos_despesa gr ON gr.id = c.grupo_despesa_id
     WHERE c.id = ?`, [id]);
@@ -403,7 +403,7 @@ function dashboardParcelas({ status, mes }) {
            (SELECT IFNULL(SUM(valor_centavos),0) FROM parcelas p3 WHERE p3.compra_id = p.compra_id AND p3.status = 'Pendente') AS saldo_aberto_centavos
     FROM parcelas p
     JOIN compras c  ON c.id  = p.compra_id
-    JOIN formas_pagamento ca ON ca.id = c.cartao_id
+    LEFT JOIN formas_pagamento ca ON ca.id = c.cartao_id
     LEFT JOIN tipos_despesa cat ON cat.id = c.categoria_id
     WHERE ${condicoes.join(' AND ')}
     ORDER BY p.data_vencimento`, params);

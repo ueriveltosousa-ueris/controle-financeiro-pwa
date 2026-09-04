@@ -74,7 +74,7 @@ SELECT
     CASE WHEN IFNULL(SUM(CASE WHEN p.status = 'Pendente' THEN p.valor_centavos END),0) = 0
          THEN 'Quitada' ELSE 'Em Aberto' END                                      AS situacao
 FROM compras c
-JOIN formas_pagamento ca ON ca.id  = c.cartao_id
+LEFT JOIN formas_pagamento ca ON ca.id  = c.cartao_id
 LEFT JOIN tipos_despesa cat ON cat.id = c.categoria_id
 LEFT JOIN parcelas p     ON p.compra_id = c.id
 GROUP BY c.id, c.descricao, c.data_compra, ca.nome, cat.nome, c.valor_total_centavos, c.qtd_parcelas;
