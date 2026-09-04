@@ -402,7 +402,7 @@ function dashboardParcelas({ status, mes }) {
            (SELECT COUNT(*) FROM parcelas p2 WHERE p2.compra_id = p.compra_id AND p2.status = 'Pago') AS qtd_parcelas_pagas,
            (SELECT IFNULL(SUM(valor_centavos),0) FROM parcelas p3 WHERE p3.compra_id = p.compra_id AND p3.status = 'Pendente') AS saldo_aberto_centavos
     FROM parcelas p
-    JOIN compras c  ON c.id  = p.compra_id
+    LEFT JOIN compras c  ON c.id  = p.compra_id
     LEFT JOIN formas_pagamento ca ON ca.id = c.cartao_id
     LEFT JOIN tipos_despesa cat ON cat.id = c.categoria_id
     WHERE ${condicoes.join(' AND ')}
@@ -414,7 +414,7 @@ function dashboardParcelas({ status, mes }) {
     valor: paraReais(l.valor_centavos),
     data_vencimento: l.data_vencimento,
     status: l.status,
-    descricao: l.descricao,
+    descricao: l.descricao || '(compra não encontrada)',
     qtd_parcelas: l.qtd_parcelas,
     data_compra: l.data_compra,
     cartao: l.cartao,

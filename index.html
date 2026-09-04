@@ -1544,7 +1544,7 @@
     }
 
     // ---- PARCELAS: marcar como paga / desfazer / corrigir datas ----
-    const formatarData = (iso) => { const p = String(iso).slice(0,10).split('-'); return p[2] + '/' + p[1] + '/' + p[0]; };
+    const formatarData = (iso) => { if (!iso) return '-'; const p = String(iso).slice(0,10).split('-'); return p[2] + '/' + p[1] + '/' + p[0]; };
     let parcelasCompraIdAtual = null;
 
     async function abrirParcelas(compraId, nomeCompra) {
