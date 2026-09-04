@@ -18,7 +18,9 @@ const NOME_ARQUIVO_DB = 'db';
 const NOME_METADADOS = 'meta';
 // v2 passou a cobrir não só as views como também a migração de schema das
 // bases editáveis (Grupo de Despesa / Tipo de Despesa / Forma de Pagamento).
-const VERSAO_ATUAL_VIEWS = 2;
+// v3: Tipo de Despesa deixa de exigir um Grupo fixo — o grupo passa a ser
+// escolhido livremente em cada lançamento (compras.grupo_despesa_id).
+const VERSAO_ATUAL_VIEWS = 3;
 
 let SQL = null;   // módulo sql.js carregado (initSqlJs())
 let db = null;    // instância do banco (SQL.Database)
@@ -124,12 +126,12 @@ function migrarParaBasesEditaveis() {
   if (!colunaExiste('tipos_despesa', 'grupo_id')) {
     db.exec('ALTER TABLE tipos_despesa ADD COLUMN grupo_id INTEGER REFERENCES grupos_despesa(id)');
   }
-  // Tipo de despesa órfão (sem grupo, sobra de banco antigo) vai pra "Outros".
-  const orfaos = primeiraLinha('SELECT COUNT(*) AS n FROM tipos_despesa WHERE grupo_id IS NULL').n;
-  if (orfaos > 0) {
-    executar("INSERT OR IGNORE INTO grupos_despesa (nome) VALUES ('Outros')");
-    const outros = primeiraLinha("SELECT id FROM grupos_despesa WHERE nome = 'Outros'").id;
-    executar('UPDATE tipos_despesa SET grupo_id = ? WHERE grupo_id IS NULL', [outros]);
+  // grupo_despesa_id: o Grupo de cada despesa agora é escolhido livremente no
+  // lançamento (independente do Tipo de Despesa escolhido — Tipo deixou de
+  // exigir um Grupo fixo). Não reatribui mais tipo_despesa.grupo_id órfão a
+  // "Outros": grupo_id NULO num tipo agora é normal, não sobra de migração.
+  if (tabelaExiste('compras') && !colunaExiste('compras', 'grupo_despesa_id')) {
+    db.exec('ALTER TABLE compras ADD COLUMN grupo_despesa_id INTEGER REFERENCES grupos_despesa(id)');
   }
 }
 
@@ -174,7 +176,8 @@ function bancoPrecisaPreparo() {
   return versaoViewsAtual() < VERSAO_ATUAL_VIEWS
     || !tabelaExiste('formas_pagamento')
     || !tabelaExiste('grupos_despesa')
-    || !tabelaExiste('tipos_despesa');
+    || !tabelaExiste('tipos_despesa')
+    || !colunaExiste('compras', 'grupo_despesa_id');
 }
 
 // Põe um banco já existente no formato atual: migra as tabelas, recria as

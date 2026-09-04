@@ -41,13 +41,16 @@ CREATE TABLE grupos_despesa (
     nome TEXT NOT NULL UNIQUE
 );
 
--- Tipo de Despesa: classificação específica do gasto, sempre dentro de um
--- Grupo (ex.: Supermercado e Restaurantes dentro de Alimentação).
+-- Tipo de Despesa: classificação específica do gasto (ex.: Supermercado,
+-- Combustível). Independente do Grupo — não pertence a um grupo fixo; o
+-- grupo de cada despesa é escolhido à parte, no momento do lançamento (ver
+-- compras.grupo_despesa_id abaixo). grupo_id aqui é só resquício de uma
+-- versão anterior (sempre NULO em tipo novo) — mantido só pra não perder
+-- histórico de bancos já migrados; não é mais usado pelo app.
 CREATE TABLE tipos_despesa (
     id       INTEGER PRIMARY KEY AUTOINCREMENT,
-    grupo_id INTEGER NOT NULL REFERENCES grupos_despesa(id),
-    nome     TEXT NOT NULL,
-    UNIQUE (grupo_id, nome)
+    grupo_id INTEGER NULL REFERENCES grupos_despesa(id),
+    nome     TEXT NOT NULL UNIQUE
 );
 
 -- Forma de Pagamento (antigo "cartões"): cartão de crédito, débito, PIX,
@@ -67,11 +70,14 @@ CREATE TABLE formas_pagamento (
 -- Não existem dois fluxos separados: é sempre uma "compra" com N parcelas.
 -- Os nomes de coluna cartao_id/categoria_id são mantidos por compatibilidade
 -- interna (código já validado) — apontam para formas_pagamento/tipos_despesa.
+-- grupo_despesa_id é escolhido livremente no lançamento, independente do
+-- Tipo de Despesa escolhido (ver comentário em tipos_despesa acima).
 CREATE TABLE compras (
     id                   INTEGER PRIMARY KEY AUTOINCREMENT,
     descricao            TEXT NOT NULL,
     cartao_id            INTEGER NOT NULL REFERENCES formas_pagamento(id),
     categoria_id         INTEGER NULL REFERENCES tipos_despesa(id),
+    grupo_despesa_id     INTEGER NULL REFERENCES grupos_despesa(id),
     valor_total_centavos INTEGER NOT NULL CHECK (valor_total_centavos >= 0),
     qtd_parcelas         INTEGER NOT NULL DEFAULT 1 CHECK (qtd_parcelas >= 1),
     data_compra          TEXT NOT NULL,   -- 'YYYY-MM-DD'; referência, não entra em cálculo de vencimento
@@ -105,5 +111,5 @@ CREATE INDEX IX_parcelas_status_venc   ON parcelas(status, data_vencimento);
 CREATE INDEX IX_parcelas_compra        ON parcelas(compra_id);
 CREATE INDEX IX_compras_cartao         ON compras(cartao_id);
 CREATE INDEX IX_compras_categoria      ON compras(categoria_id);
+CREATE INDEX IX_compras_grupo          ON compras(grupo_despesa_id);
 CREATE INDEX IX_orcamento_ano_mes      ON orcamento_itens(ano_mes);
-CREATE INDEX IX_tipos_despesa_grupo    ON tipos_despesa(grupo_id);

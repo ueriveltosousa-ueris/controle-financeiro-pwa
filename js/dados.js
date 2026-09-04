@@ -139,7 +139,7 @@ async function excluirGrupoDespesa(id) {
     if (r.changes === 0) throw new Error('Grupo de despesa não encontrado');
   } catch (e) {
     if (/FOREIGN KEY/i.test(e.message || '')) {
-      throw new Error('Não é possível excluir: existem tipos de despesa cadastrados neste grupo. Mova-os ou exclua-os primeiro.');
+      throw new Error('Não é possível excluir: existem despesas lançadas com esse grupo. Altere o grupo dessas despesas antes de excluir.');
     }
     throw e;
   }
@@ -152,36 +152,52 @@ async function excluirGrupoDespesa(id) {
 // dentro de um Grupo de Despesa.
 // ---------------------------------------------------------------------
 function listarCategorias() {
+  // LEFT JOIN: Tipo de Despesa não exige mais um Grupo fixo (grupo_id pode
+  // ser NULO) — com INNER JOIN, todo tipo sem grupo desapareceria da lista.
   return todasLinhas(`
     SELECT t.id, t.nome, t.grupo_id, g.nome AS grupo
-    FROM tipos_despesa t JOIN grupos_despesa g ON g.id = t.grupo_id
-    ORDER BY g.nome, t.nome`);
+    FROM tipos_despesa t LEFT JOIN grupos_despesa g ON g.id = t.grupo_id
+    ORDER BY t.nome`);
 }
 
-async function criarTipoDespesa({ nome, grupo_id }) {
+// Tipo de Despesa não pertence mais a um Grupo fixo — o grupo de cada
+// despesa é escolhido à parte, no momento do lançamento (ver criarCompra).
+async function criarTipoDespesa({ nome }) {
   nome = (nome || '').trim();
   if (!nome) throw new Error('Nome é obrigatório');
-  if (!grupo_id) throw new Error('Grupo de despesa é obrigatório');
   try {
-    executar('INSERT INTO tipos_despesa (grupo_id, nome) VALUES (?, ?)', [Number(grupo_id), nome]);
+    executar('INSERT INTO tipos_despesa (nome) VALUES (?)', [nome]);
   } catch (e) {
-    if (/UNIQUE/i.test(e.message || '')) throw new Error('Já existe um tipo de despesa com esse nome nesse grupo.');
-    throw e;
+    if (/NOT NULL/i.test(e.message || '')) {
+      // Banco de antes do grupo virar opcional: a coluna ainda exige um
+      // valor. Preenche com "Outros" nos bastidores, sem pedir isso na tela.
+      executar("INSERT OR IGNORE INTO grupos_despesa (nome) VALUES ('Outros')");
+      const outros = primeiraLinha("SELECT id FROM grupos_despesa WHERE nome = 'Outros'").id;
+      try {
+        executar('INSERT INTO tipos_despesa (grupo_id, nome) VALUES (?, ?)', [outros, nome]);
+      } catch (e2) {
+        if (/UNIQUE/i.test(e2.message || '')) throw new Error('Já existe um tipo de despesa com esse nome.');
+        throw e2;
+      }
+    } else if (/UNIQUE/i.test(e.message || '')) {
+      throw new Error('Já existe um tipo de despesa com esse nome.');
+    } else {
+      throw e;
+    }
   }
   const id = ultimoIdInserido();
   await salvarBanco();
   return { id, mensagem: 'Tipo de despesa criado' };
 }
 
-async function atualizarTipoDespesa(id, { nome, grupo_id }) {
+async function atualizarTipoDespesa(id, { nome }) {
   nome = (nome || '').trim();
   if (!nome) throw new Error('Nome é obrigatório');
-  if (!grupo_id) throw new Error('Grupo de despesa é obrigatório');
   try {
-    const r = executar('UPDATE tipos_despesa SET nome = ?, grupo_id = ? WHERE id = ?', [nome, Number(grupo_id), Number(id)]);
+    const r = executar('UPDATE tipos_despesa SET nome = ? WHERE id = ?', [nome, Number(id)]);
     if (r.changes === 0) throw new Error('Tipo de despesa não encontrado');
   } catch (e) {
-    if (/UNIQUE/i.test(e.message || '')) throw new Error('Já existe um tipo de despesa com esse nome nesse grupo.');
+    if (/UNIQUE/i.test(e.message || '')) throw new Error('Já existe um tipo de despesa com esse nome.');
     throw e;
   }
   await salvarBanco();
@@ -212,10 +228,11 @@ function listarComprasResumo() {
 function obterCompra(id) {
   id = Number(id);
   const compra = primeiraLinha(`
-    SELECT c.*, ca.nome AS cartao, ca.dia_vencimento AS cartao_dia_vencimento, cat.nome AS categoria
+    SELECT c.*, ca.nome AS cartao, ca.dia_vencimento AS cartao_dia_vencimento, cat.nome AS categoria, gr.nome AS grupo
     FROM compras c
     JOIN formas_pagamento ca ON ca.id = c.cartao_id
     LEFT JOIN tipos_despesa cat ON cat.id = c.categoria_id
+    LEFT JOIN grupos_despesa gr ON gr.id = c.grupo_despesa_id
     WHERE c.id = ?`, [id]);
   if (!compra) throw new Error('Compra não encontrada');
 
@@ -226,6 +243,7 @@ function obterCompra(id) {
     descricao: compra.descricao,
     cartao_id: compra.cartao_id,
     categoria_id: compra.categoria_id,
+    grupo_despesa_id: compra.grupo_despesa_id,
     valor_total: paraReais(compra.valor_total_centavos),
     qtd_parcelas: compra.qtd_parcelas,
     data_compra: compra.data_compra,
@@ -233,6 +251,7 @@ function obterCompra(id) {
     cartao: compra.cartao,
     cartao_dia_vencimento: compra.cartao_dia_vencimento,
     categoria: compra.categoria,
+    grupo: compra.grupo,
     parcelas: parcelas.map(mapParcela),
   };
 }
@@ -248,7 +267,7 @@ function gerarParcelas(compraId, valorTotalCentavos, qtdParcelas, primeiroVencim
   }
 }
 
-async function criarCompra({ descricao, cartao_id, categoria_id, valor_total, qtd_parcelas, data_primeira_parcela, observacoes }) {
+async function criarCompra({ descricao, cartao_id, categoria_id, grupo_despesa_id, valor_total, qtd_parcelas, data_primeira_parcela, observacoes }) {
   if (!descricao || !cartao_id || !valor_total || !qtd_parcelas || !data_primeira_parcela) {
     throw new Error('Campos obrigatórios: descricao, cartao_id, valor_total, qtd_parcelas, data_primeira_parcela');
   }
@@ -259,9 +278,9 @@ async function criarCompra({ descricao, cartao_id, categoria_id, valor_total, qt
     const primeiroVencimento = calcularPrimeiroVencimento(data_primeira_parcela, diaVencimentoCartao);
     const valorTotalCentavos = paraCentavos(valor_total);
 
-    executar(`INSERT INTO compras (descricao, cartao_id, categoria_id, valor_total_centavos, qtd_parcelas, data_compra, observacoes)
-        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [descricao, cartao_id, categoria_id || null, valorTotalCentavos, qtd_parcelas, data_primeira_parcela, observacoes || null]);
+    executar(`INSERT INTO compras (descricao, cartao_id, categoria_id, grupo_despesa_id, valor_total_centavos, qtd_parcelas, data_compra, observacoes)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [descricao, cartao_id, categoria_id || null, grupo_despesa_id || null, valorTotalCentavos, qtd_parcelas, data_primeira_parcela, observacoes || null]);
     const compraId = ultimoIdInserido();
 
     gerarParcelas(compraId, valorTotalCentavos, qtd_parcelas, primeiroVencimento);
@@ -275,7 +294,7 @@ async function criarCompra({ descricao, cartao_id, categoria_id, valor_total, qt
   };
 }
 
-async function atualizarCompra(id, { descricao, cartao_id, categoria_id, valor_total, qtd_parcelas, data_primeira_parcela, observacoes }) {
+async function atualizarCompra(id, { descricao, cartao_id, categoria_id, grupo_despesa_id, valor_total, qtd_parcelas, data_primeira_parcela, observacoes }) {
   id = Number(id);
   if (!descricao || !cartao_id || !valor_total || !qtd_parcelas || !data_primeira_parcela) {
     throw new Error('Campos obrigatórios: descricao, cartao_id, valor_total, qtd_parcelas, data_primeira_parcela');
@@ -292,9 +311,9 @@ async function atualizarCompra(id, { descricao, cartao_id, categoria_id, valor_t
     atual.data_compra !== data_primeira_parcela;
 
   transacao(() => {
-    executar(`UPDATE compras SET descricao = ?, cartao_id = ?, categoria_id = ?, valor_total_centavos = ?,
+    executar(`UPDATE compras SET descricao = ?, cartao_id = ?, categoria_id = ?, grupo_despesa_id = ?, valor_total_centavos = ?,
                  qtd_parcelas = ?, data_compra = ?, observacoes = ? WHERE id = ?`,
-      [descricao, cartao_id, categoria_id || null, valorTotalCentavos, qtd_parcelas, data_primeira_parcela, observacoes || null, id]);
+      [descricao, cartao_id, categoria_id || null, grupo_despesa_id || null, valorTotalCentavos, qtd_parcelas, data_primeira_parcela, observacoes || null, id]);
 
     if (precisaRecriar) {
       const cartao = primeiraLinha('SELECT dia_vencimento FROM formas_pagamento WHERE id = ?', [cartao_id]);

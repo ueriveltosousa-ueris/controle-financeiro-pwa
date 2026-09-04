@@ -150,7 +150,7 @@
     .menu-cards-lateral.recolhido .menu-btn { padding:10px 6px; }
     .menu-cards-lateral.recolhido .menu-btn.ativa { padding:14px 6px; }
     @media (max-width:900px){
-      .app-corpo { flex-direction:column; }
+      .app-corpo { flex-direction:column; align-items:stretch; }
       .menu-cards-lateral { width:100%; flex-direction:row; align-items:center; position:static; padding:10px 16px; gap:10px; }
       .menu-cards-lateral-topo { margin-bottom:0; }
       .menu-cards-lateral-lista { flex:1; min-width:0; flex-direction:row; overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch; }
@@ -366,11 +366,11 @@
       <section class="card">
         <div class="titulo-com-ajuda"><h2 style="margin:0;">Grupo de Despesa</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-grupos', this)">?</button></div>
         <div class="obs-topo" style="margin-bottom:14px;">
-          Classificação ampla do gasto (ex.: Alimentação, Transporte, Moradia, Saúde). Cada Tipo de Despesa, logo abaixo, pertence a um grupo.
+          Classificação ampla do gasto (ex.: Alimentação, Transporte, Moradia, Saúde). Independente do Tipo de Despesa — você escolhe qual Grupo vincular a cada despesa direto no momento do lançamento.
         </div>
         <div class="ajuda-balao" id="ajuda-grupos">
-          É o nível mais geral da classificação — pense nele como a "área" do gasto. Em Tipo de Despesa você detalha (ex.: dentro de "Alimentação", os tipos "Supermercado" e "Restaurantes").<br>
-          Não dá pra excluir um grupo que já tem tipo de despesa cadastrado nele (mova ou exclua os tipos primeiro).
+          É o nível mais geral da classificação — pense nele como a "área" do gasto. Grupo e Tipo de Despesa são independentes: cada um tem sua própria lista, e você escolhe os dois separadamente ao lançar uma despesa.<br>
+          Não dá pra excluir um grupo que já tem despesa lançada com ele (troque o grupo dessas despesas primeiro).
         </div>
         <div class="acoes-topo" style="align-items:flex-end;">
           <div class="campo" style="margin-bottom:0;flex:1;min-width:200px;">
@@ -390,7 +390,7 @@
       <section class="card">
         <div class="titulo-com-ajuda"><h2 style="margin:0;">Tipo de Despesa</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-tipos', this)">?</button></div>
         <div class="obs-topo" style="margin-bottom:14px;">
-          Classificação específica do gasto, sempre dentro de um Grupo de Despesa (ex.: Supermercado e Restaurantes dentro de Alimentação).
+          Classificação específica do gasto (ex.: Supermercado, Combustível, Medicamentos). Independente do Grupo de Despesa — você escolhe os dois separadamente no momento do lançamento.
         </div>
         <div class="ajuda-balao" id="ajuda-tipos">
           É o que você escolhe em "Tipo de Despesa" na hora de lançar uma despesa — serve só pra classificar/agrupar seus gastos, não afeta vencimento nem parcelas (isso é configurado em Forma de Pagamento, mais abaixo).<br>
@@ -401,15 +401,11 @@
             <label>Novo tipo de despesa</label>
             <input type="text" id="novo_tipo_nome" placeholder="Ex.: Supermercado, Combustível, Medicamentos..." />
           </div>
-          <div class="campo" style="margin-bottom:0;min-width:180px;">
-            <label>Grupo de despesa</label>
-            <select id="novo_tipo_grupo"></select>
-          </div>
           <button class="btn btn-verde" onclick="criarTipoDespesa()">➕ Adicionar</button>
         </div>
         <div class="tabela-scroll" style="max-height:400px;overflow-y:auto;">
           <table id="tabelaTipos">
-            <thead><tr><th>Tipo de Despesa</th><th>Grupo</th><th>Ações</th></tr></thead>
+            <thead><tr><th>Tipo de Despesa</th><th>Ações</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -472,13 +468,13 @@
         </div>
         Se a forma de pagamento não tiver dia de vencimento configurado (ex.: PIX, Dinheiro), o vencimento vira a própria <b>data da compra</b> que você digitar.<br>
         A "Data da compra" é só uma referência sua — nunca muda nenhuma conta.<br>
-        <b>Grupo de Despesa</b> e <b>Tipo de Despesa</b> são opcionais — servem só pra classificar o gasto (ex.: Alimentação › Supermercado). Escolher o Grupo filtra a lista de Tipo pra ficar mais rápido de achar; sem escolher grupo, a lista mostra todos os tipos agrupados.
+        <b>Grupo de Despesa</b> e <b>Tipo de Despesa</b> são opcionais e totalmente independentes entre si — cada um tem sua própria lista (cadastradas na aba "Despesas") e você escolhe os dois separadamente aqui, sem um depender do outro.
       </div>
       <div class="aviso-edicao" id="avisoCompra">⚠️ Alterar o <b>valor</b>, o <b>nº de parcelas</b>, a <b>data da compra</b> ou a <b>forma de pagamento</b> recria as parcelas (o controle de pagamento recomeça). Mudar só descrição não mexe nas parcelas.</div>
       <div class="campo"><label>Descrição <span class="obrig">*</span></label><input type="text" id="c_descricao" placeholder="Ex.: TV 55 polegadas, Abastecimento..." /></div>
       <div class="campo"><label>Forma de Pagamento <span class="obrig">*</span></label><select id="c_cartao" onchange="atualizarAvisoVencimento('c')"></select><div class="dica" id="c_aviso_vencimento" style="display:none;color:#9C6500;"></div></div>
       <div class="linha2">
-        <div class="campo"><label>Grupo de Despesa</label><select id="c_grupo" onchange="atualizarTiposPorGrupo()"></select></div>
+        <div class="campo"><label>Grupo de Despesa</label><select id="c_grupo"></select></div>
         <div class="campo"><label>Tipo de Despesa</label><select id="c_categoria"></select></div>
       </div>
       <div class="linha2">
@@ -707,8 +703,6 @@
                 <button class="link-acao link-excluir" onclick="excluirGrupo(${g.id}, '${(g.nome||'').replace(/'/g,"\\'")}')">Excluir</button>
               </td>
             </tr>`).join('');
-        const selGrupo = document.getElementById('novo_tipo_grupo');
-        if (selGrupo) selGrupo.innerHTML = grupos.map(g => '<option value="' + g.id + '">' + g.nome + '</option>').join('');
       } catch (e) {
         tbody.innerHTML = '<tr><td colspan="2" style="text-align:center;color:#922;">Erro ao carregar: ' + e.message + '</td></tr>';
       }
@@ -745,48 +739,40 @@
     // ---- TIPO DE DESPESA ----
     async function carregarTiposTab() {
       const tbody = document.querySelector('#tabelaTipos tbody');
-      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#888;">Carregando...</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="2" style="text-align:center;color:#888;">Carregando...</td></tr>';
       try {
-        categorias = await api('/referencias/categorias'); // tipos de despesa, com grupo_id/grupo
-        const optGrupos = grupos.map(g => '<option value="' + g.id + '">' + g.nome + '</option>').join('');
+        categorias = await api('/referencias/categorias'); // tipos de despesa (lista simples, sem grupo)
         tbody.innerHTML = !categorias.length
-          ? '<tr><td colspan="3" style="text-align:center;color:#888;">Nenhum tipo de despesa cadastrado.</td></tr>'
+          ? '<tr><td colspan="2" style="text-align:center;color:#888;">Nenhum tipo de despesa cadastrado.</td></tr>'
           : categorias.map(t => `<tr>
               <td>
-                <input type="text" style="width:220px;padding:6px 8px;border:1px solid var(--cinza-borda);border-radius:6px;"
+                <input type="text" style="width:260px;padding:6px 8px;border:1px solid var(--cinza-borda);border-radius:6px;"
                        id="tipo_nome_${t.id}" value="${(t.nome||'').replace(/"/g,'&quot;')}" />
-              </td>
-              <td>
-                <select id="tipo_grupo_${t.id}" style="padding:6px 8px;border:1px solid var(--cinza-borda);border-radius:6px;">${optGrupos}</select>
               </td>
               <td>
                 <button class="btn btn-azul" style="padding:6px 12px;" onclick="salvarTipo(${t.id})">Salvar</button>
                 <button class="link-acao link-excluir" onclick="excluirTipo(${t.id}, '${(t.nome||'').replace(/'/g,"\\'")}')">Excluir</button>
               </td>
             </tr>`).join('');
-        categorias.forEach(t => { const sel = document.getElementById('tipo_grupo_' + t.id); if (sel) sel.value = t.grupo_id; });
-        preencherSelects(); // repopula o "Tipo de Despesa" (agrupado por Grupo) do formulário de lançamento
+        preencherSelects(); // repopula o "Tipo de Despesa" do formulário de lançamento
       } catch (e) {
-        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#922;">Erro ao carregar: ' + e.message + '</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="2" style="text-align:center;color:#922;">Erro ao carregar: ' + e.message + '</td></tr>';
       }
     }
     async function criarTipoDespesa() {
       const nome = document.getElementById('novo_tipo_nome').value.trim();
-      const grupoId = document.getElementById('novo_tipo_grupo').value;
       if (!nome) { alert('Digite um nome para o tipo de despesa (ex.: Supermercado).'); return; }
-      if (!grupoId) { alert('Cadastre um grupo de despesa primeiro.'); return; }
       try {
-        await api('/referencias/tipos-despesa', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ nome, grupo_id: Number(grupoId) }) });
+        await api('/referencias/tipos-despesa', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ nome }) });
         document.getElementById('novo_tipo_nome').value = '';
         await carregarTiposTab();
       } catch (e) { alert('Erro ao criar tipo de despesa: ' + e.message); }
     }
     async function salvarTipo(id) {
       const nome = document.getElementById('tipo_nome_' + id).value.trim();
-      const grupoId = document.getElementById('tipo_grupo_' + id).value;
       if (!nome) { alert('O nome não pode ficar vazio.'); return; }
       try {
-        await api('/referencias/tipos-despesa/' + id, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ nome, grupo_id: Number(grupoId) }) });
+        await api('/referencias/tipos-despesa/' + id, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ nome }) });
         await carregarTiposTab();
       } catch (e) { alert('Erro ao salvar: ' + e.message); }
     }
@@ -963,48 +949,17 @@
       }
     }
 
+    // Grupo de Despesa e Tipo de Despesa são independentes um do outro — cada
+    // select mostra sua própria lista completa, sem filtrar um pelo outro.
     function preencherSelects() {
       const optCartao = cartoes.map(c => '<option value="' + c.id + '">' + c.nome + '</option>').join('');
       document.getElementById('c_cartao').innerHTML = optCartao;
 
       const selGrupo = document.getElementById('c_grupo');
-      if (selGrupo) selGrupo.innerHTML = '<option value="">— todos —</option>' + grupos.map(g => '<option value="' + g.id + '">' + g.nome + '</option>').join('');
+      if (selGrupo) selGrupo.innerHTML = '<option value="">— nenhum —</option>' + grupos.map(g => '<option value="' + g.id + '">' + g.nome + '</option>').join('');
 
-      atualizarTiposPorGrupo();
-    }
-
-    // Preenche "Tipo de Despesa" de acordo com o "Grupo de Despesa" escolhido:
-    // sem grupo selecionado, mostra todos os tipos agrupados por <optgroup>;
-    // com um grupo selecionado, mostra só os tipos daquele grupo (lista plana).
-    function atualizarTiposPorGrupo() {
       const selCat = document.getElementById('c_categoria');
-      if (!selCat) return;
-      const selGrupo = document.getElementById('c_grupo');
-      const grupoId = selGrupo ? selGrupo.value : '';
-      const valorAtual = selCat.value;
-
-      let opcoes;
-      if (grupoId) {
-        opcoes = categorias.filter((t) => String(t.grupo_id) === String(grupoId))
-          .map((t) => '<option value="' + t.id + '">' + t.nome + '</option>').join('');
-      } else {
-        // Agrupado por Grupo de Despesa (<optgroup>), na ordem em que já vêm
-        // da API (ordenados por grupo, depois nome — ver listarCategorias()
-        // em js/dados.js).
-        const porGrupo = [];
-        const indicePorGrupo = {};
-        categorias.forEach((t) => {
-          if (!(t.grupo in indicePorGrupo)) { indicePorGrupo[t.grupo] = porGrupo.length; porGrupo.push({ grupo: t.grupo, tipos: [] }); }
-          porGrupo[indicePorGrupo[t.grupo]].tipos.push(t);
-        });
-        opcoes = porGrupo.map((g) =>
-          '<optgroup label="' + g.grupo + '">' + g.tipos.map((t) => '<option value="' + t.id + '">' + t.nome + '</option>').join('') + '</optgroup>'
-        ).join('');
-      }
-      selCat.innerHTML = '<option value="">— nenhum —</option>' + opcoes;
-      // Mantém a escolha anterior se ela ainda existir na lista nova (ex.:
-      // trocou de grupo e voltou pro mesmo) — senão volta pra "— nenhum —".
-      if ([...selCat.options].some((o) => o.value === valorAtual)) selCat.value = valorAtual;
+      if (selCat) selCat.innerHTML = '<option value="">— nenhum —</option>' + categorias.map(t => '<option value="' + t.id + '">' + t.nome + '</option>').join('');
     }
 
     // Mostra um aviso no formulário quando o cartão escolhido ainda não tem
@@ -1513,7 +1468,6 @@
       document.getElementById('c_descricao').value = '';
       document.getElementById('c_cartao').selectedIndex = 0;
       document.getElementById('c_grupo').value = '';
-      atualizarTiposPorGrupo();
       document.getElementById('c_categoria').value = '';
       document.getElementById('c_valor').value = '';
       document.getElementById('c_parcelas').value = 1;
@@ -1528,6 +1482,7 @@
         descricao: document.getElementById('c_descricao').value.trim(),
         cartao_id: Number(document.getElementById('c_cartao').value),
         categoria_id: document.getElementById('c_categoria').value ? Number(document.getElementById('c_categoria').value) : null,
+        grupo_despesa_id: document.getElementById('c_grupo').value ? Number(document.getElementById('c_grupo').value) : null,
         valor_total: valor,
         qtd_parcelas: Number(document.getElementById('c_parcelas').value),
         data_primeira_parcela: document.getElementById('c_data').value,
@@ -1554,9 +1509,7 @@
         document.getElementById('avisoCompra').style.display = 'block';
         document.getElementById('c_descricao').value = c.descricao || '';
         document.getElementById('c_cartao').value = c.cartao_id;
-        const tipoAtual = categorias.find((t) => t.id === c.categoria_id);
-        document.getElementById('c_grupo').value = tipoAtual ? tipoAtual.grupo_id : '';
-        atualizarTiposPorGrupo();
+        document.getElementById('c_grupo').value = c.grupo_despesa_id || '';
         document.getElementById('c_categoria').value = c.categoria_id || '';
         document.getElementById('c_valor').value = paraCampoValor(c.valor_total);
         document.getElementById('c_parcelas').value = c.qtd_parcelas;
