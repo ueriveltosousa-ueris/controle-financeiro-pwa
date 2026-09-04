@@ -19,7 +19,7 @@
   <script src="js/dados.js"></script>
   <script src="js/app.js"></script>
   <style>
-    :root { --azul:#1F4E78; --azul-claro:#4A86E8; --laranja:#F6B26B; --verde:#6AA84F; --vermelho:#C0392B; --cinza-fundo:#F4F6F9; --cinza-borda:#E2E7EF; --texto:#2C3E50; }
+    :root { --azul:#1F4E78; --azul-claro:#4A86E8; --laranja:#F6B26B; --verde:#6AA84F; --vermelho:#C0392B; --cinza-fundo:#F4F6F9; --cinza-borda:#E2E7EF; --texto:#2C3E50; --linha-hover:#EAF3FF; }
     * { box-sizing: border-box; }
     html, body { max-width:100%; overflow-x:clip; }
     body { margin:0; font-family:"Segoe UI",Arial,sans-serif; background:var(--cinza-fundo); color:var(--texto); }
@@ -27,12 +27,17 @@
     #topoFixo { position:sticky; top:0; z-index:100; box-shadow:0 2px 6px rgba(0,0,0,.15); }
     header h1 { font-size:20px; margin:0; font-weight:600; }
     header .sub { font-size:12px; opacity:.8; margin-top:2px; display:flex; align-items:center; gap:6px; }
-    #btnBackup, #btnRestaurar { background:#fff; color:var(--azul); border:none; padding:9px 16px; border-radius:6px; font-weight:600; cursor:pointer; font-size:13px; }
-    #btnBackup:hover, #btnRestaurar:hover { background:#eaf1fb; }
-    #btnAtualizar { background:transparent; color:#fff; opacity:.75; border:none; padding:2px 5px; border-radius:5px; cursor:pointer; font-size:12px; }
+    #btnAtualizar { background:transparent; color:#fff; opacity:.75; border:none; padding:3px 8px; border-radius:5px; cursor:pointer; font-size:12px; font-weight:600; white-space:nowrap; }
     #btnAtualizar:hover { opacity:1; background:rgba(255,255,255,.15); }
     #btnSair { background:transparent; color:#fff; border:1px solid rgba(255,255,255,.5); padding:9px 16px; border-radius:6px; font-weight:600; cursor:pointer; font-size:13px; }
     #btnSair:hover { background:var(--vermelho); border-color:var(--vermelho); }
+    .menu-topo-wrap { position:relative; }
+    #btnMenuTopo { background:#fff; color:var(--azul); border:none; width:36px; height:36px; border-radius:6px; font-weight:700; cursor:pointer; font-size:18px; line-height:1; }
+    #btnMenuTopo:hover, #btnMenuTopo[aria-expanded="true"] { background:#eaf1fb; }
+    .menu-topo-dropdown { display:none; flex-direction:column; gap:2px; position:absolute; top:calc(100% + 8px); right:0; background:#fff; border-radius:9px; box-shadow:0 10px 28px rgba(0,0,0,.2); padding:6px; min-width:180px; z-index:120; }
+    .menu-topo-dropdown.aberto { display:flex; }
+    .menu-topo-dropdown button { background:none; border:none; text-align:left; padding:10px 12px; border-radius:6px; font-size:13.5px; font-weight:600; color:var(--texto); cursor:pointer; font-family:inherit; }
+    .menu-topo-dropdown button:hover { background:#eaf1fb; color:var(--azul); }
     .app-corpo { display:flex; align-items:flex-start; }
     .menu-cards-lateral { display:flex; flex-direction:column; gap:10px; width:250px; flex-shrink:0; padding:20px 16px; position:sticky; align-self:flex-start; transition:width .2s ease; }
     .menu-cards-lateral-topo { display:flex; justify-content:flex-end; margin-bottom:2px; }
@@ -54,6 +59,14 @@
     .kpi-sub-destaque { font-size:15px; font-weight:700; color:var(--azul); margin-top:10px; line-height:1.7; }
     .kpi.positivo .valor { color:var(--verde); }
     .kpi.negativo .valor { color:var(--vermelho); }
+    .kpi-linha { font-size:15px; font-weight:600; color:var(--texto); margin-top:10px; }
+    .kpi-linha b { font-weight:700; }
+    .kpi-linha.kpi-saldo { margin-top:8px; padding-top:8px; border-top:1px dashed var(--cinza-borda); }
+    .kpi-linha.kpi-saldo.positivo b { color:var(--verde); }
+    .kpi-linha.kpi-saldo.negativo b { color:var(--vermelho); }
+    .kpis-filtro { display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
+    .kpis-filtro label { font-size:12px; color:#7a8699; font-weight:600; }
+    .kpis-filtro input[type="month"] { padding:7px 10px; border:1px solid var(--cinza-borda); border-radius:7px; font-size:13px; font-family:inherit; width:170px; }
     .graficos { display:grid; grid-template-columns:repeat(auto-fit,minmax(420px,1fr)); gap:20px; margin-bottom:26px; }
     .card { background:#fff; border:1px solid var(--cinza-borda); border-radius:10px; padding:18px 20px; box-shadow:0 1px 3px rgba(0,0,0,.04); min-width:0; }
     .card h2 { font-size:15px; margin:0 0 14px; color:var(--azul); font-weight:600; }
@@ -63,6 +76,8 @@
     th, td { padding:10px 12px; text-align:left; border-bottom:1px solid var(--cinza-borda); }
     th { background:#f0f4fa; color:var(--azul); font-weight:600; }
     td.num, th.num { text-align:right; }
+    td { transition:background-color .12s ease; }
+    table tbody tr:hover > td { background:var(--linha-hover); }
     .badge { padding:3px 10px; border-radius:12px; font-size:11px; font-weight:600; }
     .badge.aberto { background:#fff3cd; color:#856404; }
     .badge.quitada { background:#d4edda; color:#155724; }
@@ -154,8 +169,16 @@
       .menu-cards-lateral { width:100%; flex-direction:row; align-items:center; position:static; padding:10px 16px; gap:10px; }
       .menu-cards-lateral-topo { margin-bottom:0; }
       .menu-cards-lateral-lista { flex:1; min-width:0; flex-direction:row; overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch; }
-      .menu-btn { flex:0 0 auto; width:auto; min-width:130px; }
-      .menu-btn.ativa { min-width:220px; }
+      /* Cards do menu ficam pequenos por padrão no mobile: ícone + título numa
+         linha enxuta, com a descrição sempre escondida atrás do "?" (só o
+         card ATIVO ou com "?" tocado mostra a descrição, crescendo pra caber). */
+      .menu-btn { flex:0 0 auto; width:auto; min-width:auto; padding:7px 10px; gap:3px; }
+      .menu-btn-topo { gap:6px; }
+      .menu-btn-icone { font-size:16px; }
+      .menu-btn-titulo { font-size:10.5px; white-space:nowrap; }
+      .menu-btn-ajuda { width:15px; height:15px; font-size:9px; }
+      .menu-btn.ativa, .menu-btn.desc-aberta { min-width:190px; max-width:230px; padding:10px 12px; }
+      .menu-btn.ativa .menu-btn-titulo, .menu-btn.desc-aberta .menu-btn-titulo { font-size:12.5px; white-space:normal; }
       .menu-cards-lateral.recolhido { width:auto; }
       .menu-cards-lateral.recolhido .menu-btn { min-width:44px; }
       main { padding:24px 20px; }
@@ -171,11 +194,16 @@
   <div id="topoFixo">
   <header>
     <div style="display:flex;align-items:center;gap:10px;">
-      <div><h1>💳 CONTROLE FINANCEIRO</h1><div class="sub"><span id="atualizadoEm">Carregando...</span><button id="btnAtualizar" onclick="carregarTudo()" title="Atualizar a tela">🔄</button></div></div>
+      <div><h1>💳 CONTROLE FINANCEIRO</h1><div class="sub"><span id="atualizadoEm">Carregando...</span><button id="btnAtualizar" onclick="carregarTudo()" title="Atualizar a tela">🔄 Atualizar</button></div></div>
     </div>
     <div style="display:flex;gap:8px;align-items:center;">
-      <button id="btnBackup" onclick="exportarBackup()">💾 Backup</button>
-      <button id="btnRestaurar" onclick="document.getElementById('inputRestaurar').click()">📂 Restaurar</button>
+      <div class="menu-topo-wrap">
+        <button id="btnMenuTopo" onclick="alternarMenuTopo(event)" title="Mais opções (backup e restaurar)" aria-haspopup="true" aria-expanded="false">⋮</button>
+        <div class="menu-topo-dropdown" id="menuTopoDropdown">
+          <button onclick="exportarBackup(); fecharMenuTopo();">💾 Backup</button>
+          <button onclick="document.getElementById('inputRestaurar').click(); fecharMenuTopo();">📂 Restaurar</button>
+        </div>
+      </div>
       <input type="file" id="inputRestaurar" accept=".sqlite,.db" style="display:none;" onchange="restaurarBackupSelecionado(event)" />
       <button id="btnSair" onclick="sairApp()" title="Sair do app">🔴 Sair</button>
       <button class="ajuda-btn" style="background:rgba(255,255,255,.25);color:#fff;" aria-expanded="false" onclick="alternarAjuda('ajuda-backup', this)">?</button>
@@ -236,10 +264,14 @@
         <span style="font-size:12px;color:#7a8699;">O que os cards abaixo mostram</span>
       </div>
       <div class="ajuda-balao" id="ajuda-kpis">
-        <b>Total Geral a Pagar</b>: tudo que ainda está pendente, vencido ou não.<br>
-        <b>Total a Vencer</b> (mês seguinte): só o que vence no próximo mês, separado em parcelado e à vista.<br>
-        <b>Saldo do Orçamento</b>: seu orçamento do mês menos o que vence nele. Negativo (vermelho) = vai faltar dinheiro.<br>
+        <b>Despesas Totais</b>: tudo que ainda está pendente, vencido ou não (não muda com o filtro de mês).<br>
+        <b>Despesas Mês</b>: só o que vence no mês selecionado no filtro abaixo, separado em parcelado e à vista.<br>
+        <b>Orçamento Mês</b>: o orçamento lançado pro mês selecionado e o saldo dele (orçamento menos o que vence nele). Saldo negativo (vermelho) = vai faltar dinheiro.<br>
         Clique em qualquer card pra ver o detalhamento.
+      </div>
+      <div class="kpis-filtro">
+        <label for="kpiMesSelecionado">Mês de referência (Despesas Mês / Orçamento Mês)</label>
+        <input type="month" id="kpiMesSelecionado" onchange="filtrarKpisPorMes()" />
       </div>
       <section class="kpis" id="kpis"></section>
       <section class="graficos">
@@ -658,6 +690,8 @@
     let ultimaProjecaoDados = []; // guarda os 24 meses para o filtro reaplicar sem nova chamada à API
     let chartProjecao, chartCartao, chartTipo, chartDescricao;
     let compraEditandoId = null;
+    let ultimoKpis = null; // guarda o resultado de /dashboard/kpis pro filtro de mês re-renderizar sem nova chamada
+    let mesKpiSelecionado = null; // "YYYY-MM" usado pelos cards "Despesas Mês" e "Orçamento Mês"
 
     function trocarAba(qual) {
       document.getElementById('pagina-dashboard').classList.toggle('ativa', qual === 'dashboard');
@@ -936,7 +970,14 @@
         ultimaListaCompras = r[4];
         orcamentoPorMes = {};
         (r[5] || []).forEach(o => { orcamentoPorMes[String(o.ano_mes).slice(0,7)] = Number(o.total); });
-        renderKPIs(r[0][0]); renderProjecao(r[2]); renderCartao(r[1]);
+        ultimoKpis = r[0][0];
+        if (!mesKpiSelecionado) {
+          const hoje = new Date();
+          const proxMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 1);
+          mesKpiSelecionado = proxMes.toISOString().slice(0, 7);
+        }
+        document.getElementById('kpiMesSelecionado').value = mesKpiSelecionado;
+        await renderKPIs(ultimoKpis); renderProjecao(r[2]); renderCartao(r[1]);
         renderResumo(r[3]); renderTabelaCompras(r[4]); renderTipo(r[4]); renderPorDescricao(r[4]);
         // Garante que todo gráfico acabe do tamanho certo do container final —
         // o 1º render às vezes acontece antes do layout (menu lateral, fontes)
@@ -976,33 +1017,46 @@
       }
     }
 
-    function renderKPIs(k) {
-      const hoje = new Date();
-      const proxMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 1);
-      const proxMesIso = proxMes.toISOString().slice(0, 10);
-      const nomeMes = nomesMes[proxMes.getMonth()] + '/' + proxMes.getFullYear();
-      const rotuloProxMes = 'Total a vencer em ' + nomeMes;
-      const chaveProxMes = proxMesIso.slice(0, 7);
+    // Renderiza os 3 cards do topo do Dashboard. "Despesas Totais" (k.total_em_aberto)
+    // não depende de mês — é sempre a soma geral pendente. "Despesas Mês" e "Orçamento
+    // Mês" usam o mês escolhido no filtro (mesKpiSelecionado), buscando as parcelas
+    // pendentes daquele mês direto (não dependem mais da view fixa em "mês seguinte").
+    async function renderKPIs(k) {
+      const anoMes = mesKpiSelecionado;
+      const mesIso = anoMes + '-01';
+      const [ano, mes] = anoMes.split('-');
+      const nomeMes = nomesMes[Number(mes) - 1] + '/' + ano;
 
-      const orcamentoProxMes = orcamentoPorMes[chaveProxMes] || 0;
-      const saldoOrcamento = orcamentoProxMes - Number(k.a_vencer_proximo_mes || 0);
+      const parcelasMes = await api('/dashboard/parcelas?status=Pendente&mes=' + anoMes);
+      const totalMes = parcelasMes.reduce((s, l) => s + Number(l.valor || 0), 0);
+      const totalParcelado = parcelasMes.filter(l => Number(l.qtd_parcelas) > 1).reduce((s, l) => s + Number(l.valor || 0), 0);
+      const totalAvista = parcelasMes.filter(l => Number(l.qtd_parcelas) <= 1).reduce((s, l) => s + Number(l.valor || 0), 0);
+
+      const orcamentoMes = orcamentoPorMes[anoMes] || 0;
+      const saldoOrcamento = orcamentoMes - totalMes;
       const corSaldo = saldoOrcamento < 0 ? 'negativo' : 'positivo';
 
-      const subVencer = '<div class="kpi-sub-destaque">Parcelado: ' + brl(k.a_vencer_proximo_mes_parcelado || 0) +
-        '<br>À vista: ' + brl(k.a_vencer_proximo_mes_avista || 0) + '</div>';
+      const subVencer = '<div class="kpi-sub-destaque">Parcelado: ' + brl(totalParcelado) +
+        '<br>À vista: ' + brl(totalAvista) + '</div>';
 
-      const cards = [
-        { r:'TOTAL GERAL A PAGAR', v:brl(k.total_em_aberto), c:'destaque', supra:'', sub:'', onclick:"detalheStatus('Pendente')" },
-        { r:rotuloProxMes, v:brl(k.a_vencer_proximo_mes), c:'', supra:'', sub:subVencer, onclick:"detalheMes('" + proxMesIso + "')" },
-        { r:'Saldo do Orçamento (' + nomeMes + ')',
-          v:brl(saldoOrcamento), c:corSaldo,
-          supra:'<div class="kpi-sub-destaque">Orçamento: ' + brl(orcamentoProxMes) + '</div>',
-          sub:'<div class="kpi-sub">Clique para ver o comparativo</div>',
-          onclick:"detalheComparativoMes('" + proxMesIso + "')" },
-      ];
-      document.getElementById('kpis').innerHTML = cards.map(x =>
-        '<div class="kpi ' + x.c + '" onclick="' + x.onclick + '"><div class="rotulo">' + x.r + '</div>' + x.supra + '<div class="valor">' + x.v + '</div>' + x.sub + '</div>'
-      ).join('');
+      document.getElementById('kpis').innerHTML =
+        '<div class="kpi destaque" onclick="detalheStatus(\'Pendente\')"><div class="rotulo">DESPESAS TOTAIS</div><div class="valor">' + brl(k.total_em_aberto) + '</div></div>' +
+        '<div class="kpi" onclick="detalheMes(\'' + mesIso + '\')"><div class="rotulo">DESPESAS MÊS ' + nomeMes + '</div><div class="valor">' + brl(totalMes) + '</div>' + subVencer + '</div>' +
+        '<div class="kpi kpi-orcamento" onclick="detalheComparativoMes(\'' + mesIso + '\')">' +
+          '<div class="rotulo">ORÇAMENTO MÊS ' + nomeMes + '</div>' +
+          '<div class="kpi-linha">Orçamento: <b>' + brl(orcamentoMes) + '</b></div>' +
+          '<div class="kpi-linha kpi-saldo ' + corSaldo + '">Saldo: <b>' + brl(saldoOrcamento) + '</b></div>' +
+          '<div class="kpi-sub">Clique para ver o comparativo</div>' +
+        '</div>';
+    }
+    // Chamado pelo filtro de mês (input#kpiMesSelecionado) — atualiza só os
+    // cards "Despesas Mês" e "Orçamento Mês" pro mês escolhido, sem precisar
+    // recarregar o resto do Dashboard.
+    async function filtrarKpisPorMes() {
+      const valor = document.getElementById('kpiMesSelecionado').value;
+      if (!valor || !ultimoKpis) return;
+      mesKpiSelecionado = valor;
+      await renderKPIs(ultimoKpis);
     }
     // Balão flutuante explicando o "Acumulado" — aparece ao passar o mouse na legenda do gráfico.
     function mostrarTooltipAcumulado(x, y) {
@@ -1263,7 +1317,7 @@
         abrirDetalheModal('Orçamento — ' + labelMes(mesIso), 'Itens de orçamento cadastrados para este mês (aba Orçamentos).', header, linhasObj, linhaTotal(1, total, 0), 2);
       } catch (e) { alert('Erro ao carregar detalhamento: ' + e.message); }
     }
-    // Clique no card "Saldo do Orçamento" ou no gráfico "A Pagar x Orçamento" -> comparativo completo do mês.
+    // Clique no card "Orçamento Mês" ou no gráfico "A Pagar x Orçamento" -> comparativo completo do mês.
     let chartComparativo;
     async function detalheComparativoMes(mesIso) {
       const anoMes = String(mesIso).slice(0, 7);
@@ -1648,6 +1702,28 @@
       aplicarEstadoMenuLateral(recolhido);
       try { localStorage.setItem(CHAVE_MENU_RECOLHIDO, recolhido ? '1' : '0'); } catch (e) { /* localStorage pode estar bloqueado — sem problema, só não lembra da próxima vez */ }
     }
+
+    // Menu "⋮" do topo (Backup/Restaurar) — dropdown simples que fecha ao
+    // clicar fora, escolher uma opção, ou apertar Esc.
+    function alternarMenuTopo(evento) {
+      if (evento) evento.stopPropagation();
+      const dd = document.getElementById('menuTopoDropdown');
+      const btn = document.getElementById('btnMenuTopo');
+      const abrir = !dd.classList.contains('aberto');
+      dd.classList.toggle('aberto', abrir);
+      if (btn) btn.setAttribute('aria-expanded', abrir ? 'true' : 'false');
+    }
+    function fecharMenuTopo() {
+      const dd = document.getElementById('menuTopoDropdown');
+      const btn = document.getElementById('btnMenuTopo');
+      if (dd) dd.classList.remove('aberto');
+      if (btn) btn.setAttribute('aria-expanded', 'false');
+    }
+    document.addEventListener('click', (e) => {
+      const wrap = document.querySelector('.menu-topo-wrap');
+      if (wrap && !wrap.contains(e.target)) fecharMenuTopo();
+    });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fecharMenuTopo(); });
 
     // "?" de cada card do menu: espia a descrição sem trocar de tela (o card
     // ativo já mostra a descrição direto, não precisa do botão).
