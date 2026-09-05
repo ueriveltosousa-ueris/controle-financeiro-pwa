@@ -350,7 +350,7 @@
         </div>
         <div class="tabela-scroll" style="max-height:500px;overflow-y:auto;">
           <table id="tabelaResumo">
-            <thead><tr><th>Descrição</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th class="num">Parcelas em Aberto</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Valor da Compra</th><th class="num">Valor Parcela</th><th class="num">Pago</th><th class="num">Saldo Aberto</th><th>Concluído</th><th>Situação</th><th>Detalhes</th></tr></thead>
+            <thead><tr><th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Parcelas em Aberto</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Valor da Compra</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Detalhes</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -378,7 +378,7 @@
         </div>
         <div class="tabela-scroll" style="max-height:500px;overflow-y:auto;">
           <table id="tabelaCompras">
-            <thead><tr><th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Valor da Compra</th><th class="num">Valor Parcela</th><th class="num">Total de Parcelas</th><th class="num">Parcelas Pagas</th><th class="num">Parcelas em Aberto</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Ações</th></tr></thead>
+            <thead><tr><th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Parcelas em Aberto</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Valor da Compra</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Ações</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -636,8 +636,8 @@
       <div class="tabela-scroll" style="max-height:260px;overflow-y:auto;">
         <table class="tabela-parcelas">
           <thead>
-          <tr class="tabela-linha-titulo"><th colspan="8" style="background:#fdecea;color:#a13d3d;">Gastos do Mês (pagos e pendentes)</th></tr>
-          <tr class="tabela-linha-colunas"><th>Descrição</th><th>Despesa</th><th>Parcelas Pagas</th><th class="num">Parcelas em Aberto</th><th class="num">Valor Parcela</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Saldo Aberto</th><th>Status</th><th>Detalhes</th></tr>
+          <tr class="tabela-linha-titulo"><th colspan="15" style="background:#fdecea;color:#a13d3d;">Gastos do Mês (pagos e pendentes)</th></tr>
+          <tr class="tabela-linha-colunas"><th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Parcelas em Aberto</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Valor da Compra</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Status</th><th>Detalhes</th></tr>
           </thead>
           <tbody id="corpoComparativoGastos"></tbody>
         </table>
@@ -1335,21 +1335,28 @@
         const eParcelada = Number(p.qtd_parcelas) > 1;
         return tipo === 'parcelada' ? eParcelada : !eParcelada;
       });
-      const header = '<th>Descrição</th><th>Despesa</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th class="num">Parcelas em Aberto</th><th class="num">Valor Parcela</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Saldo Aberto</th><th>Detalhes</th>';
-      const linhasObj = linhas.map(p => ({
-        descricao: p.descricao,
-        raw: p,
-        busca: montarBusca(p.descricao, p.cartao, p.num_parcela+'/'+p.qtd_parcelas, p.qtd_parcelas_pagas||0, Math.max(Number(p.qtd_parcelas||0)-Number(p.qtd_parcelas_pagas||0),0), brl(p.valor), formatarData(p.data_compra), formatarData(p.data_vencimento), brl(p.saldo_aberto)),
-        html: '<tr><td>' + p.descricao + '</td><td>' + (p.cartao||'-') + '</td>' +
-          '<td>' + p.num_parcela + '/' + p.qtd_parcelas + '</td>' +
-          '<td>' + (p.qtd_parcelas_pagas || 0) + '</td>' +
-          '<td class="num">' + Math.max(Number(p.qtd_parcelas||0)-Number(p.qtd_parcelas_pagas||0),0) + '</td>' +
-          '<td class="num">' + brl(p.valor) + '</td><td>' + formatarData(p.data_compra) + '</td><td>' + formatarData(p.data_vencimento) + '</td>' +
-          '<td class="num">' + brl(p.saldo_aberto) + '</td><td>' + botaoDetalheCadastroHtml(p.compra_id) + '</td></tr>',
-      }));
-      const montarTotal = (ls) => linhaTotal(5, ls.reduce((s,l) => s + Number(l.raw.valor||0), 0), 4);
+      const header = '<th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Parcelas em Aberto</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Valor da Compra</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Detalhes</th>';
+      const linhasObj = linhas.map(p => {
+        const avista = Number(p.qtd_parcelas) === 1;
+        const tipoLabel = avista ? 'À vista' : 'Parcelada';
+        const tipoBadge = avista ? '<span class="badge avista">À vista</span>' : '<span class="badge parcelada">Parcelada</span>';
+        const emAberto = Math.max(Number(p.qtd_parcelas||0)-Number(p.qtd_parcelas_pagas||0),0);
+        const situacao = Number(p.saldo_aberto||0) <= 0 ? 'Quitada' : 'Em Aberto';
+        const situBadge = situacao === 'Quitada' ? '<span class="badge quitada">Quitada</span>' : '<span class="badge aberto">Em Aberto</span>';
+        return { descricao: p.descricao, raw: p,
+          busca: montarBusca(p.descricao, tipoLabel, p.cartao, p.categoria, p.num_parcela+'/'+p.qtd_parcelas, p.qtd_parcelas_pagas||0, emAberto, formatarData(p.data_compra), formatarData(p.data_vencimento), brl(p.valor_total), brl(p.valor), brl(p.saldo_aberto), situacao),
+          html: '<tr><td>' + p.descricao + '</td><td>' + tipoBadge + '</td><td>' + (p.cartao||'-') + '</td><td>' + (p.categoria||'-') + '</td>' +
+            '<td>' + p.num_parcela + '/' + p.qtd_parcelas + '</td>' +
+            '<td>' + (p.qtd_parcelas_pagas || 0) + '</td>' +
+            '<td>' + emAberto + '</td>' +
+            '<td>' + formatarData(p.data_compra) + '</td><td>' + formatarData(p.data_vencimento) + '</td>' +
+            '<td class="num">' + brl(p.valor_total) + '</td><td class="num">' + brl(p.valor) + '</td>' +
+            '<td class="num">' + brl(p.saldo_aberto) + '</td><td>' + situBadge + '</td>' +
+            '<td>' + botaoDetalheCadastroHtml(p.compra_id) + '</td></tr>' };
+      });
+      const montarTotal = (ls) => linhaTotal(10, ls.reduce((s,l) => s + Number(l.raw.valor||0), 0), 3);
       const titulo = (tipo === 'parcelada' ? 'Parcelado — saldo em aberto' : 'À Vista — saldo em aberto') + periodoTexto('tipoDe', 'tipoAte');
-      abrirDetalheModal(titulo, 'Detalhamento do tipo selecionado no gráfico.', header, linhasObj, montarTotal, 10);
+      abrirDetalheModal(titulo, 'Detalhamento do tipo selecionado no gráfico.', header, linhasObj, montarTotal, 14);
     }
 
     // Gráfico "Totais de Compras por Descrição" — agrupa e soma o Valor Total por Descrição.
@@ -1539,23 +1546,29 @@
       const anoMes = String(mesIso).slice(0, 7);
       try {
         const linhas = await api('/dashboard/parcelas?mes=' + anoMes);
-        const header = '<th>Descrição</th><th>Despesa</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th class="num">Parcelas em Aberto</th><th class="num">Valor Parcela</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Saldo Aberto</th><th>Status</th><th>Detalhes</th>';
-        const linhasObj = linhas.map(l => ({
-          descricao: l.descricao,
-          raw: l,
-          busca: montarBusca(l.descricao, l.cartao, l.num_parcela+'/'+l.qtd_parcelas, l.qtd_parcelas_pagas||0, Math.max(Number(l.qtd_parcelas||0)-Number(l.qtd_parcelas_pagas||0),0), brl(l.valor), formatarData(l.data_compra), formatarData(l.data_vencimento), brl(l.saldo_aberto), l.status === 'Pago' ? 'Pago' : 'Pendente'),
-          html: '<tr><td>' + l.descricao + '</td><td>' + (l.cartao||'-') + '</td>' +
-            '<td>' + l.num_parcela + '/' + l.qtd_parcelas + '</td>' +
-            '<td>' + (l.qtd_parcelas_pagas || 0) + '</td>' +
-            '<td class="num">' + Math.max(Number(l.qtd_parcelas||0)-Number(l.qtd_parcelas_pagas||0),0) + '</td>' +
-            '<td class="num">' + brl(l.valor) + '</td><td>' + formatarData(l.data_compra) + '</td><td>' + formatarData(l.data_vencimento) + '</td>' +
-            '<td class="num">' + brl(l.saldo_aberto) + '</td><td>' + badgeStatusParcela(l.status) + '</td>' +
-            '<td>' + botaoDetalheCadastroHtml(l.compra_id) + '</td></tr>',
-        }));
-        const montarTotal = (ls) => linhaTotal(5, ls.reduce((s,l) => s + Number(l.raw.valor||0), 0), 5);
+        const header = '<th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Parcelas em Aberto</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Valor da Compra</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Status</th><th>Detalhes</th>';
+        const linhasObj = linhas.map(l => {
+          const avista = Number(l.qtd_parcelas) === 1;
+          const tipoLabel = avista ? 'À vista' : 'Parcelada';
+          const tipoBadge = avista ? '<span class="badge avista">À vista</span>' : '<span class="badge parcelada">Parcelada</span>';
+          const emAberto = Math.max(Number(l.qtd_parcelas||0)-Number(l.qtd_parcelas_pagas||0),0);
+          const situacao = Number(l.saldo_aberto||0) <= 0 ? 'Quitada' : 'Em Aberto';
+          const situBadge = situacao === 'Quitada' ? '<span class="badge quitada">Quitada</span>' : '<span class="badge aberto">Em Aberto</span>';
+          return { descricao: l.descricao, raw: l,
+            busca: montarBusca(l.descricao, tipoLabel, l.cartao, l.categoria, l.num_parcela+'/'+l.qtd_parcelas, l.qtd_parcelas_pagas||0, emAberto, formatarData(l.data_compra), formatarData(l.data_vencimento), brl(l.valor_total), brl(l.valor), brl(l.saldo_aberto), situacao, l.status === 'Pago' ? 'Pago' : 'Pendente'),
+            html: '<tr><td>' + l.descricao + '</td><td>' + tipoBadge + '</td><td>' + (l.cartao||'-') + '</td><td>' + (l.categoria||'-') + '</td>' +
+              '<td>' + l.num_parcela + '/' + l.qtd_parcelas + '</td>' +
+              '<td>' + (l.qtd_parcelas_pagas || 0) + '</td>' +
+              '<td>' + emAberto + '</td>' +
+              '<td>' + formatarData(l.data_compra) + '</td><td>' + formatarData(l.data_vencimento) + '</td>' +
+              '<td class="num">' + brl(l.valor_total) + '</td><td class="num">' + brl(l.valor) + '</td>' +
+              '<td class="num">' + brl(l.saldo_aberto) + '</td><td>' + situBadge + '</td><td>' + badgeStatusParcela(l.status) + '</td>' +
+              '<td>' + botaoDetalheCadastroHtml(l.compra_id) + '</td></tr>' };
+        });
+        const montarTotal = (ls) => linhaTotal(10, ls.reduce((s,l) => s + Number(l.raw.valor||0), 0), 4);
         const titulo = 'Parcelas do mês — ' + labelMes(mesIso);
         const obs = 'Todas as parcelas com vencimento no mês selecionado, pagas ou não.';
-        abrirDetalheModal(titulo, obs, header, linhasObj, montarTotal, 11);
+        abrirDetalheModal(titulo, obs, header, linhasObj, montarTotal, 15);
       } catch (e) { alert('Erro ao carregar detalhamento: ' + e.message); }
     }
     // Clique na barra Orçamento do gráfico de Projeção -> lista os itens de orçamento daquele mês.
@@ -1616,9 +1629,20 @@
           : '<tr><td colspan="2" style="text-align:center;color:#888;">Nenhum item cadastrado (aba Orçamentos).</td></tr>';
 
         document.getElementById('corpoComparativoGastos').innerHTML = parcelas.length
-          ? parcelas.map(l => '<tr><td>' + l.descricao + '</td><td>' + (l.cartao||'-') + '</td><td>' + (l.qtd_parcelas_pagas||0) + '</td><td class="num">' + Math.max(Number(l.qtd_parcelas||0)-Number(l.qtd_parcelas_pagas||0),0) + '</td><td class="num">' + brl(l.valor) + '</td><td>' + formatarData(l.data_compra) + '</td><td>' + formatarData(l.data_vencimento) + '</td><td class="num">' + brl(l.saldo_aberto) + '</td><td>' + badgeStatusParcela(l.status) + '</td><td>' + botaoDetalheCadastroHtml(l.compra_id) + '</td></tr>').join('') +
-            '<tr style="font-weight:700;background:#f0f4fa;"><td colspan="4">Subtotal</td><td class="num">' + brl(totalGastos) + '</td><td colspan="5"></td></tr>'
-          : '<tr><td colspan="10" style="text-align:center;color:#888;">Nenhuma parcela neste mês.</td></tr>';
+          ? parcelas.map(l => {
+              const avista = Number(l.qtd_parcelas) === 1;
+              const tipoBadge = avista ? '<span class="badge avista">À vista</span>' : '<span class="badge parcelada">Parcelada</span>';
+              const emAberto = Math.max(Number(l.qtd_parcelas||0)-Number(l.qtd_parcelas_pagas||0),0);
+              const situBadge = Number(l.saldo_aberto||0) <= 0 ? '<span class="badge quitada">Quitada</span>' : '<span class="badge aberto">Em Aberto</span>';
+              return '<tr><td>' + l.descricao + '</td><td>' + tipoBadge + '</td><td>' + (l.cartao||'-') + '</td><td>' + (l.categoria||'-') + '</td>' +
+                '<td>' + l.num_parcela + '/' + l.qtd_parcelas + '</td><td>' + (l.qtd_parcelas_pagas||0) + '</td><td>' + emAberto + '</td>' +
+                '<td>' + formatarData(l.data_compra) + '</td><td>' + formatarData(l.data_vencimento) + '</td>' +
+                '<td class="num">' + brl(l.valor_total) + '</td><td class="num">' + brl(l.valor) + '</td>' +
+                '<td class="num">' + brl(l.saldo_aberto) + '</td><td>' + situBadge + '</td><td>' + badgeStatusParcela(l.status) + '</td>' +
+                '<td>' + botaoDetalheCadastroHtml(l.compra_id) + '</td></tr>';
+            }).join('') +
+            '<tr style="font-weight:700;background:#f0f4fa;"><td colspan="10">Subtotal</td><td class="num">' + brl(totalGastos) + '</td><td colspan="4"></td></tr>'
+          : '<tr><td colspan="15" style="text-align:center;color:#888;">Nenhuma parcela neste mês.</td></tr>';
 
         abrirModal('overlayComparativo');
       } catch (e) { alert('Erro ao carregar comparativo: ' + e.message); }
@@ -1628,21 +1652,28 @@
     // daquela forma de pagamento, já respeitando o filtro De/Até do gráfico.
     function detalheCartao(nomeCartao) {
       const linhas = filtrarParcelasPorPeriodo('cartaoDe', 'cartaoAte').filter(p => (p.cartao || '-') === nomeCartao);
-      const header = '<th>Descrição</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th class="num">Parcelas em Aberto</th><th class="num">Valor Parcela</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Saldo Aberto</th><th>Detalhes</th>';
-      const linhasObj = linhas.map(p => ({
-        descricao: p.descricao,
-        raw: p,
-        busca: montarBusca(p.descricao, p.categoria, p.num_parcela+'/'+p.qtd_parcelas, p.qtd_parcelas_pagas||0, Math.max(Number(p.qtd_parcelas||0)-Number(p.qtd_parcelas_pagas||0),0), brl(p.valor), formatarData(p.data_compra), formatarData(p.data_vencimento), brl(p.saldo_aberto)),
-        html: '<tr><td>' + p.descricao + '</td><td>' + (p.categoria||'-') + '</td>' +
-          '<td>' + p.num_parcela + '/' + p.qtd_parcelas + '</td>' +
-          '<td>' + (p.qtd_parcelas_pagas || 0) + '</td>' +
-          '<td class="num">' + Math.max(Number(p.qtd_parcelas||0)-Number(p.qtd_parcelas_pagas||0),0) + '</td>' +
-          '<td class="num">' + brl(p.valor) + '</td><td>' + formatarData(p.data_compra) + '</td><td>' + formatarData(p.data_vencimento) + '</td>' +
-          '<td class="num">' + brl(p.saldo_aberto) + '</td><td>' + botaoDetalheCadastroHtml(p.compra_id) + '</td></tr>',
-      }));
-      const montarTotal = (ls) => linhaTotal(5, ls.reduce((s,l) => s + Number(l.raw.valor||0), 0), 4);
+      const header = '<th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Parcelas em Aberto</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Valor da Compra</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Detalhes</th>';
+      const linhasObj = linhas.map(p => {
+        const avista = Number(p.qtd_parcelas) === 1;
+        const tipoLabel = avista ? 'À vista' : 'Parcelada';
+        const tipoBadge = avista ? '<span class="badge avista">À vista</span>' : '<span class="badge parcelada">Parcelada</span>';
+        const emAberto = Math.max(Number(p.qtd_parcelas||0)-Number(p.qtd_parcelas_pagas||0),0);
+        const situacao = Number(p.saldo_aberto||0) <= 0 ? 'Quitada' : 'Em Aberto';
+        const situBadge = situacao === 'Quitada' ? '<span class="badge quitada">Quitada</span>' : '<span class="badge aberto">Em Aberto</span>';
+        return { descricao: p.descricao, raw: p,
+          busca: montarBusca(p.descricao, tipoLabel, p.cartao, p.categoria, p.num_parcela+'/'+p.qtd_parcelas, p.qtd_parcelas_pagas||0, emAberto, formatarData(p.data_compra), formatarData(p.data_vencimento), brl(p.valor_total), brl(p.valor), brl(p.saldo_aberto), situacao),
+          html: '<tr><td>' + p.descricao + '</td><td>' + tipoBadge + '</td><td>' + (p.cartao||'-') + '</td><td>' + (p.categoria||'-') + '</td>' +
+            '<td>' + p.num_parcela + '/' + p.qtd_parcelas + '</td>' +
+            '<td>' + (p.qtd_parcelas_pagas || 0) + '</td>' +
+            '<td>' + emAberto + '</td>' +
+            '<td>' + formatarData(p.data_compra) + '</td><td>' + formatarData(p.data_vencimento) + '</td>' +
+            '<td class="num">' + brl(p.valor_total) + '</td><td class="num">' + brl(p.valor) + '</td>' +
+            '<td class="num">' + brl(p.saldo_aberto) + '</td><td>' + situBadge + '</td>' +
+            '<td>' + botaoDetalheCadastroHtml(p.compra_id) + '</td></tr>' };
+      });
+      const montarTotal = (ls) => linhaTotal(10, ls.reduce((s,l) => s + Number(l.raw.valor||0), 0), 3);
       const titulo = 'Parcelas em aberto — ' + nomeCartao + periodoTexto('cartaoDe', 'cartaoAte');
-      abrirDetalheModal(titulo, 'Detalhamento do cartão selecionado no gráfico.', header, linhasObj, montarTotal, 10);
+      abrirDetalheModal(titulo, 'Detalhamento do cartão selecionado no gráfico.', header, linhasObj, montarTotal, 14);
     }
 
     // Gráfico "Total em Aberto por Grupo de Despesa" — mesmo padrão dos outros
@@ -1728,21 +1759,28 @@
     async function detalheStatus(status) {
       try {
         const linhas = await api('/dashboard/parcelas?status=' + status);
-        const header = '<th>Descrição</th><th>Despesa</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th class="num">Parcelas em Aberto</th><th class="num">Valor Parcela</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Saldo Aberto</th><th>Detalhes</th>';
-        const linhasObj = linhas.map(l => ({
-          descricao: l.descricao,
-          raw: l,
-          busca: montarBusca(l.descricao, l.cartao, l.num_parcela+'/'+l.qtd_parcelas, l.qtd_parcelas_pagas||0, Math.max(Number(l.qtd_parcelas||0)-Number(l.qtd_parcelas_pagas||0),0), brl(l.valor), formatarData(l.data_compra), formatarData(l.data_vencimento), brl(l.saldo_aberto)),
-          html: '<tr><td>' + l.descricao + '</td><td>' + (l.cartao||'-') + '</td>' +
-            '<td>' + l.num_parcela + '/' + l.qtd_parcelas + '</td>' +
-            '<td>' + (l.qtd_parcelas_pagas || 0) + '</td>' +
-            '<td class="num">' + Math.max(Number(l.qtd_parcelas||0)-Number(l.qtd_parcelas_pagas||0),0) + '</td>' +
-            '<td class="num">' + brl(l.valor) + '</td><td>' + formatarData(l.data_compra) + '</td><td>' + formatarData(l.data_vencimento) + '</td>' +
-            '<td class="num">' + brl(l.saldo_aberto) + '</td><td>' + botaoDetalheCadastroHtml(l.compra_id) + '</td></tr>',
-        }));
-        const montarTotal = (ls) => linhaTotal(5, ls.reduce((s,l) => s + Number(l.raw.valor||0), 0), 4);
+        const header = '<th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Parcelas em Aberto</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Valor da Compra</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Detalhes</th>';
+        const linhasObj = linhas.map(l => {
+          const avista = Number(l.qtd_parcelas) === 1;
+          const tipoLabel = avista ? 'À vista' : 'Parcelada';
+          const tipoBadge = avista ? '<span class="badge avista">À vista</span>' : '<span class="badge parcelada">Parcelada</span>';
+          const emAberto = Math.max(Number(l.qtd_parcelas||0)-Number(l.qtd_parcelas_pagas||0),0);
+          const situacao = Number(l.saldo_aberto||0) <= 0 ? 'Quitada' : 'Em Aberto';
+          const situBadge = situacao === 'Quitada' ? '<span class="badge quitada">Quitada</span>' : '<span class="badge aberto">Em Aberto</span>';
+          return { descricao: l.descricao, raw: l,
+            busca: montarBusca(l.descricao, tipoLabel, l.cartao, l.categoria, l.num_parcela+'/'+l.qtd_parcelas, l.qtd_parcelas_pagas||0, emAberto, formatarData(l.data_compra), formatarData(l.data_vencimento), brl(l.valor_total), brl(l.valor), brl(l.saldo_aberto), situacao),
+            html: '<tr><td>' + l.descricao + '</td><td>' + tipoBadge + '</td><td>' + (l.cartao||'-') + '</td><td>' + (l.categoria||'-') + '</td>' +
+              '<td>' + l.num_parcela + '/' + l.qtd_parcelas + '</td>' +
+              '<td>' + (l.qtd_parcelas_pagas || 0) + '</td>' +
+              '<td>' + emAberto + '</td>' +
+              '<td>' + formatarData(l.data_compra) + '</td><td>' + formatarData(l.data_vencimento) + '</td>' +
+              '<td class="num">' + brl(l.valor_total) + '</td><td class="num">' + brl(l.valor) + '</td>' +
+              '<td class="num">' + brl(l.saldo_aberto) + '</td><td>' + situBadge + '</td>' +
+              '<td>' + botaoDetalheCadastroHtml(l.compra_id) + '</td></tr>' };
+        });
+        const montarTotal = (ls) => linhaTotal(10, ls.reduce((s,l) => s + Number(l.raw.valor||0), 0), 3);
         const titulo = status === 'Pago' ? 'Parcelas já pagas' : 'Parcelas em aberto (a pagar)';
-        abrirDetalheModal(titulo, 'Detalhamento selecionado no gráfico.', header, linhasObj, montarTotal, 10);
+        abrirDetalheModal(titulo, 'Detalhamento selecionado no gráfico.', header, linhasObj, montarTotal, 14);
       } catch (e) { alert('Erro ao carregar detalhamento: ' + e.message); }
     }
 
@@ -1762,13 +1800,12 @@
       const termo = (document.getElementById('filtroResumo').value || '').trim().toLowerCase();
       if (!termo) { desenharTabelaResumo(ultimoResumoDados); return; }
       const filtrados = ultimoResumoDados.filter((d) => {
-        const pct = Math.round((d.pct_concluido || 0) * 100);
+        const avista = Number(d.qtd_parcelas) === 1;
         const textoLinha = [
-          d.descricao, d.cartao, d.categoria,
-          (d.qtd_parcelas_pagas || 0) + '/' + d.qtd_parcelas, Number(d.qtd_parcelas||0) - (d.qtd_parcelas_pagas||0),
+          d.descricao, avista ? 'à vista' : 'parcelada', d.cartao, d.categoria,
+          (d.qtd_parcelas_pagas || 0) + '/' + d.qtd_parcelas, (d.qtd_parcelas_pagas || 0), Number(d.qtd_parcelas||0) - (d.qtd_parcelas_pagas||0),
           formatarData(d.data_compra), formatarData(d.proximo_vencimento),
-          brl(d.valor_total), brl(valorParcela(d)), brl(d.total_pago), brl(d.saldo_aberto),
-          pct + '%', d.situacao,
+          brl(d.valor_total), brl(valorParcela(d)), brl(d.saldo_aberto), d.situacao,
         ].join(' ').toLowerCase();
         return textoLinha.includes(termo);
       });
@@ -1782,25 +1819,25 @@
         return;
       }
       tbody.innerHTML = dados.map(d => {
-        const pct = Math.round((d.pct_concluido || 0) * 100);
         const badge = d.situacao === 'Quitada' ? '<span class="badge quitada">Quitada</span>' : '<span class="badge aberto">Em Aberto</span>';
-        const emAberto = Number(d.qtd_parcelas || 0) - (d.qtd_parcelas_pagas || 0);
-        return '<tr><td>' + d.descricao + '</td><td>' + (d.cartao||'-') + '</td><td>' + (d.categoria||'-') + '</td>' +
-          '<td>' + (d.qtd_parcelas_pagas || 0) + '/' + d.qtd_parcelas + '</td><td class="num">' + emAberto + '</td>' +
+        const avista = Number(d.qtd_parcelas) === 1;
+        const tipo = avista ? '<span class="badge avista">À vista</span>' : '<span class="badge parcelada">Parcelada</span>';
+        const pagas = d.qtd_parcelas_pagas || 0;
+        const emAberto = Number(d.qtd_parcelas || 0) - pagas;
+        return '<tr><td>' + d.descricao + '</td><td>' + tipo + '</td><td>' + (d.cartao||'-') + '</td><td>' + (d.categoria||'-') + '</td>' +
+          '<td>' + pagas + '/' + d.qtd_parcelas + '</td><td>' + pagas + '</td><td>' + emAberto + '</td>' +
           '<td>' + formatarData(d.data_compra) + '</td><td>' + formatarData(d.proximo_vencimento) + '</td>' +
           '<td class="num">' + brl(d.valor_total) + '</td><td class="num">' + brl(valorParcela(d)) + '</td>' +
-          '<td class="num">' + brl(d.total_pago) + '</td><td class="num">' + brl(d.saldo_aberto) + '</td>' +
-          '<td><div style="display:flex;align-items:center;gap:8px;"><div class="barra"><div style="width:' + pct + '%"></div></div><span>' + pct + '%</span></div></td>' +
+          '<td class="num">' + brl(d.saldo_aberto) + '</td>' +
           '<td>' + badge + '</td><td>' + botaoDetalheCadastroHtml(d.compra_id) + '</td></tr>';
       }).join('');
       const totalValor = dados.reduce((s,d) => s + Number(d.valor_total||0), 0);
-      const totalPago = dados.reduce((s,d) => s + Number(d.total_pago||0), 0);
       const totalSaldo = dados.reduce((s,d) => s + Number(d.saldo_aberto||0), 0);
       tbody.innerHTML += '<tr style="font-weight:700;background:#f0f4fa;">' +
-        '<td colspan="7">TOTAL</td>' +
+        '<td colspan="9">TOTAL</td>' +
         '<td class="num">' + brl(totalValor) + '</td><td></td>' +
-        '<td class="num">' + brl(totalPago) + '</td><td class="num">' + brl(totalSaldo) + '</td>' +
-        '<td></td><td></td><td></td></tr>';
+        '<td class="num">' + brl(totalSaldo) + '</td>' +
+        '<td></td><td></td></tr>';
     }
     // Ponto de entrada chamado sempre que a lista de compras é recarregada:
     // atualiza a lista completa (mesma variável usada pelos detalhamentos dos
@@ -1820,8 +1857,8 @@
         const pagas = d.qtd_parcelas_pagas || 0;
         const textoLinha = [
           d.descricao, avista ? 'à vista' : 'parcelada', d.cartao, d.categoria,
-          formatarData(d.data_compra), formatarData(d.proximo_vencimento),
-          brl(d.valor_total), brl(valorParcela(d)), avista ? '1x' : (d.qtd_parcelas + 'x'),
+          pagas + '/' + d.qtd_parcelas, formatarData(d.data_compra), formatarData(d.proximo_vencimento),
+          brl(d.valor_total), brl(valorParcela(d)),
           pagas, Number(d.qtd_parcelas || 0) - pagas, brl(d.saldo_aberto), d.situacao,
         ].join(' ').toLowerCase();
         return textoLinha.includes(termo);
@@ -1840,14 +1877,13 @@
         const situ = d.situacao === 'Quitada' ? '<span class="badge quitada">Quitada</span>' : '<span class="badge aberto">Em Aberto</span>';
         const avista = Number(d.qtd_parcelas) === 1;
         const tipo = avista ? '<span class="badge avista">À vista</span>' : '<span class="badge parcelada">Parcelada</span>';
-        const parc = avista ? '1x' : (d.qtd_parcelas + 'x');
         const pagas = (d.qtd_parcelas_pagas || 0);
         const emAberto = Number(d.qtd_parcelas || 0) - pagas;
         const nome = (d.descricao || '').replace(/'/g, "\\'");
         return '<tr><td>' + d.descricao + '</td><td>' + tipo + '</td><td>' + (d.cartao||'-') + '</td><td>' + (d.categoria||'-') + '</td>' +
+          '<td>' + pagas + '/' + d.qtd_parcelas + '</td><td>' + pagas + '</td><td>' + emAberto + '</td>' +
           '<td>' + formatarData(d.data_compra) + '</td><td>' + formatarData(d.proximo_vencimento) + '</td>' +
-          '<td class="num">' + brl(d.valor_total) + '</td><td class="num">' + brl(valorParcela(d)) + '</td><td class="num">' + parc + '</td>' +
-          '<td class="num">' + pagas + '</td><td class="num">' + emAberto + '</td>' +
+          '<td class="num">' + brl(d.valor_total) + '</td><td class="num">' + brl(valorParcela(d)) + '</td>' +
           '<td class="num">' + brl(d.saldo_aberto) + '</td><td>' + situ + '</td>' +
           '<td>' + botaoDetalheCadastroHtml(d.compra_id) + ' <button class="link-acao link-parcelas" onclick="abrirParcelas(' + d.compra_id + ", '" + nome + "')" + '">Parcelas</button>' +
           '<button class="link-acao link-editar" onclick="editarLancamento(' + d.compra_id + ')">Editar</button>' +
@@ -1856,9 +1892,10 @@
       const totalValor = lista.reduce((s,d) => s + Number(d.valor_total||0), 0);
       const totalSaldo = lista.reduce((s,d) => s + Number(d.saldo_aberto||0), 0);
       tbody.innerHTML += '<tr style="font-weight:700;background:#f0f4fa;">' +
-        '<td colspan="6">TOTAL</td>' +
-        '<td class="num">' + brl(totalValor) + '</td><td></td><td></td><td></td><td></td>' +
-        '<td class="num">' + brl(totalSaldo) + '</td><td></td><td></td></tr>';
+        '<td colspan="9">TOTAL</td>' +
+        '<td class="num">' + brl(totalValor) + '</td><td></td>' +
+        '<td class="num">' + brl(totalSaldo) + '</td>' +
+        '<td></td><td></td></tr>';
     }
 
     // Parcelas cujo compra_id não bate com nenhuma "compra" (dado antigo/migrado) —

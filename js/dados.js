@@ -398,7 +398,7 @@ function dashboardParcelas({ status, mes }) {
   }
   const linhas = todasLinhas(`
     SELECT p.id AS parcela_id, p.compra_id, p.num_parcela, p.valor_centavos, p.data_vencimento, p.status,
-           c.descricao, c.qtd_parcelas, c.data_compra, ca.nome AS cartao, ca.dia_vencimento AS cartao_dia_vencimento, cat.nome AS categoria, gr.nome AS grupo,
+           c.descricao, c.qtd_parcelas, c.data_compra, c.valor_total_centavos, ca.nome AS cartao, ca.dia_vencimento AS cartao_dia_vencimento, cat.nome AS categoria, gr.nome AS grupo,
            (SELECT COUNT(*) FROM parcelas p2 WHERE p2.compra_id = p.compra_id AND p2.status = 'Pago') AS qtd_parcelas_pagas,
            (SELECT IFNULL(SUM(valor_centavos),0) FROM parcelas p3 WHERE p3.compra_id = p.compra_id AND p3.status = 'Pendente') AS saldo_aberto_centavos
     FROM parcelas p
@@ -419,6 +419,7 @@ function dashboardParcelas({ status, mes }) {
     descricao: l.descricao || '(compra não encontrada)',
     qtd_parcelas: l.qtd_parcelas,
     data_compra: l.data_compra,
+    valor_total: paraReais(l.valor_total_centavos),
     cartao: l.cartao,
     cartao_dia_vencimento: l.cartao_dia_vencimento,
     categoria: l.categoria,
