@@ -125,6 +125,16 @@
     .modal .obs-topo { font-size:12px; color:#7a8699; margin-bottom:18px; }
     .modal-x { position:absolute; top:14px; right:16px; background:none; border:none; font-size:22px; line-height:1; color:#9aa5b5; cursor:pointer; padding:4px 8px; border-radius:6px; }
     .modal-x:hover { background:#f0f4fa; color:var(--vermelho); }
+    /* Atalhos pros 3 cadastros (Lançamentos/Orçamentos/Despesas), ao lado do
+       título das tabelas ligadas a gráficos -- navega direto pra aba e fecha
+       o modal que estiver aberto. */
+    .titulo-modal-linha { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:4px; padding-right:34px; }
+    .titulo-modal-linha h3 { margin:0; }
+    .atalhos-cadastro { display:flex; align-items:center; gap:6px; }
+    .atalho-cadastro { display:flex; flex-direction:column; align-items:center; gap:1px; background:none; border:none; cursor:pointer; font-family:inherit; padding:3px 6px; border-radius:8px; color:var(--azul); }
+    .atalho-cadastro:hover { background:#eaf1fb; }
+    .atalho-cadastro .icone { font-size:22px; line-height:1; }
+    .atalho-cadastro .rotulo { font-size:9px; font-weight:700; line-height:1.1; text-align:center; white-space:nowrap; }
     .campo { margin-bottom:14px; }
     .campo label { display:block; font-size:13px; font-weight:600; margin-bottom:5px; color:var(--texto); }
     .campo input, .campo select { width:100%; padding:9px 11px; border:1px solid var(--cinza-borda); border-radius:7px; font-size:14px; font-family:inherit; }
@@ -535,7 +545,14 @@
   <div class="overlay" id="overlayDetalhe">
     <div class="modal" style="width:95vw;max-width:1300px;">
       <button class="modal-x" onclick="fecharModal('overlayDetalhe')" aria-label="Fechar">✕</button>
-      <h3 id="tituloModalDetalhe">Detalhamento</h3>
+      <div class="titulo-modal-linha">
+        <h3 id="tituloModalDetalhe">Detalhamento</h3>
+        <div class="atalhos-cadastro">
+          <button class="atalho-cadastro" onclick="irParaCadastro('lancamentos')" title="Ir para Lançamentos de Despesas"><span class="icone">🧾</span><span class="rotulo">Lançamentos</span></button>
+          <button class="atalho-cadastro" onclick="irParaCadastro('orcamentos')" title="Ir para Cadastro de Orçamentos"><span class="icone">💰</span><span class="rotulo">Orçamentos</span></button>
+          <button class="atalho-cadastro" onclick="irParaCadastro('cartoes')" title="Ir para Cadastro de Despesas"><span class="icone">💸</span><span class="rotulo">Despesas</span></button>
+        </div>
+      </div>
       <div class="obs-topo" id="obsModalDetalhe">Clique numa barra ou fatia do gráfico para ver o detalhamento aqui.</div>
       <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;">
         <div class="campo" style="margin-bottom:0;max-width:360px;flex:1;">
@@ -560,7 +577,14 @@
   <div class="overlay" id="overlayComparativo">
     <div class="modal" style="width:95vw;max-width:950px;">
       <button class="modal-x" onclick="fecharModal('overlayComparativo')" aria-label="Fechar">✕</button>
-      <h3 id="tituloComparativo">Comparativo — Orçamento x Gastos</h3>
+      <div class="titulo-modal-linha">
+        <h3 id="tituloComparativo">Comparativo — Orçamento x Gastos</h3>
+        <div class="atalhos-cadastro">
+          <button class="atalho-cadastro" onclick="irParaCadastro('lancamentos')" title="Ir para Lançamentos de Despesas"><span class="icone">🧾</span><span class="rotulo">Lançamentos</span></button>
+          <button class="atalho-cadastro" onclick="irParaCadastro('orcamentos')" title="Ir para Cadastro de Orçamentos"><span class="icone">💰</span><span class="rotulo">Orçamentos</span></button>
+          <button class="atalho-cadastro" onclick="irParaCadastro('cartoes')" title="Ir para Cadastro de Despesas"><span class="icone">💸</span><span class="rotulo">Despesas</span></button>
+        </div>
+      </div>
       <div class="obs-topo" id="obsComparativo"></div>
       <div class="chart-wrap" style="height:170px;margin-bottom:18px;"><canvas id="graficoComparativo"></canvas></div>
       <div class="tabela-scroll" style="max-height:220px;overflow-y:auto;margin-bottom:16px;">
@@ -1672,6 +1696,13 @@
 
     function abrirModal(id) { document.getElementById(id).classList.add('aberto'); }
     function fecharModal(id) { document.getElementById(id).classList.remove('aberto'); }
+    // Atalho (🧾/💰/💸) no título das tabelas ligadas a gráficos -- fecha
+    // qualquer modal de detalhamento aberto e já troca pra aba do cadastro.
+    function irParaCadastro(aba) {
+      fecharModal('overlayDetalhe');
+      fecharModal('overlayComparativo');
+      trocarAba(aba);
+    }
 
     // ---- LANÇAMENTO DE DESPESA (à vista = 1 parcela, ou parcelado = 2+) ----
     function abrirModalCompra() {
