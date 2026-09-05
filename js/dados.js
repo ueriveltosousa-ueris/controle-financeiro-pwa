@@ -467,6 +467,38 @@ async function excluirItemOrcamento(id) {
   return { mensagem: 'Orçamento removido' };
 }
 
+// ---------------------------------------------------------------------
+// Parcelas órfãs: registros de "parcelas" cujo compra_id não bate com
+// nenhuma linha de "compras" (dado antigo/migrado, ou sobra de algum bug já
+// corrigido — não tem como "editar" porque não existe descrição/forma de
+// pagamento/data de compra pra elas, só dá pra revisar e excluir).
+// ---------------------------------------------------------------------
+function listarParcelasOrfas() {
+  const linhas = todasLinhas(`
+    SELECT p.id, p.compra_id, p.num_parcela, p.valor_centavos, p.data_vencimento, p.status
+    FROM parcelas p
+    WHERE NOT EXISTS (SELECT 1 FROM compras c WHERE c.id = p.compra_id)
+    ORDER BY p.data_vencimento`);
+  return linhas.map((l) => ({
+    id: l.id,
+    compra_id: l.compra_id,
+    num_parcela: l.num_parcela,
+    valor: paraReais(l.valor_centavos),
+    data_vencimento: l.data_vencimento,
+    status: l.status,
+  }));
+}
+
+async function excluirParcelaOrfa(id) {
+  const r = executar(
+    'DELETE FROM parcelas WHERE id = ? AND NOT EXISTS (SELECT 1 FROM compras c WHERE c.id = parcelas.compra_id)',
+    [Number(id)]
+  );
+  if (r.changes === 0) throw new Error('Parcela não encontrada (ou não é órfã)');
+  await salvarBanco();
+  return { mensagem: 'Parcela removida' };
+}
+
 return {
   listarCartoes, criarCartao, atualizarCartao, excluirCartao, listarCategorias,
   listarGruposDespesa, criarGrupoDespesa, atualizarGrupoDespesa, excluirGrupoDespesa,
@@ -475,5 +507,6 @@ return {
   marcarParcelaPaga, desfazerPagamento, corrigirVencimentoParcela, corrigirDataCompra, excluirCompra,
   dashboardKpis, dashboardSaldoPorCartao, dashboardSaldoPorCategoria, dashboardResumoPorCompra, dashboardProjecao, dashboardParcelas,
   listarItensOrcamento, totaisOrcamento, criarItemOrcamento, atualizarItemOrcamento, excluirItemOrcamento,
+  listarParcelasOrfas, excluirParcelaOrfa,
 };
 })();

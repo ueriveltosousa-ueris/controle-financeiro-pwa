@@ -324,6 +324,19 @@
           </table>
         </div>
       </section>
+
+      <section class="card" id="cardParcelasOrfas" style="display:none;">
+        <div class="titulo-com-ajuda"><h2 style="margin:0;">Parcelas sem despesa encontrada</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-parcelas-orfas', this)">?</button></div>
+        <div class="ajuda-balao" id="ajuda-parcelas-orfas">
+          Estas parcelas existem no banco, mas não têm mais nenhuma despesa (compra) associada a elas — provavelmente sobra de uma migração de dados antiga. Não dá pra editar (não existe descrição, forma de pagamento nem data de compra pra reconstituir), só revisar e excluir as que não fizerem sentido pra você.
+        </div>
+        <div class="tabela-scroll" style="max-height:400px;overflow-y:auto;">
+          <table id="tabelaParcelasOrfas">
+            <thead><tr><th>Nº Parcela</th><th class="num">Valor</th><th>Vencimento</th><th>Status</th><th>Ações</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
     </section>
 
     <section class="pagina" id="pagina-orcamentos">
@@ -514,6 +527,13 @@
       <button class="modal-x" onclick="fecharModal('overlayDetalhe')" aria-label="Fechar">✕</button>
       <h3 id="tituloModalDetalhe">Detalhamento</h3>
       <div class="obs-topo" id="obsModalDetalhe">Clique numa barra ou fatia do gráfico para ver o detalhamento aqui.</div>
+      <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;">
+        <div class="campo" style="margin-bottom:0;max-width:360px;flex:1;">
+          <label>Pesquisar (qualquer coluna)</label>
+          <input type="text" id="filtroDetalhe" placeholder="Digite para filtrar..." oninput="aplicarFiltroDetalhe()" />
+        </div>
+        <button class="btn btn-cinza" onclick="document.getElementById('filtroDetalhe').value='';aplicarFiltroDetalhe();">Limpar</button>
+      </div>
       <div class="tabela-scroll" style="max-height:450px;overflow-y:auto;">
         <table class="tabela-parcelas">
           <thead><tr id="cabecalhoDetalhe"></tr></thead>
@@ -560,6 +580,9 @@
     // Valor de cada parcela de uma compra (valor_total / qtd_parcelas) — usado nas tabelas
     // que listam compras inteiras (não uma parcela específica de um mês).
     const valorParcela = (c) => (Number(c.qtd_parcelas) > 0 ? Number(c.valor_total || 0) / Number(c.qtd_parcelas) : Number(c.valor_total || 0));
+    // Junta os campos visíveis de uma linha (de qualquer tabela filtrável) numa única string
+    // minúscula pra comparar contra o termo digitado — mesmo padrão usado em todo o app.
+    const montarBusca = (...campos) => campos.map(v => (v === null || v === undefined) ? '' : String(v)).join(' ').toLowerCase();
     const nomesMes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
     const labelMes = (iso) => { const p = String(iso).slice(0,7).split('-'); return nomesMes[Number(p[1]) - 1] + '/' + p[0]; };
     const hojeLocal = () => { const d = new Date(); const off = d.getTimezoneOffset(); return new Date(d.getTime() - off*60000).toISOString().slice(0,10); };
@@ -943,6 +966,7 @@
         document.getElementById('kpiMesSelecionado').value = mesKpiSelecionado;
         await renderKPIs(ultimoKpis); renderProjecao(r[2]); renderCartao(r[1]);
         renderResumo(r[3]); renderTabelaCompras(r[4]); renderTipo(r[4]); renderPorDescricao(r[4]);
+        await carregarParcelasOrfas();
         // Garante que todo gráfico acabe do tamanho certo do container final —
         // o 1º render às vezes acontece antes do layout (menu lateral, fontes)
         // terminar de assentar.
@@ -1144,18 +1168,22 @@
       const header = '<th>Descrição</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Data da Compra</th><th class="num">Valor Total</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th>';
       const linhasObj = linhas.map(c => ({
         descricao: c.descricao,
+        raw: c,
+        busca: montarBusca(c.descricao, c.cartao, c.categoria, (c.qtd_parcelas_pagas||0)+'/'+c.qtd_parcelas, formatarData(c.data_compra), brl(c.valor_total), brl(valorParcela(c)), brl(c.saldo_aberto), c.situacao),
         html: '<tr><td>' + c.descricao + '</td><td>' + (c.cartao||'-') + '</td><td>' + (c.categoria||'-') + '</td>' +
           '<td>' + (c.qtd_parcelas_pagas||0) + '/' + c.qtd_parcelas + '</td>' +
           '<td>' + (c.qtd_parcelas_pagas||0) + '</td><td>' + formatarData(c.data_compra) + '</td>' +
           '<td class="num">' + brl(c.valor_total) + '</td><td class="num">' + brl(valorParcela(c)) + '</td><td class="num">' + brl(c.saldo_aberto) + '</td>' +
           '<td>' + (c.situacao === 'Quitada' ? '<span class="badge quitada">Quitada</span>' : '<span class="badge aberto">Em Aberto</span>') + '</td></tr>',
       }));
-      const totalValor = linhas.reduce((s,c) => s + Number(c.valor_total||0), 0);
-      const totalSaldo = linhas.reduce((s,c) => s + Number(c.saldo_aberto||0), 0);
-      const totalHtml = '<tr style="font-weight:700;background:#f0f4fa;"><td colspan="6">TOTAL</td>' +
-        '<td class="num">' + brl(totalValor) + '</td><td></td><td class="num">' + brl(totalSaldo) + '</td><td></td></tr>';
+      const montarTotal = (ls) => {
+        const totalValor = ls.reduce((s,l) => s + Number(l.raw.valor_total||0), 0);
+        const totalSaldo = ls.reduce((s,l) => s + Number(l.raw.saldo_aberto||0), 0);
+        return '<tr style="font-weight:700;background:#f0f4fa;"><td colspan="6">TOTAL</td>' +
+          '<td class="num">' + brl(totalValor) + '</td><td></td><td class="num">' + brl(totalSaldo) + '</td><td></td></tr>';
+      };
       const titulo = tipo === 'parcelada' ? 'Compras Parceladas — saldo em aberto' : 'Compras À Vista — saldo em aberto';
-      abrirDetalheModal(titulo, 'Detalhamento do tipo selecionado no gráfico.', header, linhasObj, totalHtml, 10);
+      abrirDetalheModal(titulo, 'Detalhamento do tipo selecionado no gráfico.', header, linhasObj, montarTotal, 10);
     }
 
     // Gráfico "Totais de Compras por Descrição" — agrupa e soma o Valor Total por Descrição.
@@ -1218,31 +1246,56 @@
       const header = '<th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Data da Compra</th><th class="num">Valor Total</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th>';
       const linhasObj = linhas.map(c => {
         const avista = Number(c.qtd_parcelas) === 1;
+        const tipoLabel = avista ? 'À vista' : 'Parcelada';
         const tipo = avista ? '<span class="badge avista">À vista</span>' : '<span class="badge parcelada">Parcelada</span>';
-        return { descricao: c.descricao,
+        return { descricao: c.descricao, raw: c,
+          busca: montarBusca(c.descricao, tipoLabel, c.cartao, c.categoria, (c.qtd_parcelas_pagas||0)+'/'+c.qtd_parcelas, formatarData(c.data_compra), brl(c.valor_total), brl(valorParcela(c)), brl(c.saldo_aberto), c.situacao),
           html: '<tr><td>' + c.descricao + '</td><td>' + tipo + '</td><td>' + (c.cartao||'-') + '</td><td>' + (c.categoria||'-') + '</td>' +
             '<td>' + (c.qtd_parcelas_pagas||0) + '/' + c.qtd_parcelas + '</td><td>' + (c.qtd_parcelas_pagas||0) + '</td><td>' + formatarData(c.data_compra) + '</td>' +
             '<td class="num">' + brl(c.valor_total) + '</td><td class="num">' + brl(valorParcela(c)) + '</td><td class="num">' + brl(c.saldo_aberto) + '</td>' +
             '<td>' + (c.situacao === 'Quitada' ? '<span class="badge quitada">Quitada</span>' : '<span class="badge aberto">Em Aberto</span>') + '</td></tr>' };
       });
-      const totalValor = linhas.reduce((s,c) => s + Number(c.valor_total||0), 0);
-      const totalSaldo = linhas.reduce((s,c) => s + Number(c.saldo_aberto||0), 0);
-      const totalHtml = '<tr style="font-weight:700;background:#f0f4fa;"><td colspan="7">TOTAL</td>' +
-        '<td class="num">' + brl(totalValor) + '</td><td></td><td class="num">' + brl(totalSaldo) + '</td><td></td></tr>';
-      abrirDetalheModal('Compras — "' + descricao + '"', 'Detalhamento da descrição selecionada no gráfico.', header, linhasObj, totalHtml, 11);
+      const montarTotal = (ls) => {
+        const totalValor = ls.reduce((s,l) => s + Number(l.raw.valor_total||0), 0);
+        const totalSaldo = ls.reduce((s,l) => s + Number(l.raw.saldo_aberto||0), 0);
+        return '<tr style="font-weight:700;background:#f0f4fa;"><td colspan="7">TOTAL</td>' +
+          '<td class="num">' + brl(totalValor) + '</td><td></td><td class="num">' + brl(totalSaldo) + '</td><td></td></tr>';
+      };
+      abrirDetalheModal('Compras — "' + descricao + '"', 'Detalhamento da descrição selecionada no gráfico.', header, linhasObj, montarTotal, 11);
     }
 
     // ---- DETALHAMENTO (abre ao clicar numa barra/fatia dos gráficos ou nos cards) ----
-    function abrirDetalheModal(titulo, obs, headerHtml, linhas, totalHtml, colspanVazio) {
-      // Ordena sempre A-Z pela Descrição.
-      const linhasOrdenadas = linhas.slice().sort((a, b) => a.descricao.localeCompare(b.descricao, 'pt-BR'));
+    // linhas: array de { descricao, busca, html, raw } — "busca" é o texto (minúsculo) usado
+    // pelo filtro, "raw" é o dado original da linha (usado por montarTotalHtml pra recalcular o
+    // TOTAL só com o que sobrou depois do filtro, igual as outras tabelas do app já fazem).
+    // montarTotalHtml(linhasFiltradas): function que devolve o HTML da linha de TOTAL (ou '').
+    let ultimoDetalheLinhas = [];
+    let ultimoDetalheMontarTotal = null;
+    let ultimoDetalheColspanVazio = 6;
+    function abrirDetalheModal(titulo, obs, headerHtml, linhas, montarTotalHtml, colspanVazio) {
       document.getElementById('tituloModalDetalhe').textContent = titulo;
       document.getElementById('obsModalDetalhe').textContent = obs;
       document.getElementById('cabecalhoDetalhe').innerHTML = headerHtml;
-      const corpo = linhasOrdenadas.length ? linhasOrdenadas.map(l => l.html).join('')
-        : '<tr><td colspan="' + (colspanVazio || 6) + '" style="text-align:center;color:#888;">Nenhum item encontrado.</td></tr>';
-      document.getElementById('corpoDetalhe').innerHTML = corpo + (totalHtml || '');
+      document.getElementById('filtroDetalhe').value = '';
+      ultimoDetalheLinhas = linhas;
+      ultimoDetalheMontarTotal = montarTotalHtml;
+      ultimoDetalheColspanVazio = colspanVazio || 6;
+      desenharCorpoDetalhe(linhas);
       abrirModal('overlayDetalhe');
+    }
+    function desenharCorpoDetalhe(linhas) {
+      const linhasOrdenadas = linhas.slice().sort((a, b) => a.descricao.localeCompare(b.descricao, 'pt-BR'));
+      const corpo = linhasOrdenadas.length ? linhasOrdenadas.map(l => l.html).join('')
+        : '<tr><td colspan="' + ultimoDetalheColspanVazio + '" style="text-align:center;color:#888;">Nenhum item encontrado.</td></tr>';
+      const totalHtml = linhasOrdenadas.length && ultimoDetalheMontarTotal ? ultimoDetalheMontarTotal(linhasOrdenadas) : '';
+      document.getElementById('corpoDetalhe').innerHTML = corpo + totalHtml;
+    }
+    // Filtro de texto livre (mesmo padrão das outras tabelas do app): casa contra QUALQUER
+    // coluna visível da linha, e o TOTAL do rodapé recalcula só com o que sobrou do filtro.
+    function aplicarFiltroDetalhe() {
+      const termo = (document.getElementById('filtroDetalhe').value || '').trim().toLowerCase();
+      if (!termo) { desenharCorpoDetalhe(ultimoDetalheLinhas); return; }
+      desenharCorpoDetalhe(ultimoDetalheLinhas.filter(l => (l.busca || '').includes(termo)));
     }
     // Monta a linha de TOTAL do rodapé (colunas antes do valor viram um rótulo "TOTAL" mesclado).
     function linhaTotal(colspanAntes, valorTotal, colunasDepois) {
@@ -1265,16 +1318,18 @@
         const header = '<th>Descrição</th><th>Despesa</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th class="num">Valor Parcela</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Saldo Aberto</th><th>Status</th>';
         const linhasObj = linhas.map(l => ({
           descricao: l.descricao,
+          raw: l,
+          busca: montarBusca(l.descricao, l.cartao, l.num_parcela+'/'+l.qtd_parcelas, l.qtd_parcelas_pagas||0, brl(l.valor), formatarData(l.data_compra), formatarData(l.data_vencimento), brl(l.saldo_aberto), l.status === 'Pago' ? 'Pago' : 'Pendente'),
           html: '<tr><td>' + l.descricao + '</td><td>' + (l.cartao||'-') + '</td>' +
             '<td>' + l.num_parcela + '/' + l.qtd_parcelas + '</td>' +
             '<td>' + (l.qtd_parcelas_pagas || 0) + '</td>' +
             '<td class="num">' + brl(l.valor) + '</td><td>' + formatarData(l.data_compra) + '</td><td>' + formatarData(l.data_vencimento) + '</td>' +
             '<td class="num">' + brl(l.saldo_aberto) + '</td><td>' + badgeStatusParcela(l.status) + '</td></tr>',
         }));
-        const total = linhas.reduce((s,l) => s + Number(l.valor||0), 0);
+        const montarTotal = (ls) => linhaTotal(4, ls.reduce((s,l) => s + Number(l.raw.valor||0), 0), 4);
         const titulo = (todasParcelas ? 'Parcelas do mês — ' : 'Parcelas a pagar — ') + labelMes(mesIso);
         const obs = todasParcelas ? 'Todas as parcelas com vencimento no mês selecionado no gráfico, pagas ou não.' : 'Detalhamento do mês selecionado no gráfico.';
-        abrirDetalheModal(titulo, obs, header, linhasObj, linhaTotal(4, total, 4), 9);
+        abrirDetalheModal(titulo, obs, header, linhasObj, montarTotal, 9);
       } catch (e) { alert('Erro ao carregar detalhamento: ' + e.message); }
     }
     // Clique na barra Orçamento do gráfico de Projeção -> lista os itens de orçamento daquele mês.
@@ -1285,10 +1340,12 @@
         const header = '<th>Descrição</th><th class="num">Valor</th>';
         const linhasObj = itens.map(it => ({
           descricao: it.descricao,
+          raw: it,
+          busca: montarBusca(it.descricao, brl(it.valor)),
           html: '<tr><td>' + it.descricao + '</td><td class="num">' + brl(it.valor) + '</td></tr>',
         }));
-        const total = itens.reduce((s, it) => s + Number(it.valor||0), 0);
-        abrirDetalheModal('Orçamento — ' + labelMes(mesIso), 'Itens de orçamento cadastrados para este mês (aba Orçamentos).', header, linhasObj, linhaTotal(1, total, 0), 2);
+        const montarTotal = (ls) => linhaTotal(1, ls.reduce((s,l) => s + Number(l.raw.valor||0), 0), 0);
+        abrirDetalheModal('Orçamento — ' + labelMes(mesIso), 'Itens de orçamento cadastrados para este mês (aba Orçamentos).', header, linhasObj, montarTotal, 2);
       } catch (e) { alert('Erro ao carregar detalhamento: ' + e.message); }
     }
     // Clique no card "Orçamento Mês" ou no gráfico "A Pagar x Orçamento" -> comparativo completo do mês.
@@ -1346,17 +1403,21 @@
       const header = '<th>Descrição</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Data da Compra</th><th class="num">Valor Total</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th>';
       const linhasObj = linhas.map(c => ({
         descricao: c.descricao,
+        raw: c,
+        busca: montarBusca(c.descricao, c.categoria, (c.qtd_parcelas_pagas||0)+'/'+c.qtd_parcelas, formatarData(c.data_compra), brl(c.valor_total), brl(valorParcela(c)), brl(c.saldo_aberto), c.situacao),
         html: '<tr><td>' + c.descricao + '</td><td>' + (c.categoria||'-') + '</td>' +
           '<td>' + (c.qtd_parcelas_pagas || 0) + '/' + c.qtd_parcelas + '</td>' +
           '<td>' + (c.qtd_parcelas_pagas || 0) + '</td><td>' + formatarData(c.data_compra) + '</td>' +
           '<td class="num">' + brl(c.valor_total) + '</td><td class="num">' + brl(valorParcela(c)) + '</td><td class="num">' + brl(c.saldo_aberto) + '</td>' +
           '<td>' + (c.situacao === 'Quitada' ? '<span class="badge quitada">Quitada</span>' : '<span class="badge aberto">Em Aberto</span>') + '</td></tr>',
       }));
-      const totalValor = linhas.reduce((s,c) => s + Number(c.valor_total||0), 0);
-      const totalSaldo = linhas.reduce((s,c) => s + Number(c.saldo_aberto||0), 0);
-      const totalHtml = '<tr style="font-weight:700;background:#f0f4fa;"><td colspan="5">TOTAL</td>' +
-        '<td class="num">' + brl(totalValor) + '</td><td></td><td class="num">' + brl(totalSaldo) + '</td><td></td></tr>';
-      abrirDetalheModal('Compras em aberto — ' + nomeCartao, 'Detalhamento do cartão selecionado no gráfico.', header, linhasObj, totalHtml, 9);
+      const montarTotal = (ls) => {
+        const totalValor = ls.reduce((s,l) => s + Number(l.raw.valor_total||0), 0);
+        const totalSaldo = ls.reduce((s,l) => s + Number(l.raw.saldo_aberto||0), 0);
+        return '<tr style="font-weight:700;background:#f0f4fa;"><td colspan="5">TOTAL</td>' +
+          '<td class="num">' + brl(totalValor) + '</td><td></td><td class="num">' + brl(totalSaldo) + '</td><td></td></tr>';
+      };
+      abrirDetalheModal('Compras em aberto — ' + nomeCartao, 'Detalhamento do cartão selecionado no gráfico.', header, linhasObj, montarTotal, 9);
     }
     // Clique numa fatia/barra do gráfico comparativo (ou no card "Total a Pagar") -> lista as parcelas daquele status.
     async function detalheStatus(status) {
@@ -1365,15 +1426,17 @@
         const header = '<th>Descrição</th><th>Despesa</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th class="num">Valor Parcela</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Saldo Aberto</th>';
         const linhasObj = linhas.map(l => ({
           descricao: l.descricao,
+          raw: l,
+          busca: montarBusca(l.descricao, l.cartao, l.num_parcela+'/'+l.qtd_parcelas, l.qtd_parcelas_pagas||0, brl(l.valor), formatarData(l.data_compra), formatarData(l.data_vencimento), brl(l.saldo_aberto)),
           html: '<tr><td>' + l.descricao + '</td><td>' + (l.cartao||'-') + '</td>' +
             '<td>' + l.num_parcela + '/' + l.qtd_parcelas + '</td>' +
             '<td>' + (l.qtd_parcelas_pagas || 0) + '</td>' +
             '<td class="num">' + brl(l.valor) + '</td><td>' + formatarData(l.data_compra) + '</td><td>' + formatarData(l.data_vencimento) + '</td>' +
             '<td class="num">' + brl(l.saldo_aberto) + '</td></tr>',
         }));
-        const total = linhas.reduce((s,l) => s + Number(l.valor||0), 0);
+        const montarTotal = (ls) => linhaTotal(4, ls.reduce((s,l) => s + Number(l.raw.valor||0), 0), 3);
         const titulo = status === 'Pago' ? 'Parcelas já pagas' : 'Parcelas em aberto (a pagar)';
-        abrirDetalheModal(titulo, 'Detalhamento selecionado no gráfico.', header, linhasObj, linhaTotal(4, total, 3), 8);
+        abrirDetalheModal(titulo, 'Detalhamento selecionado no gráfico.', header, linhasObj, montarTotal, 8);
       } catch (e) { alert('Erro ao carregar detalhamento: ' + e.message); }
     }
 
@@ -1483,6 +1546,29 @@
         '<td colspan="4">TOTAL</td>' +
         '<td class="num">' + brl(totalValor) + '</td><td></td><td></td><td></td>' +
         '<td class="num">' + brl(totalSaldo) + '</td><td></td><td></td></tr>';
+    }
+
+    // Parcelas cujo compra_id não bate com nenhuma "compra" (dado antigo/migrado) —
+    // o card fica escondido quando não existe nenhuma (a maioria dos usuários nunca vê isso).
+    async function carregarParcelasOrfas() {
+      try {
+        const orfas = await api('/compras/orfas');
+        const card = document.getElementById('cardParcelasOrfas');
+        if (!orfas.length) { card.style.display = 'none'; return; }
+        card.style.display = '';
+        document.querySelector('#tabelaParcelasOrfas tbody').innerHTML = orfas.map(p =>
+          '<tr><td>' + p.num_parcela + '</td><td class="num">' + brl(p.valor) + '</td><td>' + formatarData(p.data_vencimento) + '</td>' +
+          '<td>' + badgeStatusParcela(p.status) + '</td>' +
+          '<td><button class="link-acao link-excluir" onclick="excluirParcelaOrfaUI(' + p.id + ')">Excluir</button></td></tr>'
+        ).join('');
+      } catch (e) { /* não crítico pro resto do Dashboard — só não mostra o card */ }
+    }
+    async function excluirParcelaOrfaUI(id) {
+      if (!confirm('Excluir esta parcela sem despesa associada? Não tem como desfazer.')) return;
+      try {
+        await api('/compras/orfas/' + id, { method:'DELETE' });
+        await carregarParcelasOrfas();
+      } catch (e) { alert('Erro ao excluir: ' + e.message); }
     }
 
     function abrirModal(id) { document.getElementById(id).classList.add('aberto'); }

@@ -62,6 +62,10 @@ async function despachar(metodo, caminho, params, corpo) {
   if (partes[0] === 'compras') {
     if (partes.length === 1 && metodo === 'GET') return Dados.listarComprasResumo();
     if (partes.length === 1 && metodo === 'POST') return Dados.criarCompra(corpo);
+    if (partes[1] === 'orfas') {
+      if (partes.length === 2 && metodo === 'GET') return Dados.listarParcelasOrfas();
+      if (partes.length === 3 && metodo === 'DELETE') return Dados.excluirParcelaOrfa(partes[2]);
+    }
     if (partes[1] === 'parcelas' && partes.length === 4) {
       const id = partes[2], acao = partes[3];
       if (acao === 'pagar') return Dados.marcarParcelaPaga(id, corpo.data_pagamento);
