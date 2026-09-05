@@ -328,7 +328,7 @@
       <section class="card" id="cardParcelasOrfas" style="display:none;">
         <div class="titulo-com-ajuda"><h2 style="margin:0;">Parcelas sem despesa encontrada</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-parcelas-orfas', this)">?</button></div>
         <div class="ajuda-balao" id="ajuda-parcelas-orfas">
-          Estas parcelas existem no banco, mas não têm mais nenhuma despesa (compra) associada a elas — provavelmente sobra de uma migração de dados antiga. Não dá pra editar (não existe descrição, forma de pagamento nem data de compra pra reconstituir), só revisar e excluir as que não fizerem sentido pra você.
+          Estas parcelas existem no banco, mas não têm mais nenhuma despesa (compra) associada a elas — provavelmente sobra de uma migração de dados antiga. Não existe descrição, forma de pagamento nem data de compra pra reconstituir, mas dá pra corrigir a <b>Data de Vencimento</b> direto na tabela (salva sozinha), marcar/desfazer o <b>pagamento</b>, ou excluir as que não fizerem sentido pra você.
         </div>
         <div class="tabela-scroll" style="max-height:400px;overflow-y:auto;">
           <table id="tabelaParcelasOrfas">
@@ -1556,12 +1556,41 @@
         const card = document.getElementById('cardParcelasOrfas');
         if (!orfas.length) { card.style.display = 'none'; return; }
         card.style.display = '';
-        document.querySelector('#tabelaParcelasOrfas tbody').innerHTML = orfas.map(p =>
-          '<tr><td>' + p.num_parcela + '</td><td class="num">' + brl(p.valor) + '</td><td>' + formatarData(p.data_vencimento) + '</td>' +
-          '<td>' + badgeStatusParcela(p.status) + '</td>' +
-          '<td><button class="link-acao link-excluir" onclick="excluirParcelaOrfaUI(' + p.id + ')">Excluir</button></td></tr>'
-        ).join('');
+        const hoje = hojeLocal();
+        document.querySelector('#tabelaParcelasOrfas tbody').innerHTML = orfas.map(p => {
+          const vencida = p.status === 'Pendente' && String(p.data_vencimento).slice(0,10) < hoje;
+          const statusTxt = p.status === 'Pago'
+            ? '<span class="badge quitada">Pago</span>'
+            : (vencida ? '<span class="badge aberto" style="background:#fdecea;color:#922;">Vencida</span>' : '<span class="badge aberto">Pendente</span>');
+          const acaoStatus = p.status === 'Pago'
+            ? '<button class="btn-desfazer" onclick="desfazerPagamentoOrfa(' + p.id + ')">Desfazer</button>'
+            : '<button class="btn-pagar" onclick="marcarPagaOrfa(' + p.id + ')">Marcar Paga</button>';
+          return '<tr' + (vencida ? ' class="linha-vencida"' : '') + '>' +
+            '<td>' + p.num_parcela + '</td><td class="num">' + brl(p.valor) + '</td>' +
+            '<td><input type="date" value="' + String(p.data_vencimento).slice(0,10) + '" ' +
+              'onchange="salvarVencimentoParcelaOrfa(' + p.id + ', this.value)" ' +
+              'style="padding:5px 7px;border:1px solid var(--cinza-borda);border-radius:6px;font-size:13px;width:140px;" /></td>' +
+            '<td>' + statusTxt + '</td>' +
+            '<td>' + acaoStatus + ' <button class="link-acao link-excluir" onclick="excluirParcelaOrfaUI(' + p.id + ')">Excluir</button></td></tr>';
+        }).join('');
       } catch (e) { /* não crítico pro resto do Dashboard — só não mostra o card */ }
+    }
+    async function salvarVencimentoParcelaOrfa(id, novaData) {
+      if (!novaData) return;
+      try {
+        await api('/compras/parcelas/' + id + '/vencimento', { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ data_vencimento: novaData }) });
+      } catch (e) { alert('Erro ao salvar Data de Vencimento: ' + e.message); return; }
+      await carregarTudo();
+    }
+    async function marcarPagaOrfa(id) {
+      try { await api('/compras/parcelas/' + id + '/pagar', { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({}) }); }
+      catch (e) { alert('Erro: ' + e.message); return; }
+      await carregarTudo();
+    }
+    async function desfazerPagamentoOrfa(id) {
+      try { await api('/compras/parcelas/' + id + '/despagar', { method:'PATCH' }); }
+      catch (e) { alert('Erro: ' + e.message); return; }
+      await carregarTudo();
     }
     async function excluirParcelaOrfaUI(id) {
       if (!confirm('Excluir esta parcela sem despesa associada? Não tem como desfazer.')) return;
