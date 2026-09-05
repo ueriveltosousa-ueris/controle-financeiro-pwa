@@ -229,8 +229,8 @@
       </div>
       <div class="ajuda-balao" id="ajuda-kpis">
         <b>Despesas Totais</b>: tudo que ainda está pendente, vencido ou não (não muda com o filtro de mês).<br>
-        <b>Despesas Mês</b>: só o que vence no mês selecionado no filtro abaixo, separado em parcelado e à vista.<br>
-        <b>Orçamento Mês</b>: o orçamento lançado pro mês selecionado e o saldo dele (orçamento menos o que vence nele). Saldo negativo (vermelho) = vai faltar dinheiro.<br>
+        <b>Despesas Mês</b>: o total de tudo que vence no mês selecionado no filtro abaixo, pago ou pendente — marcar uma parcela como paga não tira ela dessa conta, só aparece separado como "Pago"/"Pendente" logo abaixo do valor.<br>
+        <b>Orçamento Mês</b>: o orçamento lançado pro mês selecionado e o saldo dele (orçamento menos o total de despesas do mês). Saldo negativo (vermelho) = vai faltar dinheiro.<br>
         Clique em qualquer card pra ver o detalhamento.
       </div>
       <div class="kpis-filtro">
@@ -1015,17 +1015,20 @@
       const [ano, mes] = anoMes.split('-');
       const nomeMes = nomesMes[Number(mes) - 1] + '/' + ano;
 
-      const parcelasMes = await api('/dashboard/parcelas?status=Pendente&mes=' + anoMes);
+      // Todas as parcelas com vencimento no mês, pagas ou não -- este card mostra o
+      // TOTAL de despesas do mês (igual ao gráfico de Projeção). Pago/Pendente é só
+      // informativo aqui embaixo, nunca é deduzido do valor principal do card.
+      const parcelasMes = await api('/dashboard/parcelas?mes=' + anoMes);
       const totalMes = parcelasMes.reduce((s, l) => s + Number(l.valor || 0), 0);
-      const totalParcelado = parcelasMes.filter(l => Number(l.qtd_parcelas) > 1).reduce((s, l) => s + Number(l.valor || 0), 0);
-      const totalAvista = parcelasMes.filter(l => Number(l.qtd_parcelas) <= 1).reduce((s, l) => s + Number(l.valor || 0), 0);
+      const totalPago = parcelasMes.filter(l => l.status === 'Pago').reduce((s, l) => s + Number(l.valor || 0), 0);
+      const totalPendente = parcelasMes.filter(l => l.status !== 'Pago').reduce((s, l) => s + Number(l.valor || 0), 0);
 
       const orcamentoMes = orcamentoPorMes[anoMes] || 0;
       const saldoOrcamento = orcamentoMes - totalMes;
       const corSaldo = saldoOrcamento < 0 ? 'negativo' : 'positivo';
 
-      const subVencer = '<div class="kpi-sub-destaque">Parcelado: ' + brl(totalParcelado) +
-        '<br>À vista: ' + brl(totalAvista) + '</div>';
+      const subVencer = '<div class="kpi-sub-destaque">Pago: ' + brl(totalPago) +
+        '<br>Pendente: ' + brl(totalPendente) + '</div>';
 
       document.getElementById('kpis').innerHTML =
         '<div class="kpi destaque" onclick="detalheStatus(\'Pendente\')"><div class="rotulo">DESPESAS TOTAIS</div><div class="valor">' + brl(k.total_em_aberto) + '</div></div>' +
@@ -1094,7 +1097,7 @@
             if (!elems.length) return;
             const mes = dados[elems[0].index].mes;
             if (elems[0].datasetIndex === 1) detalheOrcamentoMes(mes); // barra Orçamento
-            else detalheMes(mes, true); // barra Gastos (e a linha Acumulado) -- mostra todas as parcelas do mês, pagas ou não
+            else detalheMes(mes); // barra Gastos (e a linha Acumulado) -- mostra todas as parcelas do mês, pagas ou não
           },
           onHover: (evt, elems) => { evt.native.target.style.cursor = elems.length ? 'pointer' : 'default'; },
           plugins:{
@@ -1302,19 +1305,16 @@
       return '<tr style="font-weight:700;background:#f0f4fa;"><td colspan="' + colspanAntes + '">TOTAL</td>' +
         '<td class="num">' + brl(valorTotal) + '</td>' + '<td></td>'.repeat(colunasDepois) + '</tr>';
     }
-    // Clique numa barra do gráfico de Projeção (ou no card "A vencer") -> lista as parcelas pendentes daquele mês.
     function badgeStatusParcela(status) {
       return status === 'Pago' ? '<span class="badge quitada">Pago</span>' : '<span class="badge aberto">Pendente</span>';
     }
-    // todasParcelas=false (padrão, clique no card "Despesas Mês"): só o que falta pagar.
-    // todasParcelas=true (clique na barra "Gastos" da Projeção): todas as parcelas do
-    // mês, pagas ou não — o gráfico mostra o total do mês independente de pagamento,
-    // então o detalhamento tem que bater com o que a barra soma.
-    async function detalheMes(mesIso, todasParcelas) {
+    // Clique no card "Despesas Mês" ou na barra "Gastos" da Projeção -> lista TODAS as
+    // parcelas com vencimento no mês, pagas ou não (os dois já mostram o total do mês
+    // independente de pagamento, então o detalhamento tem que bater com esse total).
+    async function detalheMes(mesIso) {
       const anoMes = String(mesIso).slice(0, 7);
       try {
-        const qs = 'mes=' + anoMes + (todasParcelas ? '' : '&status=Pendente');
-        const linhas = await api('/dashboard/parcelas?' + qs);
+        const linhas = await api('/dashboard/parcelas?mes=' + anoMes);
         const header = '<th>Descrição</th><th>Despesa</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th class="num">Valor Parcela</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Saldo Aberto</th><th>Status</th>';
         const linhasObj = linhas.map(l => ({
           descricao: l.descricao,
@@ -1327,8 +1327,8 @@
             '<td class="num">' + brl(l.saldo_aberto) + '</td><td>' + badgeStatusParcela(l.status) + '</td></tr>',
         }));
         const montarTotal = (ls) => linhaTotal(4, ls.reduce((s,l) => s + Number(l.raw.valor||0), 0), 4);
-        const titulo = (todasParcelas ? 'Parcelas do mês — ' : 'Parcelas a pagar — ') + labelMes(mesIso);
-        const obs = todasParcelas ? 'Todas as parcelas com vencimento no mês selecionado no gráfico, pagas ou não.' : 'Detalhamento do mês selecionado no gráfico.';
+        const titulo = 'Parcelas do mês — ' + labelMes(mesIso);
+        const obs = 'Todas as parcelas com vencimento no mês selecionado, pagas ou não.';
         abrirDetalheModal(titulo, obs, header, linhasObj, montarTotal, 9);
       } catch (e) { alert('Erro ao carregar detalhamento: ' + e.message); }
     }
