@@ -77,7 +77,21 @@
     .card { background:#fff; border:1px solid var(--cinza-borda); border-radius:10px; padding:18px 20px; box-shadow:0 1px 3px rgba(0,0,0,.04); min-width:0; }
     .card h2 { font-size:15px; margin:0 0 14px; color:var(--azul); font-weight:600; }
     .card.largo { grid-column:1 / -1; }
+    /* Linha "largo" que ao invés de esticar os cards pra ocupar toda a largura
+       (o grid normal faria isso com só 2 itens numa tela bem larga, deixando
+       tudo puxado pra esquerda com um vão vazio do lado), centraliza o par de
+       cards como grupo — cada um com largura máxima própria. */
+    .graficos-centralizados { grid-column:1 / -1; display:flex; flex-wrap:wrap; justify-content:center; gap:20px; }
+    .graficos-centralizados > .card { flex:1 1 420px; max-width:560px; }
     .chart-wrap { position:relative; height:300px; }
+    /* Legenda "congelada": fica fora da área com scroll do gráfico (Projeção e
+       Totais por Descrição têm gráficos largos/altos com scroll interno), pra
+       nunca sumir ou precisar rolar junto pra aparecer. Clicar num item
+       esconde/mostra a série correspondente, igual à legenda padrão do Chart.js. */
+    .legenda-grafico { display:flex; flex-wrap:wrap; justify-content:center; gap:16px; margin-top:10px; font-size:12px; color:#333; }
+    .legenda-item { display:flex; align-items:center; gap:6px; cursor:pointer; user-select:none; }
+    .legenda-item.inativo { opacity:.45; text-decoration:line-through; }
+    .legenda-cor { width:12px; height:12px; border-radius:3px; display:inline-block; flex:none; }
     table { width:100%; border-collapse:collapse; font-size:13px; }
     th, td { padding:10px 12px; text-align:left; border-bottom:1px solid var(--cinza-borda); }
     th { background:#f0f4fa; color:var(--azul); font-weight:600; }
@@ -276,7 +290,9 @@
             <button class="btn btn-cinza" onclick="limparFiltroProjecao()">Ver tudo (24 meses)</button>
           </div>
           <div class="chart-wrap" style="overflow-x:auto;"><div id="projWrapInterno" style="min-width:4800px;height:300px;"><canvas id="graficoProjecao"></canvas></div></div>
+          <div class="legenda-grafico" id="legendaProjecao"></div>
         </div>
+        <div class="graficos-centralizados">
         <div class="card">
           <div class="titulo-com-ajuda"><h2 style="margin:0;">Total em Aberto por Forma de Pagamento</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-cartao', this)">?</button></div>
           <div class="ajuda-balao" id="ajuda-cartao">Quanto falta pagar em cada forma de pagamento (cartão, PIX, etc.), somando as parcelas pendentes com vencimento dentro do período escolhido (deixe De/Até em branco pra somar de sempre). Clique numa barra pra ver as parcelas daquela forma de pagamento.</div>
@@ -309,6 +325,7 @@
           </div>
           <div class="chart-wrap"><canvas id="graficoTipo"></canvas></div>
         </div>
+        </div>
         <div class="card largo">
           <div class="titulo-com-ajuda"><h2 style="margin:0;">Total em Aberto por Grupo de Despesa</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-grupo-despesa', this)">?</button></div>
           <div class="ajuda-balao" id="ajuda-grupo-despesa">Quanto falta pagar em cada Grupo de Despesa, somando as parcelas pendentes com vencimento dentro do período escolhido (deixe De/Até em branco pra somar de sempre). Clique numa barra pra ver a quebra por Tipo de Despesa daquele grupo.</div>
@@ -336,6 +353,7 @@
             <button class="btn btn-cinza" onclick="document.getElementById('filtroDescricaoGrafico').value='';renderPorDescricao();">Limpar</button>
           </div>
           <div class="chart-wrap" style="height:auto;max-height:500px;overflow-y:auto;"><div id="descWrapInterno" style="min-height:300px;"><canvas id="graficoDescricao"></canvas></div></div>
+          <div class="legenda-grafico" id="legendaDescricao"></div>
         </div>
       </section>
       <section class="card largo">
@@ -774,12 +792,14 @@
     let mesKpiSelecionado = null; // "YYYY-MM" usado pelos cards "Despesas Mês" e "Orçamento Mês"
     // Os gráficos "Em Aberto" com filtro De/Até (Forma de Pagamento, Parcelado x
     // À Vista, Grupo de Despesa) abrem sincronizados com o mesmo mês do card
-    // "Despesas Mês" (De = Até = mês de referência). Assim que o usuário mexer
-    // manualmente no filtro de UM gráfico específico (ou clicar "Ver tudo"),
-    // aquele gráfico vira independente — parou de seguir o mês de referência —
-    // e continua do jeito que o usuário deixou mesmo quando o mês de referência
-    // mudar de novo. A Projeção fica de fora desse sincronismo de propósito
-    // (ela mostra 24 meses por padrão; travar num mês só quebraria essa visão).
+    // "Despesas Mês" (De = Até = mês de referência) — esse é o padrão do
+    // sistema. Se o usuário mexer manualmente no filtro de UM gráfico
+    // específico (ou clicar "Ver tudo"), aquele gráfico vira independente até
+    // a próxima vez que o "Mês de referência" for alterado: trocar o mês de
+    // referência de novo sempre reseta TODOS os gráficos de volta pro padrão
+    // (ver filtrarKpisPorMes). A Projeção fica de fora desse sincronismo de
+    // propósito (ela mostra 24 meses por padrão; travar num mês só quebraria
+    // essa visão).
     let cartaoSegueMesRef = true, tipoSegueMesRef = true, grupoSegueMesRef = true;
     function sincronizarFiltrosComMesReferencia() {
       if (cartaoSegueMesRef) { document.getElementById('cartaoDe').value = mesKpiSelecionado; document.getElementById('cartaoAte').value = mesKpiSelecionado; }
@@ -1165,6 +1185,11 @@
       const valor = document.getElementById('kpiMesSelecionado').value;
       if (!valor || !ultimoKpis) return;
       mesKpiSelecionado = valor;
+      // Mexer no "Mês de referência" é sempre o botão de reset: mesmo que o
+      // usuário tenha personalizado o filtro de um gráfico específico antes,
+      // voltar aqui e trocar o mês faz TODOS os gráficos voltarem a seguir
+      // este período de novo (o padrão do sistema é este filtro).
+      cartaoSegueMesRef = true; tipoSegueMesRef = true; grupoSegueMesRef = true;
       sincronizarFiltrosComMesReferencia();
       await renderKPIs(ultimoKpis);
       renderCartao(); renderTipo(); renderGrupoDespesa();
@@ -1178,6 +1203,28 @@
     }
     function esconderTooltipAcumulado() {
       document.getElementById('tooltipAcumulado').style.display = 'none';
+    }
+    // Legenda "congelada" fora da área com scroll do gráfico (ver comentário
+    // da classe .legenda-grafico no <style>). Reproduz o comportamento padrão
+    // da legenda do Chart.js: clicar esconde/mostra a série e risca o texto.
+    // `itens` = [{ rotulo, cor, onHover?, onLeave? }], na mesma ordem dos datasets.
+    function montarLegendaGrafico(idContainer, chart, itens) {
+      const cont = document.getElementById(idContainer);
+      if (!cont) return;
+      cont.innerHTML = itens.map((it, i) =>
+        '<span class="legenda-item" data-idx="' + i + '"><span class="legenda-cor" style="background:' + it.cor + '"></span>' + it.rotulo + '</span>'
+      ).join('');
+      cont.querySelectorAll('.legenda-item').forEach((el) => {
+        const idx = Number(el.dataset.idx);
+        const item = itens[idx];
+        if (!chart.isDatasetVisible(idx)) el.classList.add('inativo');
+        el.onclick = () => {
+          if (chart.isDatasetVisible(idx)) chart.hide(idx); else chart.show(idx);
+          el.classList.toggle('inativo', !chart.isDatasetVisible(idx));
+        };
+        if (item.onHover) el.addEventListener('mousemove', (e) => item.onHover(e.clientX, e.clientY));
+        if (item.onLeave) el.addEventListener('mouseleave', item.onLeave);
+      });
     }
     function renderProjecao(dadosNovos) {
       if (dadosNovos) ultimaProjecaoDados = dadosNovos;
@@ -1221,15 +1268,18 @@
           },
           onHover: (evt, elems) => { evt.native.target.style.cursor = elems.length ? 'pointer' : 'default'; },
           plugins:{
-            legend:{ position:'bottom',
-              onHover: (evt, item) => { if (item.text === 'Acumulado') mostrarTooltipAcumulado(evt.native.clientX, evt.native.clientY); },
-              onLeave: () => esconderTooltipAcumulado() },
+            legend:{ display:false },
             tooltip:{ enabled:true, callbacks:{
               label:(c) => c.dataset.label + ': ' + brl(c.raw),
               afterLabel:(c) => c.dataset.label === 'Acumulado' ? 'Soma corrida dos Gastos até este mês (não inclui o Orçamento).' : '',
             } } },
           scales:{ x:{grid:{display:false}}, y:{display:false,grid:{display:false}}, y1:{position:'right',grid:{drawOnChartArea:false},ticks:{callback:(v)=>'R$ '+(v/1000)+'k'}} } },
       });
+      montarLegendaGrafico('legendaProjecao', chartProjecao, [
+        { rotulo:'Gastos', cor:'#E57373' },
+        { rotulo:'Orçamento', cor:'#6AA84F' },
+        { rotulo:'Acumulado', cor:'#C0392B', onHover:mostrarTooltipAcumulado, onLeave:esconderTooltipAcumulado },
+      ]);
     }
     // Botão "Ver tudo" do filtro de período da Projeção.
     function limparFiltroProjecao() {
@@ -1405,9 +1455,14 @@
           interaction: { mode:'y', intersect:false },
           onClick: (evt, elems) => { if (elems.length) detalhePorDescricao(labels[elems[0].index]); },
           onHover: (evt, elems) => { evt.native.target.style.cursor = elems.length ? 'pointer' : 'default'; },
-          plugins:{ legend:{position:'bottom'}, tooltip:{enabled:true, callbacks:{label:(c)=>c.dataset.label+': '+brl(c.raw)}} },
+          plugins:{ legend:{display:false}, tooltip:{enabled:true, callbacks:{label:(c)=>c.dataset.label+': '+brl(c.raw)}} },
           scales:{ x:{display:false,grid:{display:false}}, y:{grid:{display:false}, ticks:{ font:{ size:11 } }} } },
       });
+      montarLegendaGrafico('legendaDescricao', chartDescricao, [
+        { rotulo:'Total Comprado', cor:'#4A86E8' },
+        { rotulo:'Total Pago', cor:'#6AA84F' },
+        { rotulo:'Total a Pagar', cor:'#E57373' },
+      ]);
       ajustarQuebraGrafico(chartDescricao, labels);
       // Força o Chart.js a recalcular o tamanho/posição depois que o layout (altura dinâmica +
       // rolagem) já assentou de verdade — evita que clique/tooltip apontem para a linha errada.
