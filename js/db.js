@@ -30,7 +30,11 @@ const NOME_METADADOS = 'meta';
 // (pago + pendente); marcar uma parcela como paga não pode mais "sumir" com
 // o gasto daquele mês nesse gráfico. Os cards do topo e os gráficos "Em
 // Aberto" continuam olhando só o pendente, de propósito.
-const VERSAO_ATUAL_VIEWS = 5;
+// v6: vw_resumo_por_compra ganha proximo_vencimento (MIN da data de
+// vencimento entre as parcelas pendentes da compra) — usado pra padronizar
+// as tabelas de compras com uma coluna "Data de Vencimento" ao lado de
+// "Data da Compra".
+const VERSAO_ATUAL_VIEWS = 6;
 
 let SQL = null;   // módulo sql.js carregado (initSqlJs())
 let db = null;    // instância do banco (SQL.Database)

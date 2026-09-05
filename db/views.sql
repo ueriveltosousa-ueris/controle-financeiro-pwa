@@ -67,6 +67,7 @@ SELECT
     COUNT(CASE WHEN p.status = 'Pago' THEN 1 END)                                 AS qtd_parcelas_pagas,
     IFNULL(SUM(CASE WHEN p.status = 'Pago'     THEN p.valor_centavos END),0)      AS total_pago_centavos,
     IFNULL(SUM(CASE WHEN p.status = 'Pendente' THEN p.valor_centavos END),0)      AS saldo_aberto_centavos,
+    MIN(CASE WHEN p.status = 'Pendente' THEN p.data_vencimento END)              AS proximo_vencimento,
     CASE WHEN IFNULL(SUM(p.valor_centavos),0) = 0 THEN 0.0
          ELSE CAST(SUM(CASE WHEN p.status = 'Pago' THEN p.valor_centavos ELSE 0 END) AS REAL)
               / SUM(p.valor_centavos)

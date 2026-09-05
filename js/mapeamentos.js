@@ -38,6 +38,7 @@ function mapResumoCompra(r) {
     compra_id: r.compra_id,
     descricao: r.descricao,
     data_compra: r.data_compra,
+    proximo_vencimento: r.proximo_vencimento,
     cartao: r.cartao,
     categoria: r.categoria,
     valor_total: paraReais(r.valor_total_centavos),
