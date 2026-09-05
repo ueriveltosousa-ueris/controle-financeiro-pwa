@@ -283,7 +283,19 @@
           <div class="chart-wrap" style="height:auto;max-height:500px;overflow-y:auto;"><div id="cartaoWrapInterno" style="min-height:300px;"><canvas id="graficoCartao"></canvas></div></div>
         </div>
         <div class="card">
-          <h2>Saldo Total em Aberto: Parcelados x À Vista</h2>
+          <div class="titulo-com-ajuda"><h2 style="margin:0;">Saldo Total em Aberto: Parcelados x À Vista</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-tipo', this)">?</button></div>
+          <div class="ajuda-balao" id="ajuda-tipo">Soma o saldo em aberto (só o que falta pagar) de todas as parcelas com vencimento dentro do período escolhido — deixe De/Até em branco pra somar de sempre (sem limite de data).</div>
+          <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;">
+            <div class="campo" style="margin-bottom:0;">
+              <label>De</label>
+              <input type="month" id="tipoDe" onchange="renderTipo()" style="width:150px;" />
+            </div>
+            <div class="campo" style="margin-bottom:0;">
+              <label>Até</label>
+              <input type="month" id="tipoAte" onchange="renderTipo()" style="width:150px;" />
+            </div>
+            <button class="btn btn-cinza" onclick="limparFiltroTipo()">Ver tudo</button>
+          </div>
           <div class="chart-wrap"><canvas id="graficoTipo"></canvas></div>
         </div>
         <div class="card largo">
@@ -985,7 +997,7 @@
         const r = await Promise.all([
           api('/dashboard/kpis'), api('/dashboard/saldo-por-cartao'),
           api('/dashboard/projecao'), api('/dashboard/resumo-por-compra'), api('/compras'),
-          api('/orcamento/totais'),
+          api('/orcamento/totais'), api('/dashboard/parcelas?status=Pendente'),
         ]);
         aviso.style.display = 'none';
         ultimaListaCompras = r[4];
@@ -999,7 +1011,7 @@
         }
         document.getElementById('kpiMesSelecionado').value = mesKpiSelecionado;
         await renderKPIs(ultimoKpis); renderProjecao(r[2]); renderCartao(r[1]);
-        renderResumo(r[3]); renderTabelaCompras(r[4]); renderTipo(r[4]); renderPorDescricao(r[4]);
+        renderResumo(r[3]); renderTabelaCompras(r[4]); renderTipo(r[6]); renderPorDescricao(r[4]);
         await carregarParcelasOrfas();
         // Garante que todo gráfico acabe do tamanho certo do container final —
         // o 1º render às vezes acontece antes do layout (menu lateral, fontes)
@@ -1178,10 +1190,24 @@
       ajustarQuebraGrafico(chartCartao, f.map(d => d.cartao));
       requestAnimationFrame(() => { if (chartCartao) chartCartao.resize(); });
     }
-    // Gráfico "Saldo Total em Aberto: Parcelados x À Vista" — usa os dados já carregados (sem nova chamada à API).
+    // Gráfico "Saldo Total em Aberto: Parcelados x À Vista" — trabalha em nível de
+    // PARCELA (não de compra), porque o filtro De/Até é por Data de Vencimento de
+    // cada parcela, não pela compra inteira. "lista" só vem preenchido na carga
+    // inicial (carregarTudo); ao mudar o filtro, reaplica em cima do cache.
+    let ultimasParcelasPendentes = [];
+    function parcelasTipoFiltradas() {
+      const de = document.getElementById('tipoDe').value;
+      const ate = document.getElementById('tipoAte').value;
+      let lista = ultimasParcelasPendentes;
+      if (de) lista = lista.filter(p => String(p.data_vencimento).slice(0,7) >= de);
+      if (ate) lista = lista.filter(p => String(p.data_vencimento).slice(0,7) <= ate);
+      return lista;
+    }
     function renderTipo(lista) {
-      const totalParcelado = lista.filter(c => Number(c.qtd_parcelas) > 1).reduce((s,c) => s + Number(c.saldo_aberto||0), 0);
-      const totalAvista = lista.filter(c => Number(c.qtd_parcelas) === 1).reduce((s,c) => s + Number(c.saldo_aberto||0), 0);
+      if (lista) ultimasParcelasPendentes = lista;
+      const filtradas = parcelasTipoFiltradas();
+      const totalParcelado = filtradas.filter(p => Number(p.qtd_parcelas) > 1).reduce((s,p) => s + Number(p.valor||0), 0);
+      const totalAvista = filtradas.filter(p => Number(p.qtd_parcelas) <= 1).reduce((s,p) => s + Number(p.valor||0), 0);
       const ctx = document.getElementById('graficoTipo');
       if (chartTipo) chartTipo.destroy();
       chartTipo = new Chart(ctx, {
@@ -1196,32 +1222,35 @@
           plugins:{ legend:{position:'bottom'}, tooltip:{enabled:false} } },
       });
     }
-    // Clique numa fatia do gráfico Parcelado x À Vista -> lista as compras daquele tipo (com saldo em aberto).
+    // Botão "Ver tudo" do filtro De/Até do gráfico Parcelado x À Vista.
+    function limparFiltroTipo() {
+      document.getElementById('tipoDe').value = '';
+      document.getElementById('tipoAte').value = '';
+      renderTipo();
+    }
+    // Clique numa fatia do gráfico Parcelado x À Vista -> lista as parcelas pendentes
+    // daquele tipo, já respeitando o filtro De/Até aplicado no gráfico.
     function detalheTipo(tipo) {
-      const linhas = ultimaListaCompras.filter(c => {
-        const eParcelada = Number(c.qtd_parcelas) > 1;
-        return (tipo === 'parcelada' ? eParcelada : !eParcelada) && Number(c.saldo_aberto) > 0;
+      const linhas = parcelasTipoFiltradas().filter(p => {
+        const eParcelada = Number(p.qtd_parcelas) > 1;
+        return tipo === 'parcelada' ? eParcelada : !eParcelada;
       });
-      const header = '<th>Descrição</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Data da Compra</th><th class="num">Valor Total</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Detalhes</th>';
-      const linhasObj = linhas.map(c => ({
-        descricao: c.descricao,
-        raw: c,
-        busca: montarBusca(c.descricao, c.cartao, c.categoria, (c.qtd_parcelas_pagas||0)+'/'+c.qtd_parcelas, formatarData(c.data_compra), brl(c.valor_total), brl(valorParcela(c)), brl(c.saldo_aberto), c.situacao),
-        html: '<tr><td>' + c.descricao + '</td><td>' + (c.cartao||'-') + '</td><td>' + (c.categoria||'-') + '</td>' +
-          '<td>' + (c.qtd_parcelas_pagas||0) + '/' + c.qtd_parcelas + '</td>' +
-          '<td>' + (c.qtd_parcelas_pagas||0) + '</td><td>' + formatarData(c.data_compra) + '</td>' +
-          '<td class="num">' + brl(c.valor_total) + '</td><td class="num">' + brl(valorParcela(c)) + '</td><td class="num">' + brl(c.saldo_aberto) + '</td>' +
-          '<td>' + (c.situacao === 'Quitada' ? '<span class="badge quitada">Quitada</span>' : '<span class="badge aberto">Em Aberto</span>') + '</td>' +
-          '<td>' + botaoDetalheCadastroHtml(c.compra_id) + '</td></tr>',
+      const header = '<th>Descrição</th><th>Despesa</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th class="num">Valor Parcela</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Saldo Aberto</th><th>Detalhes</th>';
+      const linhasObj = linhas.map(p => ({
+        descricao: p.descricao,
+        raw: p,
+        busca: montarBusca(p.descricao, p.cartao, p.num_parcela+'/'+p.qtd_parcelas, p.qtd_parcelas_pagas||0, brl(p.valor), formatarData(p.data_compra), formatarData(p.data_vencimento), brl(p.saldo_aberto)),
+        html: '<tr><td>' + p.descricao + '</td><td>' + (p.cartao||'-') + '</td>' +
+          '<td>' + p.num_parcela + '/' + p.qtd_parcelas + '</td>' +
+          '<td>' + (p.qtd_parcelas_pagas || 0) + '</td>' +
+          '<td class="num">' + brl(p.valor) + '</td><td>' + formatarData(p.data_compra) + '</td><td>' + formatarData(p.data_vencimento) + '</td>' +
+          '<td class="num">' + brl(p.saldo_aberto) + '</td><td>' + botaoDetalheCadastroHtml(p.compra_id) + '</td></tr>',
       }));
-      const montarTotal = (ls) => {
-        const totalValor = ls.reduce((s,l) => s + Number(l.raw.valor_total||0), 0);
-        const totalSaldo = ls.reduce((s,l) => s + Number(l.raw.saldo_aberto||0), 0);
-        return '<tr style="font-weight:700;background:#f0f4fa;"><td colspan="6">TOTAL</td>' +
-          '<td class="num">' + brl(totalValor) + '</td><td></td><td class="num">' + brl(totalSaldo) + '</td><td></td><td></td></tr>';
-      };
-      const titulo = tipo === 'parcelada' ? 'Compras Parceladas — saldo em aberto' : 'Compras À Vista — saldo em aberto';
-      abrirDetalheModal(titulo, 'Detalhamento do tipo selecionado no gráfico.', header, linhasObj, montarTotal, 11);
+      const montarTotal = (ls) => linhaTotal(4, ls.reduce((s,l) => s + Number(l.raw.valor||0), 0), 4);
+      const de = document.getElementById('tipoDe').value, ate = document.getElementById('tipoAte').value;
+      const periodo = (de || ate) ? ' (' + (de ? labelMes(de + '-01') : 'início') + ' a ' + (ate ? labelMes(ate + '-01') : 'fim') + ')' : '';
+      const titulo = (tipo === 'parcelada' ? 'Parcelado — saldo em aberto' : 'À Vista — saldo em aberto') + periodo;
+      abrirDetalheModal(titulo, 'Detalhamento do tipo selecionado no gráfico.', header, linhasObj, montarTotal, 9);
     }
 
     // Gráfico "Totais de Compras por Descrição" — agrupa e soma o Valor Total por Descrição.
