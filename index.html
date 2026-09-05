@@ -283,11 +283,11 @@
           <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;">
             <div class="campo" style="margin-bottom:0;">
               <label>De</label>
-              <input type="month" id="cartaoDe" onchange="renderCartao()" style="width:150px;" />
+              <input type="month" id="cartaoDe" onchange="cartaoFiltroAlterado()" style="width:150px;" />
             </div>
             <div class="campo" style="margin-bottom:0;">
               <label>Até</label>
-              <input type="month" id="cartaoAte" onchange="renderCartao()" style="width:150px;" />
+              <input type="month" id="cartaoAte" onchange="cartaoFiltroAlterado()" style="width:150px;" />
             </div>
             <button class="btn btn-cinza" onclick="limparFiltroCartao()">Ver tudo</button>
           </div>
@@ -299,11 +299,11 @@
           <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;">
             <div class="campo" style="margin-bottom:0;">
               <label>De</label>
-              <input type="month" id="tipoDe" onchange="renderTipo()" style="width:150px;" />
+              <input type="month" id="tipoDe" onchange="tipoFiltroAlterado()" style="width:150px;" />
             </div>
             <div class="campo" style="margin-bottom:0;">
               <label>Até</label>
-              <input type="month" id="tipoAte" onchange="renderTipo()" style="width:150px;" />
+              <input type="month" id="tipoAte" onchange="tipoFiltroAlterado()" style="width:150px;" />
             </div>
             <button class="btn btn-cinza" onclick="limparFiltroTipo()">Ver tudo</button>
           </div>
@@ -315,11 +315,11 @@
           <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;">
             <div class="campo" style="margin-bottom:0;">
               <label>De</label>
-              <input type="month" id="grupoDe" onchange="renderGrupoDespesa()" style="width:150px;" />
+              <input type="month" id="grupoDe" onchange="grupoFiltroAlterado()" style="width:150px;" />
             </div>
             <div class="campo" style="margin-bottom:0;">
               <label>Até</label>
-              <input type="month" id="grupoAte" onchange="renderGrupoDespesa()" style="width:150px;" />
+              <input type="month" id="grupoAte" onchange="grupoFiltroAlterado()" style="width:150px;" />
             </div>
             <button class="btn btn-cinza" onclick="limparFiltroGrupo()">Ver tudo</button>
           </div>
@@ -772,6 +772,26 @@
     let compraEditandoId = null;
     let ultimoKpis = null; // guarda o resultado de /dashboard/kpis pro filtro de mês re-renderizar sem nova chamada
     let mesKpiSelecionado = null; // "YYYY-MM" usado pelos cards "Despesas Mês" e "Orçamento Mês"
+    // Os gráficos "Em Aberto" com filtro De/Até (Forma de Pagamento, Parcelado x
+    // À Vista, Grupo de Despesa) abrem sincronizados com o mesmo mês do card
+    // "Despesas Mês" (De = Até = mês de referência). Assim que o usuário mexer
+    // manualmente no filtro de UM gráfico específico (ou clicar "Ver tudo"),
+    // aquele gráfico vira independente — parou de seguir o mês de referência —
+    // e continua do jeito que o usuário deixou mesmo quando o mês de referência
+    // mudar de novo. A Projeção fica de fora desse sincronismo de propósito
+    // (ela mostra 24 meses por padrão; travar num mês só quebraria essa visão).
+    let cartaoSegueMesRef = true, tipoSegueMesRef = true, grupoSegueMesRef = true;
+    function sincronizarFiltrosComMesReferencia() {
+      if (cartaoSegueMesRef) { document.getElementById('cartaoDe').value = mesKpiSelecionado; document.getElementById('cartaoAte').value = mesKpiSelecionado; }
+      if (tipoSegueMesRef) { document.getElementById('tipoDe').value = mesKpiSelecionado; document.getElementById('tipoAte').value = mesKpiSelecionado; }
+      if (grupoSegueMesRef) { document.getElementById('grupoDe').value = mesKpiSelecionado; document.getElementById('grupoAte').value = mesKpiSelecionado; }
+    }
+    // Chamadas pelo onchange dos inputs De/Até de cada gráfico — o usuário
+    // mexeu manualmente, então esse gráfico vira independente (não segue
+    // mais o mês de referência até a página recarregar).
+    function cartaoFiltroAlterado() { cartaoSegueMesRef = false; renderCartao(); }
+    function tipoFiltroAlterado() { tipoSegueMesRef = false; renderTipo(); }
+    function grupoFiltroAlterado() { grupoSegueMesRef = false; renderGrupoDespesa(); }
 
     function trocarAba(qual) {
       document.getElementById('pagina-dashboard').classList.toggle('ativa', qual === 'dashboard');
@@ -1061,6 +1081,7 @@
           mesKpiSelecionado = proxMes.toISOString().slice(0, 7);
         }
         document.getElementById('kpiMesSelecionado').value = mesKpiSelecionado;
+        sincronizarFiltrosComMesReferencia();
         await renderKPIs(ultimoKpis); renderProjecao(r[1]); renderCartao();
         renderResumo(r[2]); renderTabelaCompras(r[3]); renderTipo(); renderPorDescricao(r[3]); renderGrupoDespesa();
         await carregarParcelasOrfas();
@@ -1144,7 +1165,9 @@
       const valor = document.getElementById('kpiMesSelecionado').value;
       if (!valor || !ultimoKpis) return;
       mesKpiSelecionado = valor;
+      sincronizarFiltrosComMesReferencia();
       await renderKPIs(ultimoKpis);
+      renderCartao(); renderTipo(); renderGrupoDespesa();
     }
     // Balão flutuante explicando o "Acumulado" — aparece ao passar o mouse na legenda do gráfico.
     function mostrarTooltipAcumulado(x, y) {
@@ -1255,6 +1278,7 @@
     }
     // Botão "Ver tudo" do filtro De/Até do gráfico Forma de Pagamento.
     function limparFiltroCartao() {
+      cartaoSegueMesRef = false;
       document.getElementById('cartaoDe').value = '';
       document.getElementById('cartaoAte').value = '';
       renderCartao();
@@ -1299,6 +1323,7 @@
     }
     // Botão "Ver tudo" do filtro De/Até do gráfico Parcelado x À Vista.
     function limparFiltroTipo() {
+      tipoSegueMesRef = false;
       document.getElementById('tipoDe').value = '';
       document.getElementById('tipoAte').value = '';
       renderTipo();
@@ -1654,6 +1679,7 @@
     }
     // Botão "Ver tudo" do filtro De/Até do gráfico Grupo de Despesa.
     function limparFiltroGrupo() {
+      grupoSegueMesRef = false;
       document.getElementById('grupoDe').value = '';
       document.getElementById('grupoAte').value = '';
       renderGrupoDespesa();
