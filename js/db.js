@@ -25,7 +25,12 @@ const NOME_METADADOS = 'meta';
 // sumia inteira da tabela "Resumo por compra" em vez de só aparecer com
 // forma de pagamento em branco, causando totais divergentes de outras telas
 // (ex.: Projeção) que somam direto de "parcelas", sem esse JOIN.
-const VERSAO_ATUAL_VIEWS = 4;
+// v5: vw_projecao_mensal deixa de filtrar status = 'Pendente' — o gráfico
+// "Projeção dos próximos 24 meses" passa a mostrar o valor TOTAL de cada mês
+// (pago + pendente); marcar uma parcela como paga não pode mais "sumir" com
+// o gasto daquele mês nesse gráfico. Os cards do topo e os gráficos "Em
+// Aberto" continuam olhando só o pendente, de propósito.
+const VERSAO_ATUAL_VIEWS = 5;
 
 let SQL = null;   // módulo sql.js carregado (initSqlJs())
 let db = null;    // instância do banco (SQL.Database)

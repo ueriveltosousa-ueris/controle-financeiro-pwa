@@ -242,7 +242,7 @@
         <div class="card largo">
           <div class="titulo-com-ajuda"><h2 style="margin:0;">Projeção dos próximos 24 meses</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-projecao', this)">?</button></div>
           <div class="ajuda-balao" id="ajuda-projecao">
-            Barras <b>vermelhas</b> = quanto você vai gastar em cada mês (só parcelas pendentes). Barras <b>verdes</b> = orçamento lançado pra aquele mês. A <b>linha</b> é a soma acumulada dos gastos, mês a mês (não inclui orçamento). Clique numa barra pra ver o detalhamento daquele mês.
+            Barras <b>vermelhas</b> = o total de parcelas com vencimento em cada mês, <b>pagas ou não</b> (marcar uma parcela como paga não tira ela dessa conta — quem quer só o que falta pagar usa os cards do topo ou os gráficos "Em Aberto"). Barras <b>verdes</b> = orçamento lançado pra aquele mês. A <b>linha</b> é a soma acumulada dos gastos, mês a mês (não inclui orçamento). Clique numa barra pra ver o detalhamento daquele mês.
           </div>
           <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;">
             <div class="campo" style="margin-bottom:0;">
@@ -1070,7 +1070,7 @@
             if (!elems.length) return;
             const mes = dados[elems[0].index].mes;
             if (elems[0].datasetIndex === 1) detalheOrcamentoMes(mes); // barra Orçamento
-            else detalheMes(mes); // barra Gastos (e a linha Acumulado, sem mudança)
+            else detalheMes(mes, true); // barra Gastos (e a linha Acumulado) -- mostra todas as parcelas do mês, pagas ou não
           },
           onHover: (evt, elems) => { evt.native.target.style.cursor = elems.length ? 'pointer' : 'default'; },
           plugins:{
@@ -1250,21 +1250,31 @@
         '<td class="num">' + brl(valorTotal) + '</td>' + '<td></td>'.repeat(colunasDepois) + '</tr>';
     }
     // Clique numa barra do gráfico de Projeção (ou no card "A vencer") -> lista as parcelas pendentes daquele mês.
-    async function detalheMes(mesIso) {
+    function badgeStatusParcela(status) {
+      return status === 'Pago' ? '<span class="badge quitada">Pago</span>' : '<span class="badge aberto">Pendente</span>';
+    }
+    // todasParcelas=false (padrão, clique no card "Despesas Mês"): só o que falta pagar.
+    // todasParcelas=true (clique na barra "Gastos" da Projeção): todas as parcelas do
+    // mês, pagas ou não — o gráfico mostra o total do mês independente de pagamento,
+    // então o detalhamento tem que bater com o que a barra soma.
+    async function detalheMes(mesIso, todasParcelas) {
       const anoMes = String(mesIso).slice(0, 7);
       try {
-        const linhas = await api('/dashboard/parcelas?status=Pendente&mes=' + anoMes);
-        const header = '<th>Descrição</th><th>Despesa</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th class="num">Valor Parcela</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Saldo Aberto</th>';
+        const qs = 'mes=' + anoMes + (todasParcelas ? '' : '&status=Pendente');
+        const linhas = await api('/dashboard/parcelas?' + qs);
+        const header = '<th>Descrição</th><th>Despesa</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th class="num">Valor Parcela</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Saldo Aberto</th><th>Status</th>';
         const linhasObj = linhas.map(l => ({
           descricao: l.descricao,
           html: '<tr><td>' + l.descricao + '</td><td>' + (l.cartao||'-') + '</td>' +
             '<td>' + l.num_parcela + '/' + l.qtd_parcelas + '</td>' +
             '<td>' + (l.qtd_parcelas_pagas || 0) + '</td>' +
             '<td class="num">' + brl(l.valor) + '</td><td>' + formatarData(l.data_compra) + '</td><td>' + formatarData(l.data_vencimento) + '</td>' +
-            '<td class="num">' + brl(l.saldo_aberto) + '</td></tr>',
+            '<td class="num">' + brl(l.saldo_aberto) + '</td><td>' + badgeStatusParcela(l.status) + '</td></tr>',
         }));
         const total = linhas.reduce((s,l) => s + Number(l.valor||0), 0);
-        abrirDetalheModal('Parcelas a pagar — ' + labelMes(mesIso), 'Detalhamento do mês selecionado no gráfico.', header, linhasObj, linhaTotal(4, total, 3), 8);
+        const titulo = (todasParcelas ? 'Parcelas do mês — ' : 'Parcelas a pagar — ') + labelMes(mesIso);
+        const obs = todasParcelas ? 'Todas as parcelas com vencimento no mês selecionado no gráfico, pagas ou não.' : 'Detalhamento do mês selecionado no gráfico.';
+        abrirDetalheModal(titulo, obs, header, linhasObj, linhaTotal(4, total, 4), 9);
       } catch (e) { alert('Erro ao carregar detalhamento: ' + e.message); }
     }
     // Clique na barra Orçamento do gráfico de Projeção -> lista os itens de orçamento daquele mês.

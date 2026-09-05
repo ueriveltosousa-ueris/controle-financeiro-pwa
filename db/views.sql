@@ -101,7 +101,10 @@ SELECT
             WHERE c.categoria_id = cat.id AND p.status = 'Pendente'),0)           AS parcelado_pendente_centavos
 FROM tipos_despesa cat;
 
-/* Projeção dos próximos 24 meses (apenas parcelas pendentes) */
+/* Projeção dos próximos 24 meses (TODAS as parcelas do mês, pagas ou não —
+   pagar uma parcela não pode "sumir" com o gasto do mês nesse gráfico;
+   quem quer só o que falta pagar usa os gráficos "Em Aberto" ou os cards do
+   Dashboard, que continuam olhando só status = 'Pendente'). */
 CREATE VIEW vw_projecao_mensal AS
 WITH RECURSIVE meses(mes, n) AS (
     SELECT date('now','localtime','start of month'), 0
@@ -113,13 +116,12 @@ calc AS (
         m.mes,
         IFNULL((SELECT SUM(p.valor_centavos)
                 FROM parcelas p
-                WHERE p.status = 'Pendente'
-                  AND p.data_vencimento >= m.mes
-                  AND p.data_vencimento <  date(m.mes,'+1 month')),0)             AS parcelas_a_pagar_centavos
+                WHERE p.data_vencimento >= m.mes
+                  AND p.data_vencimento <  date(m.mes,'+1 month')),0)             AS parcelas_total_centavos
     FROM meses m
 )
 SELECT
     mes,
-    parcelas_a_pagar_centavos,
-    SUM(parcelas_a_pagar_centavos) OVER (ORDER BY mes ROWS UNBOUNDED PRECEDING)   AS acumulado_centavos
+    parcelas_total_centavos,
+    SUM(parcelas_total_centavos) OVER (ORDER BY mes ROWS UNBOUNDED PRECEDING)     AS acumulado_centavos
 FROM calc;

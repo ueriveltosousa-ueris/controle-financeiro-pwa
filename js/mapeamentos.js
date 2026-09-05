@@ -29,8 +29,8 @@ function mapSaldoPorCategoria(r) {
 }
 
 function mapProjecaoMensal(r) {
-  const parcelas_a_pagar = paraReais(r.parcelas_a_pagar_centavos);
-  return { mes: r.mes, parcelas_a_pagar, total_mes: parcelas_a_pagar, acumulado: paraReais(r.acumulado_centavos) };
+  const total_mes = paraReais(r.parcelas_total_centavos);
+  return { mes: r.mes, total_mes, acumulado: paraReais(r.acumulado_centavos) };
 }
 
 function mapResumoCompra(r) {
