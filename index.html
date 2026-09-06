@@ -333,7 +333,7 @@
         <div class="graficos-centralizados">
         <div class="card">
           <div class="titulo-com-ajuda"><h2 style="margin:0;">Total Compras por Forma de Pagamento</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-cartao', this)">?</button></div>
-          <div class="ajuda-balao" id="ajuda-cartao">Quanto você comprou em cada forma de pagamento (cartão, PIX, etc.), somando todas as parcelas — pagas ou não — com vencimento dentro do período escolhido (deixe De/Até em branco pra somar de sempre; marcar uma parcela como paga não tira ela dessa conta). Clique numa barra pra ver as parcelas daquela forma de pagamento.</div>
+          <div class="ajuda-balao" id="ajuda-cartao">Quanto você comprou em cada forma de pagamento (cartão, PIX, etc.), com vencimento dentro do período escolhido (deixe De/Até em branco pra somar de sempre). A barra é empilhada: o comprimento total é o total comprado, dividido entre o que já foi <b>pago</b> (azul) e o que ainda está <b>pendente</b> (vermelho). Clique numa barra pra ver as parcelas daquela forma de pagamento.</div>
           <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;">
             <div class="campo" style="margin-bottom:0;">
               <label>De</label>
@@ -346,6 +346,7 @@
             <button class="btn btn-cinza" onclick="limparFiltroCartao()">Ver tudo</button>
           </div>
           <div class="chart-wrap" style="height:auto;max-height:500px;overflow-y:auto;"><div id="cartaoWrapInterno" style="min-height:300px;"><canvas id="graficoCartao"></canvas></div></div>
+          <div class="legenda-grafico" id="legendaCartao"></div>
         </div>
         <div class="card">
           <div class="titulo-com-ajuda"><h2 style="margin:0;">Total Compras: Parcelados x À Vista</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-tipo', this)">?</button></div>
@@ -1365,16 +1366,22 @@
       renderProjecao();
     }
     // Gráfico "Total Compras por Forma de Pagamento" — agrupa TODAS as
-    // parcelas (pagas ou não, já filtradas pelo período) por forma de
-    // pagamento, igual ao card "Despesas Mês" (marcar uma parcela como paga
-    // não pode "sumir" com o total comprado aqui).
+    // parcelas (já filtradas pelo período) por forma de pagamento, quebrando
+    // cada uma em Pago/Pendente (barra empilhada): o comprimento total da
+    // barra é o total comprado, e o pedaço azul mostra quanto disso já foi
+    // pago -- igual ao card "Despesas Mês" (marcar uma parcela como paga não
+    // pode "sumir" com o total comprado aqui, só muda de qual pedaço ela é).
     function totaisPorCartaoFiltrados() {
       const grupos = {};
       filtrarParcelasPorPeriodo('cartaoDe', 'cartaoAte', ultimasParcelasTodas).forEach(p => {
         const nome = p.cartao || '-';
-        grupos[nome] = (grupos[nome] || 0) + Number(p.valor || 0);
+        if (!grupos[nome]) grupos[nome] = { pago: 0, pendente: 0 };
+        if (p.status === 'Pago') grupos[nome].pago += Number(p.valor || 0);
+        else grupos[nome].pendente += Number(p.valor || 0);
       });
-      return Object.keys(grupos).map(nome => ({ cartao: nome, total: grupos[nome] }))
+      return Object.keys(grupos)
+        .map(nome => ({ cartao: nome, pago: grupos[nome].pago, pendente: grupos[nome].pendente,
+          total: grupos[nome].pago + grupos[nome].pendente }))
         .filter(d => d.total > 0).sort((a, b) => b.total - a.total);
     }
     function renderCartao() {
@@ -1392,15 +1399,23 @@
       chartCartao = new Chart(ctx, {
         type:'bar',
         plugins: [ChartDataLabels],
-        data:{ labels:f.map(d=>rotuloResponsivo(d.cartao)), datasets:[{ label:'Total de compras', data:f.map(d=>d.total), backgroundColor:'#4A86E8',
-          datalabels: { anchor:'end', align:'end', color:'#1F4E78', font:{ size:11, weight:'600' }, formatter:(v) => brl(v) } }] },
+        data:{ labels:f.map(d=>rotuloResponsivo(d.cartao)), datasets:[
+          { label:'Pago', data:f.map(d=>d.pago), backgroundColor:'#4A86E8', stack:'total',
+            datalabels: { display:(c)=>c.dataset.data[c.dataIndex]>0, color:'#fff', font:{ size:10, weight:'600' }, formatter:(v) => brl(v) } },
+          { label:'Pendente', data:f.map(d=>d.pendente), backgroundColor:'#E57373', stack:'total',
+            datalabels: { display:(c)=>c.dataset.data[c.dataIndex]>0, anchor:'end', align:'end', color:'#a13d3d', font:{ size:11, weight:'600' }, formatter:(v) => brl(v) } },
+        ] },
         options:{ indexAxis:'y', maintainAspectRatio:false, layout:{ padding:{ right:70 } },
           interaction: { mode:'y', intersect:false }, // clica em qualquer ponto da linha da barra, não só em cima do pedacinho pintado (barras de valor baixo ficam finas demais pra acertar)
           onClick: (evt, elems) => { if (elems.length) detalheCartao(f[elems[0].index].cartao); },
           onHover: (evt, elems) => { evt.native.target.style.cursor = elems.length ? 'pointer' : 'default'; },
-          plugins:{ legend:{display:false}, tooltip:{enabled:false} },
-          scales:{ x:{display:false,grid:{display:false}}, y:{grid:{display:false}, ticks:{ font:{ size:11 } }} } },
+          plugins:{ legend:{display:false}, tooltip:{enabled:true, callbacks:{label:(c)=>c.dataset.label+': '+brl(c.raw)}} },
+          scales:{ x:{stacked:true, display:false,grid:{display:false}}, y:{stacked:true, grid:{display:false}, ticks:{ font:{ size:11 } }} } },
       });
+      montarLegendaGrafico('legendaCartao', chartCartao, [
+        { rotulo:'Pago', cor:'#4A86E8' },
+        { rotulo:'Pendente', cor:'#E57373' },
+      ]);
       ajustarQuebraGrafico(chartCartao, f.map(d => d.cartao));
       requestAnimationFrame(() => { if (chartCartao) chartCartao.resize(); });
     }
