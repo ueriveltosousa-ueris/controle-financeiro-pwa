@@ -126,6 +126,10 @@
     .legenda-cor { width:12px; height:12px; border-radius:3px; display:inline-block; flex:none; }
     table { width:100%; border-collapse:collapse; font-size:13px; }
     th, td { padding:10px 12px; text-align:left; border-bottom:1px solid var(--cinza-borda); }
+    /* Tabelas do modal Comparativo (aberto pelo card ORÇAMENTO MÊS): fonte 20%
+       menor que o padrão (13px -> 10.4px) pra caber mais coluna por linha sem
+       cortar, já que "Gastos do Mês" sozinha tem 15 colunas. */
+    #overlayComparativo table { font-size:10.4px; }
     th { background:#f0f4fa; color:var(--azul); font-weight:600; }
     td.num, th.num { text-align:right; }
     td { transition:background-color .12s ease; }
@@ -686,7 +690,7 @@
 
   <!-- MODAL COMPARATIVO (Orçamento x Gastos do mês) — gráfico + duas tabelas -->
   <div class="overlay" id="overlayComparativo">
-    <div class="modal" style="width:95vw;max-width:1250px;">
+    <div class="modal" style="width:95vw;max-width:1600px;">
       <button class="modal-x" onclick="fecharModal('overlayComparativo')" aria-label="Fechar">✕</button>
       <div class="titulo-modal-linha">
         <h3 id="tituloComparativo">Comparativo — Orçamento x Gastos</h3>
@@ -698,14 +702,14 @@
       </div>
       <div class="obs-topo" id="obsComparativo"></div>
       <div class="chart-wrap" style="height:170px;margin-bottom:18px;"><canvas id="graficoComparativo"></canvas></div>
-      <div class="tabela-scroll" style="max-height:220px;overflow-y:auto;margin-bottom:16px;">
+      <div class="tabela-scroll" style="max-height:280px;overflow-y:auto;margin-bottom:16px;">
         <table class="tabela-parcelas">
           <thead><tr class="tabela-linha-titulo"><th colspan="2" style="background:#e8f5e9;color:#2d6a2d;">Itens de Orçamento</th></tr>
           <tr class="tabela-linha-colunas"><th>Descrição</th><th class="num">Valor</th></tr></thead>
           <tbody id="corpoComparativoOrcamento"></tbody>
         </table>
       </div>
-      <div class="tabela-scroll" style="max-height:260px;overflow-y:auto;">
+      <div class="tabela-scroll" style="max-height:420px;overflow-y:auto;">
         <table class="tabela-parcelas">
           <thead>
           <tr class="tabela-linha-titulo"><th colspan="15" style="background:#fdecea;color:#a13d3d;">Gastos do Mês (pagos e pendentes)</th></tr>
