@@ -124,6 +124,16 @@
     .legenda-item { display:flex; align-items:center; gap:6px; cursor:pointer; user-select:none; }
     .legenda-item.inativo { opacity:.45; text-decoration:line-through; }
     .legenda-cor { width:12px; height:12px; border-radius:3px; display:inline-block; flex:none; }
+    /* Lista externa de Pago/Pendente por linha do gráfico "Total Compras por
+       Forma de Pagamento" (ver montarListaValoresGrafico) -- valores sempre
+       fora do canvas, um item por linha do gráfico, cada um com Pago e
+       Pendente empilhados (um acima do outro). */
+    .lista-valores-grafico { margin-top:12px; font-size:12.5px; }
+    .item-valores-grafico { padding:8px 4px; border-bottom:1px dashed var(--cinza-borda); }
+    .item-valores-grafico:last-child { border-bottom:none; }
+    .item-valores-grafico .nome-item { font-weight:700; color:var(--texto); margin-bottom:3px; }
+    .item-valores-grafico .valor-pago { color:var(--azul-claro); font-weight:600; }
+    .item-valores-grafico .valor-pendente { color:var(--vermelho); font-weight:600; }
     table { width:100%; border-collapse:collapse; font-size:13px; }
     th, td { padding:10px 12px; text-align:left; border-bottom:1px solid var(--cinza-borda); }
     /* Tabelas do modal Comparativo (aberto pelo card ORÇAMENTO MÊS): fonte
@@ -348,6 +358,7 @@
           </div>
           <div class="chart-wrap" style="height:auto;max-height:500px;overflow-y:auto;"><div id="cartaoWrapInterno" style="min-height:300px;"><canvas id="graficoCartao"></canvas></div></div>
           <div class="legenda-grafico" id="legendaCartao"></div>
+          <div class="lista-valores-grafico" id="listaCartaoValores"></div>
         </div>
         <div class="card">
           <div class="titulo-com-ajuda"><h2 style="margin:0;">Total Compras: Parcelados x À Vista</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-tipo', this)">?</button></div>
@@ -1399,12 +1410,7 @@
 
       // Altura dinâmica: no celular os nomes quebram em várias linhas (ver rotuloResponsivo),
       // então cada linha do gráfico precisa de mais espaço vertical pra não ficar apertado/sobreposto.
-      // Aqui precisa de mais espaço ainda que os outros gráficos de barra (ver
-      // alturaPorLinha=30/46 no Grupo/Tipo de Despesa): as duas linhas de rótulo
-      // (Pago/Pendente) empilhadas fora da barra ocupam mais altura, e linhas
-      // vizinhas coladas demais colidiam entre si com poucas formas de pagamento
-      // cadastradas.
-      const alturaPorLinha = telaEstreita() ? 62 : 46;
+      const alturaPorLinha = telaEstreita() ? 46 : 30;
       const alturaCalculada = Math.max(f.length * alturaPorLinha, 300);
       const wrapInterno = document.getElementById('cartaoWrapInterno');
       if (wrapInterno) { wrapInterno.style.height = alturaCalculada + 'px'; wrapInterno.style.minHeight = alturaCalculada + 'px'; }
@@ -1414,23 +1420,16 @@
       chartCartao = new Chart(ctx, {
         type:'bar',
         plugins: [ChartDataLabels],
+        // Nenhum dos dois pedaços tenta mais escrever o valor em cima de si mesmo,
+        // nem fora da própria linha -- com várias formas de pagamento cadastradas,
+        // qualquer rótulo grudado na barra colide com a linha vizinha mais cedo ou
+        // mais tarde. Os valores de Pago/Pendente saem só na lista logo abaixo do
+        // gráfico (montarListaValoresGrafico) e no tooltip ao passar o mouse.
         data:{ labels:f.map(d=>rotuloResponsivo(d.cartao)), datasets:[
-          // O pedaço "Pago" não tenta mais escrever o valor DENTRO de si mesmo --
-          // numa forma de pagamento com pouco pago (ou quase tudo pago, sobrando
-          // pouco pendente), o pedaço fica fino demais e o texto saía cortado ou
-          // ilegível em cima da cor errada. Os dois valores (Pago e Pendente) vão
-          // juntos, em duas linhas, sempre FORA da barra (ver dataset "Pendente"
-          // abaixo) -- cabem inteiros não importa quão fino cada pedaço fique.
-          { label:'Pago', data:f.map(d=>d.pago), backgroundColor:'#4A86E8', stack:'total',
-            datalabels: { display:false } },
-          { label:'Pendente', data:f.map(d=>d.pendente), backgroundColor:'#E57373', stack:'total',
-            datalabels: { anchor:'end', align:'end', font:{ size:10, weight:'600' },
-              labels: {
-                pago: { color:'#1F4E78', align:'top', offset:4, formatter:(v, c) => 'Pago: ' + brl(f[c.dataIndex].pago) },
-                pendente: { color:'#a13d3d', align:'bottom', offset:4, formatter:(v, c) => 'Pendente: ' + brl(v) },
-              } } },
+          { label:'Pago', data:f.map(d=>d.pago), backgroundColor:'#4A86E8', stack:'total', datalabels:{ display:false } },
+          { label:'Pendente', data:f.map(d=>d.pendente), backgroundColor:'#E57373', stack:'total', datalabels:{ display:false } },
         ] },
-        options:{ indexAxis:'y', maintainAspectRatio:false, layout:{ padding:{ right:110 } },
+        options:{ indexAxis:'y', maintainAspectRatio:false, layout:{ padding:{ right:20 } },
           interaction: { mode:'y', intersect:false }, // clica em qualquer ponto da linha da barra, não só em cima do pedacinho pintado (barras de valor baixo ficam finas demais pra acertar)
           onClick: (evt, elems) => { if (elems.length) detalheCartao(f[elems[0].index].cartao); },
           onHover: (evt, elems) => { evt.native.target.style.cursor = elems.length ? 'pointer' : 'default'; },
@@ -1441,8 +1440,26 @@
         { rotulo:'Pago', cor:'#4A86E8' },
         { rotulo:'Pendente', cor:'#E57373' },
       ]);
+      montarListaValoresGrafico('listaCartaoValores', f, 'cartao');
       ajustarQuebraGrafico(chartCartao, f.map(d => d.cartao));
       requestAnimationFrame(() => { if (chartCartao) chartCartao.resize(); });
+    }
+    // Lista externa (fora do canvas do gráfico, sempre visível) com o valor
+    // Pago/Pendente de cada linha do gráfico "Total Compras por Forma de
+    // Pagamento" -- os dois empilhados, um acima do outro, coloridos (azul
+    // Pago / vermelho Pendente). Existe porque tentar escrever esses valores
+    // dentro ou perto da própria barra sempre colide com a linha vizinha
+    // quando há muitas formas de pagamento cadastradas.
+    function montarListaValoresGrafico(idContainer, dados, campoNome) {
+      const cont = document.getElementById(idContainer);
+      if (!cont) return;
+      cont.innerHTML = dados.map(d =>
+        '<div class="item-valores-grafico">' +
+          '<div class="nome-item">' + d[campoNome] + '</div>' +
+          '<div class="valor-pago">Pago: ' + brl(d.pago) + '</div>' +
+          '<div class="valor-pendente">Pendente: ' + brl(d.pendente) + '</div>' +
+        '</div>'
+      ).join('');
     }
     // Botão "Ver tudo" do filtro De/Até do gráfico Forma de Pagamento.
     function limparFiltroCartao() {
