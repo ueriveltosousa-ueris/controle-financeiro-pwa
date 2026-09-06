@@ -1982,12 +1982,48 @@
           datalabels: { anchor:'end', align:'end', color:'#5b3fa0', font:{ size:11, weight:'600' }, formatter:(v) => brl(v) } }] },
         options:{ indexAxis:'y', maintainAspectRatio:false, layout:{ padding:{ right:70 } },
           interaction: { mode:'y', intersect:false },
+          onClick: (evt, elems) => { if (elems.length) detalheTipoDespesa(nomeGrupo, f[elems[0].index].categoria); },
+          onHover: (evt, elems) => { evt.native.target.style.cursor = elems.length ? 'pointer' : 'default'; },
           plugins:{ legend:{display:false}, tooltip:{enabled:true, callbacks:{label:(c)=>brl(c.raw)}} },
           scales:{ x:{display:false,grid:{display:false}}, y:{grid:{display:false}, ticks:{ font:{ size:11 } }} } },
       });
       ajustarQuebraGrafico(chartTipoDespesaDrill, f.map(d => d.categoria));
       abrirModal('overlayGraficoTipo');
       requestAnimationFrame(() => { if (chartTipoDespesaDrill) chartTipoDespesaDrill.resize(); });
+    }
+    // Clique numa barra do gráfico "Tipo de Despesa" (drill-down do Grupo de
+    // Despesa) -> mesma tabela padrão dos outros gráficos, já filtrada por
+    // aquele grupo + tipo de despesa e pelo período De/Até do gráfico de
+    // Grupo. Fecha o gráfico de Tipo de Despesa antes de abrir a tabela --
+    // os dois overlays têm o mesmo z-index, então não dá pra empilhar os
+    // dois abertos ao mesmo tempo sem confundir o ESC/clique-fora.
+    function detalheTipoDespesa(nomeGrupo, categoria) {
+      ultimoDetalheRefresh = () => detalheTipoDespesa(nomeGrupo, categoria);
+      const linhas = filtrarParcelasPorPeriodo('grupoDe', 'grupoAte')
+        .filter(p => (p.grupo || 'Sem grupo') === nomeGrupo && (p.categoria || 'Sem tipo') === categoria);
+      const header = '<th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Parcelas em Aberto</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Valor da Compra</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Detalhes</th>';
+      const linhasObj = linhas.map(p => {
+        const avista = Number(p.qtd_parcelas) === 1;
+        const tipoLabel = avista ? 'À vista' : 'Parcelada';
+        const tipoBadge = avista ? '<span class="badge avista">À vista</span>' : '<span class="badge parcelada">Parcelada</span>';
+        const emAberto = Math.max(Number(p.qtd_parcelas||0)-Number(p.qtd_parcelas_pagas||0),0);
+        const situacao = Number(p.saldo_aberto||0) <= 0 ? 'Quitada' : 'Em Aberto';
+        const situBadge = situacao === 'Quitada' ? '<span class="badge quitada">Quitada</span>' : '<span class="badge aberto">Em Aberto</span>';
+        return { descricao: p.descricao, raw: p,
+          busca: montarBusca(p.descricao, tipoLabel, p.cartao, p.categoria, p.num_parcela+'/'+p.qtd_parcelas, p.qtd_parcelas_pagas||0, emAberto, formatarData(p.data_compra), formatarData(p.data_vencimento), brl(p.valor_total), brl(p.valor), brl(p.saldo_aberto), situacao),
+          html: '<tr><td>' + p.descricao + '</td><td>' + tipoBadge + '</td><td>' + (p.cartao||'-') + '</td><td>' + (p.categoria||'-') + '</td>' +
+            '<td>' + p.num_parcela + '/' + p.qtd_parcelas + '</td>' +
+            '<td>' + (p.qtd_parcelas_pagas || 0) + '</td>' +
+            '<td>' + emAberto + '</td>' +
+            '<td>' + formatarData(p.data_compra) + '</td><td>' + formatarData(p.data_vencimento) + '</td>' +
+            '<td class="num">' + brl(p.valor_total) + '</td><td class="num">' + brl(p.valor) + '</td>' +
+            '<td class="num">' + brl(p.saldo_aberto) + '</td><td>' + situBadge + '</td>' +
+            '<td>' + botaoDetalheCadastroHtml(p.compra_id) + ' ' + botaoBaixaParcelaHtml(p.parcela_id, p.status === 'Pago') + '</td></tr>' };
+      });
+      const montarTotal = (ls) => linhaTotal(10, ls.reduce((s,l) => s + Number(l.raw.valor||0), 0), 3);
+      const titulo = categoria + ' — ' + nomeGrupo + periodoTexto('grupoDe', 'grupoAte');
+      fecharModal('overlayGraficoTipo');
+      abrirDetalheModal(titulo, 'Detalhamento do tipo de despesa selecionado no gráfico.', header, linhasObj, montarTotal, 14);
     }
     // Clique numa fatia/barra do gráfico comparativo (ou no card "Total a Pagar") -> lista as parcelas daquele status.
     async function detalheStatus(status) {
