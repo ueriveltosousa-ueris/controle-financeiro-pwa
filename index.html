@@ -73,7 +73,7 @@
     .kpi { background:#fff; border:1px solid var(--cinza-borda); border-radius:10px; padding:16px 18px; box-shadow:0 1px 3px rgba(0,0,0,.04); cursor:pointer; transition:background .15s,border-color .15s,box-shadow .15s; text-align:center; }
     .kpi:hover { background:#eaf1fb; border-color:var(--azul-claro); box-shadow:0 2px 10px rgba(74,134,232,.25); }
     .kpi .rotulo { font-size:12px; color:#7a8699; text-transform:uppercase; letter-spacing:.3px; }
-    .kpi .valor { font-size:24px; font-weight:700; margin-top:6px; color:var(--azul); }
+    .kpi .valor { font-size:24px; font-weight:700; margin-top:6px; color:var(--azul); border:1.5px solid var(--azul); border-radius:8px; padding:4px 14px; display:inline-block; }
     .kpi-sub { font-size:11px; color:#9aa5b5; margin-top:8px; line-height:1.6; }
     .kpi-sub-destaque { font-size:15px; font-weight:700; margin-top:10px; line-height:1.7; }
     .kpi-sub-destaque .valor-pago { color:var(--azul-claro); }
@@ -90,7 +90,7 @@
        O Saldo fica em destaque do mesmo tamanho do número principal ("valor")
        do outro card, com uma "pílula" colorida (verde/vermelho conforme
        positivo/negativo) em vez de só o texto colorido. */
-    .kpi.kpi-orcamento .kpi-linha.kpi-saldo { margin-top:10px; padding:8px 10px; border-top:none; border-radius:8px; font-size:24px; }
+    .kpi.kpi-orcamento .kpi-linha.kpi-saldo { margin-top:10px; padding:8px 16px; border-top:none; border-radius:30px; font-size:24px; }
     .kpi.kpi-orcamento .kpi-linha.kpi-saldo.positivo { background:#d4edda; }
     .kpi.kpi-orcamento .kpi-linha.kpi-saldo.negativo { background:#fdecea; }
     .kpis-filtro { display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
@@ -1241,7 +1241,12 @@
         '<br><span class="valor-pendente">Pendente: ' + brl(totalPendente) + '</span></div>';
 
       document.getElementById('kpis').innerHTML =
-        '<div class="kpi" onclick="detalheMes(\'' + mesIso + '\')"><div class="rotulo">DESPESAS MÊS ' + nomeMes + '</div><div class="valor">' + brl(totalMes) + '</div>' + subVencer + '</div>' +
+        '<div class="kpi" onclick="detalheMes(\'' + mesIso + '\')">' +
+          '<div class="rotulo">DESPESAS MÊS ' + nomeMes + '</div>' +
+          '<div class="valor">' + brl(totalMes) + '</div>' +
+          subVencer +
+          '<div class="kpi-sub">Clique para detalhamento</div>' +
+        '</div>' +
         '<div class="kpi kpi-orcamento" onclick="detalheComparativoMes(\'' + mesIso + '\')">' +
           '<div class="rotulo">ORÇAMENTO MÊS ' + nomeMes + '</div>' +
           '<div class="kpi-linha">Orçamento: <b>' + brl(orcamentoMes) + '</b></div>' +
