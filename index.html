@@ -59,6 +59,14 @@
        preenchido com os dados da linha, pra criar um novo sem redigitar tudo. */
     .btn-replicar { background:#efe6fb; border:none; color:#6c3fb5; width:22px; height:22px; border-radius:50%; font-size:12px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding:0; line-height:1; font-family:inherit; flex-shrink:0; }
     .btn-replicar:hover { background:#8e5cd9; color:#fff; }
+    /* Botão "✎" de editar cadastro — mesmo padrão dos outros três, cor laranja
+       (mesma do --laranja usado em Pendente/alertas). Abre o mesmo cadastro
+       (Lançamento de Despesa ou item de Orçamento) já preenchido, mas em modo
+       de EDIÇÃO -- salva em cima do registro original, ao contrário do "⧉"
+       de replicar (que sempre cria um novo). Só nas tabelas/modais abertos a
+       partir de gráficos, que não tinham nenhuma forma de editar até agora. */
+    .btn-editar-cadastro { background:#fdf0e0; border:none; color:#b8760f; width:22px; height:22px; border-radius:50%; font-size:12px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding:0; line-height:1; font-family:inherit; flex-shrink:0; }
+    .btn-editar-cadastro:hover { background:var(--laranja); color:#fff; }
     #tooltipCadastro { display:none; position:fixed; background:#fff; color:var(--texto); border:1px solid var(--cinza-borda); border-radius:10px; box-shadow:0 10px 28px rgba(0,0,0,.2); padding:14px 16px; font-size:12.5px; line-height:1.6; z-index:250; }
     #tooltipCadastro.aberto { display:block; }
     #tooltipCadastro b { color:var(--azul); }
@@ -166,6 +174,11 @@
     .linha-vencida { color:var(--vermelho); font-weight:600; }
     .overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:150; align-items:flex-start; justify-content:center; padding:40px 16px; overflow-y:auto; }
     .overlay.aberto { display:flex; }
+    /* #overlayDetalhe é sempre o nível "mais interno" de qualquer drill-down
+       (ex.: gráfico de Grupo -> gráfico de Tipo de Despesa -> esta tabela) --
+       por isso fica num z-index maior que os outros overlays, garantindo que
+       apareça por CIMA quando os dois estiverem abertos ao mesmo tempo. */
+    #overlayDetalhe { z-index:160; }
     .modal { background:#fff; border-radius:12px; width:100%; max-width:520px; padding:24px 26px; box-shadow:0 10px 40px rgba(0,0,0,.2); position:relative; min-width:0; }
     .tabela-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; overscroll-behavior-x:contain; }
     /* Cabeçalho fixo: gruda no topo da própria caixa de rolagem (.tabela-scroll)
@@ -628,6 +641,9 @@
       <div class="linha2">
         <div class="campo"><label>Grupo de Despesa</label><select id="c_grupo"></select></div>
         <div class="campo"><label>Tipo de Despesa</label><select id="c_categoria"></select></div>
+      </div>
+      <div class="dica" style="margin:-6px 0 14px;">
+        <button type="button" class="link-acao" style="color:var(--azul);padding:0;" onclick="irParaCadastro('cartoes')">💸 Não achou a forma de pagamento, o grupo ou o tipo de despesa? Cadastre um novo em "Cadastro Despesas"</button>
       </div>
       <div class="linha2">
         <div class="campo"><label>Valor total <span class="obrig">*</span></label><input type="text" id="c_valor" inputmode="decimal" placeholder="3500,00" /><div class="dica">Use vírgula para os centavos.</div></div>
@@ -1139,6 +1155,13 @@
         await carregarTudo();
       } catch (e) { alert('Erro ao editar: ' + e.message); }
     }
+    // Mesma coisa, mas chamado de dentro do modal de detalhamento (Dashboard)
+    // -- edita normalmente (os prompts funcionam em qualquer aba) e depois
+    // atualiza esse modal aberto, pra já refletir a mudança sem precisar fechar.
+    async function editarItemOrcamentoDeDetalhe(id, descricaoAtual, valorAtual) {
+      await editarItemOrcamento(id, descricaoAtual, valorAtual);
+      await atualizarModalDetalheAberto();
+    }
     async function excluirItemOrcamento(id) {
       if (!confirm('Excluir este item de orçamento?')) return;
       try {
@@ -1570,7 +1593,7 @@
             '<td>' + formatarData(p.data_compra) + '</td><td>' + formatarData(p.data_vencimento) + '</td>' +
             '<td class="num">' + brl(p.valor_total) + '</td><td class="num">' + brl(p.valor) + '</td>' +
             '<td class="num">' + brl(p.saldo_aberto) + '</td><td>' + situBadge + '</td><td>' + badgeStatusParcela(p.status) + '</td>' +
-            '<td>' + botaoDetalheCadastroHtml(p.compra_id) + ' ' + botaoReplicarHtml(p.compra_id) + ' ' + botaoBaixaParcelaHtml(p.parcela_id, p.status === 'Pago') + '</td></tr>' };
+            '<td>' + botaoDetalheCadastroHtml(p.compra_id) + ' ' + botaoEditarCadastroHtml(p.compra_id) + ' ' + botaoReplicarHtml(p.compra_id) + ' ' + botaoBaixaParcelaHtml(p.parcela_id, p.status === 'Pago') + '</td></tr>' };
       });
       const montarTotal = (ls) => linhaTotal(10, ls.reduce((s,l) => s + Number(l.raw.valor||0), 0), 4);
       const titulo = (tipo === 'parcelada' ? 'Parcelado — total de compras' : 'À Vista — total de compras') + periodoTexto('tipoDe', 'tipoAte');
@@ -1653,7 +1676,7 @@
             '<td>' + formatarData(c.data_compra) + '</td><td>' + formatarData(c.proximo_vencimento) + '</td>' +
             '<td class="num">' + brl(c.valor_total) + '</td><td class="num">' + brl(valorParcela(c)) + '</td><td class="num">' + brl(c.saldo_aberto) + '</td>' +
             '<td>' + (c.situacao === 'Quitada' ? '<span class="badge quitada">Quitada</span>' : '<span class="badge aberto">Em Aberto</span>') + '</td>' +
-            '<td>' + botaoDetalheCadastroHtml(c.compra_id) + ' ' + botaoReplicarHtml(c.compra_id) + ' ' + botaoBaixaCompraHtml(c.compra_id, c.situacao === 'Quitada') + '</td></tr>' };
+            '<td>' + botaoDetalheCadastroHtml(c.compra_id) + ' ' + botaoEditarCadastroHtml(c.compra_id) + ' ' + botaoReplicarHtml(c.compra_id) + ' ' + botaoBaixaCompraHtml(c.compra_id, c.situacao === 'Quitada') + '</td></tr>' };
       });
       const montarTotal = (ls) => {
         const totalValor = ls.reduce((s,l) => s + Number(l.raw.valor_total||0), 0);
@@ -1720,6 +1743,13 @@
     function botaoReplicarHtml(compraId) {
       if (!compraId) return '';
       return '<button class="btn-replicar" onclick="event.stopPropagation();replicarCompra(' + compraId + ')" title="Replicar — abre um novo lançamento com estes mesmos dados" aria-label="Replicar">⧉</button>';
+    }
+    // Botão "✎" de editar cadastro em qualquer linha ligada a uma compra,
+    // dentro de tabelas/modais abertos a partir de gráficos (que não tinham
+    // nenhum jeito de editar até agora, só ver detalhe/replicar/dar baixa).
+    function botaoEditarCadastroHtml(compraId) {
+      if (!compraId) return '';
+      return '<button class="btn-editar-cadastro" onclick="event.stopPropagation();editarLancamento(' + compraId + ')" title="Editar cadastro — abre o Lançamento de Despesa para editar" aria-label="Editar cadastro">✎</button>';
     }
     // Botão "✔" de dar baixa (marcar como paga) direto na linha da tabela.
     // Duas variantes: por COMPRA (tabelas onde uma linha = a compra inteira —
@@ -1853,7 +1883,7 @@
               '<td>' + formatarData(l.data_compra) + '</td><td>' + formatarData(l.data_vencimento) + '</td>' +
               '<td class="num">' + brl(l.valor_total) + '</td><td class="num">' + brl(l.valor) + '</td>' +
               '<td class="num">' + brl(l.saldo_aberto) + '</td><td>' + situBadge + '</td><td>' + badgeStatusParcela(l.status) + '</td>' +
-              '<td>' + botaoDetalheCadastroHtml(l.compra_id) + ' ' + botaoReplicarHtml(l.compra_id) + ' ' + botaoBaixaParcelaHtml(l.parcela_id, l.status === 'Pago') + '</td></tr>' };
+              '<td>' + botaoDetalheCadastroHtml(l.compra_id) + ' ' + botaoEditarCadastroHtml(l.compra_id) + ' ' + botaoReplicarHtml(l.compra_id) + ' ' + botaoBaixaParcelaHtml(l.parcela_id, l.status === 'Pago') + '</td></tr>' };
         });
         const montarTotal = (ls) => linhaTotal(10, ls.reduce((s,l) => s + Number(l.raw.valor||0), 0), 4);
         const titulo = (statusFiltro === 'Pago' ? 'Parcelas pagas — ' : 'Parcelas do mês — ') + labelMes(mesIso);
@@ -1865,6 +1895,7 @@
     }
     // Clique na barra Orçamento do gráfico de Projeção -> lista os itens de orçamento daquele mês.
     async function detalheOrcamentoMes(mesIso) {
+      ultimoDetalheRefresh = () => detalheOrcamentoMes(mesIso);
       const anoMes = String(mesIso).slice(0, 7);
       try {
         const itens = await api('/orcamento?mes=' + anoMes);
@@ -1874,7 +1905,8 @@
           raw: it,
           busca: montarBusca(it.descricao, brl(it.valor)),
           html: '<tr><td>' + it.descricao + '</td><td class="num">' + brl(it.valor) + '</td>' +
-            '<td><button class="btn-replicar" onclick="replicarItemOrcamentoDeDetalhe(\'' + String(it.descricao||'').replace(/'/g,"\\'") + '\', ' + it.valor + ')" title="Replicar — abre o cadastro de Orçamentos com estes dados" aria-label="Replicar">⧉</button></td></tr>',
+            '<td><button class="btn-editar-cadastro" onclick="editarItemOrcamentoDeDetalhe(' + it.id + ', \'' + String(it.descricao||'').replace(/'/g,"\\'") + '\', ' + it.valor + ')" title="Editar cadastro — edita este item de Orçamento" aria-label="Editar cadastro">✎</button> ' +
+            '<button class="btn-replicar" onclick="replicarItemOrcamentoDeDetalhe(\'' + String(it.descricao||'').replace(/'/g,"\\'") + '\', ' + it.valor + ')" title="Replicar — abre o cadastro de Orçamentos com estes dados" aria-label="Replicar">⧉</button></td></tr>',
         }));
         const montarTotal = (ls) => linhaTotal(1, ls.reduce((s,l) => s + Number(l.raw.valor||0), 0), 1);
         abrirDetalheModal('Orçamento — ' + labelMes(mesIso), 'Itens de orçamento cadastrados para este mês (aba Orçamentos).', header, linhasObj, montarTotal, 3);
@@ -1934,7 +1966,7 @@
                 '<td>' + formatarData(l.data_compra) + '</td><td>' + formatarData(l.data_vencimento) + '</td>' +
                 '<td class="num">' + brl(l.valor_total) + '</td><td class="num">' + brl(l.valor) + '</td>' +
                 '<td class="num">' + brl(l.saldo_aberto) + '</td><td>' + situBadge + '</td><td>' + badgeStatusParcela(l.status) + '</td>' +
-                '<td>' + botaoDetalheCadastroHtml(l.compra_id) + ' ' + botaoReplicarHtml(l.compra_id) + ' ' + botaoBaixaParcelaHtml(l.parcela_id, l.status === 'Pago') + '</td></tr>';
+                '<td>' + botaoDetalheCadastroHtml(l.compra_id) + ' ' + botaoEditarCadastroHtml(l.compra_id) + ' ' + botaoReplicarHtml(l.compra_id) + ' ' + botaoBaixaParcelaHtml(l.parcela_id, l.status === 'Pago') + '</td></tr>';
             }).join('') +
             '<tr style="font-weight:700;background:#f0f4fa;"><td colspan="10">Subtotal</td><td class="num">' + brl(totalGastos) + '</td><td colspan="4"></td></tr>'
           : '<tr><td colspan="15" style="text-align:center;color:#888;">Nenhuma parcela neste mês.</td></tr>';
@@ -1964,7 +1996,7 @@
             '<td>' + formatarData(p.data_compra) + '</td><td>' + formatarData(p.data_vencimento) + '</td>' +
             '<td class="num">' + brl(p.valor_total) + '</td><td class="num">' + brl(p.valor) + '</td>' +
             '<td class="num">' + brl(p.saldo_aberto) + '</td><td>' + situBadge + '</td><td>' + badgeStatusParcela(p.status) + '</td>' +
-            '<td>' + botaoDetalheCadastroHtml(p.compra_id) + ' ' + botaoReplicarHtml(p.compra_id) + ' ' + botaoBaixaParcelaHtml(p.parcela_id, p.status === 'Pago') + '</td></tr>' };
+            '<td>' + botaoDetalheCadastroHtml(p.compra_id) + ' ' + botaoEditarCadastroHtml(p.compra_id) + ' ' + botaoReplicarHtml(p.compra_id) + ' ' + botaoBaixaParcelaHtml(p.parcela_id, p.status === 'Pago') + '</td></tr>' };
       });
       const montarTotal = (ls) => linhaTotal(10, ls.reduce((s,l) => s + Number(l.raw.valor||0), 0), 4);
       const titulo = 'Compras — ' + nomeCartao + periodoTexto('cartaoDe', 'cartaoAte');
@@ -2055,9 +2087,10 @@
     // Clique numa barra do gráfico "Tipo de Despesa" (drill-down do Grupo de
     // Despesa) -> mesma tabela padrão dos outros gráficos, já filtrada por
     // aquele grupo + tipo de despesa e pelo período De/Até do gráfico de
-    // Grupo. Fecha o gráfico de Tipo de Despesa antes de abrir a tabela --
-    // os dois overlays têm o mesmo z-index, então não dá pra empilhar os
-    // dois abertos ao mesmo tempo sem confundir o ESC/clique-fora.
+    // Grupo. NÃO fecha o gráfico de Tipo de Despesa por trás -- ele fica
+    // aberto (empilhado, #overlayDetalhe tem z-index maior, ver CSS), então
+    // fechar esta tabela (X/Fechar/ESC) volta pra ele em vez de ir direto
+    // pro Dashboard.
     function detalheTipoDespesa(nomeGrupo, categoria) {
       ultimoDetalheRefresh = () => detalheTipoDespesa(nomeGrupo, categoria);
       const linhas = filtrarParcelasPorPeriodo('grupoDe', 'grupoAte')
@@ -2079,11 +2112,10 @@
             '<td>' + formatarData(p.data_compra) + '</td><td>' + formatarData(p.data_vencimento) + '</td>' +
             '<td class="num">' + brl(p.valor_total) + '</td><td class="num">' + brl(p.valor) + '</td>' +
             '<td class="num">' + brl(p.saldo_aberto) + '</td><td>' + situBadge + '</td>' +
-            '<td>' + botaoDetalheCadastroHtml(p.compra_id) + ' ' + botaoReplicarHtml(p.compra_id) + ' ' + botaoBaixaParcelaHtml(p.parcela_id, p.status === 'Pago') + '</td></tr>' };
+            '<td>' + botaoDetalheCadastroHtml(p.compra_id) + ' ' + botaoEditarCadastroHtml(p.compra_id) + ' ' + botaoReplicarHtml(p.compra_id) + ' ' + botaoBaixaParcelaHtml(p.parcela_id, p.status === 'Pago') + '</td></tr>' };
       });
       const montarTotal = (ls) => linhaTotal(10, ls.reduce((s,l) => s + Number(l.raw.valor||0), 0), 3);
       const titulo = categoria + ' — ' + nomeGrupo + periodoTexto('grupoDe', 'grupoAte');
-      fecharModal('overlayGraficoTipo');
       abrirDetalheModal(titulo, 'Detalhamento do tipo de despesa selecionado no gráfico.', header, linhasObj, montarTotal, 14);
     }
     // Clique numa fatia/barra do gráfico comparativo (ou no card "Total a Pagar") -> lista as parcelas daquele status.
@@ -2108,7 +2140,7 @@
               '<td>' + formatarData(l.data_compra) + '</td><td>' + formatarData(l.data_vencimento) + '</td>' +
               '<td class="num">' + brl(l.valor_total) + '</td><td class="num">' + brl(l.valor) + '</td>' +
               '<td class="num">' + brl(l.saldo_aberto) + '</td><td>' + situBadge + '</td>' +
-              '<td>' + botaoDetalheCadastroHtml(l.compra_id) + ' ' + botaoReplicarHtml(l.compra_id) + ' ' + botaoBaixaParcelaHtml(l.parcela_id, l.status === 'Pago') + '</td></tr>' };
+              '<td>' + botaoDetalheCadastroHtml(l.compra_id) + ' ' + botaoEditarCadastroHtml(l.compra_id) + ' ' + botaoReplicarHtml(l.compra_id) + ' ' + botaoBaixaParcelaHtml(l.parcela_id, l.status === 'Pago') + '</td></tr>' };
         });
         const montarTotal = (ls) => linhaTotal(10, ls.reduce((s,l) => s + Number(l.raw.valor||0), 0), 3);
         const titulo = status === 'Pago' ? 'Parcelas já pagas' : 'Parcelas em aberto (a pagar)';
@@ -2161,7 +2193,7 @@
           '<td>' + formatarData(d.data_compra) + '</td><td>' + formatarData(d.proximo_vencimento) + '</td>' +
           '<td class="num">' + brl(d.valor_total) + '</td><td class="num">' + brl(valorParcela(d)) + '</td>' +
           '<td class="num">' + brl(d.saldo_aberto) + '</td>' +
-          '<td>' + badge + '</td><td>' + botaoDetalheCadastroHtml(d.compra_id) + ' ' + botaoReplicarHtml(d.compra_id) + ' ' + botaoBaixaCompraHtml(d.compra_id, d.situacao === 'Quitada') + '</td></tr>';
+          '<td>' + badge + '</td><td>' + botaoDetalheCadastroHtml(d.compra_id) + ' ' + botaoEditarCadastroHtml(d.compra_id) + ' ' + botaoReplicarHtml(d.compra_id) + ' ' + botaoBaixaCompraHtml(d.compra_id, d.situacao === 'Quitada') + '</td></tr>';
       }).join('');
       const totalValor = dados.reduce((s,d) => s + Number(d.valor_total||0), 0);
       const totalSaldo = dados.reduce((s,d) => s + Number(d.saldo_aberto||0), 0);
@@ -2312,9 +2344,15 @@
     // Atalho (🧾/💰/💸) no título das tabelas ligadas a gráficos -- fecha
     // qualquer modal de detalhamento aberto e já troca pra aba do cadastro.
     function irParaCadastro(aba) {
+      // Fecha TODOS os modais conhecidos antes de trocar de aba -- assim essa
+      // função fica segura de chamar de qualquer lugar do sistema (inclusive
+      // de dentro do próprio formulário de Lançamento), sem deixar um modal
+      // "fantasma" aberto por trás bloqueando a página que aparece depois.
       fecharModal('overlayDetalhe');
       fecharModal('overlayComparativo');
       fecharModal('overlayGraficoTipo');
+      fecharModal('overlayCompra');
+      fecharModal('overlayParcelas');
       trocarAba(aba);
     }
 
@@ -2374,6 +2412,14 @@
         document.getElementById('c_data').value = String(c.data_compra).slice(0,10);
         document.getElementById('c_obs').value = c.observacoes || '';
         atualizarAvisoVencimento('c');
+        // Fecha qualquer modal de detalhamento/parcelas por trás -- o "✎" de
+        // editar cadastro chama esta mesma função de dentro deles (ver
+        // botaoEditarCadastroHtml), e sem fechar primeiro o de detalhamento
+        // (que vem depois no HTML) ficava por cima, escondendo o formulário.
+        fecharModal('overlayDetalhe');
+        fecharModal('overlayComparativo');
+        fecharModal('overlayGraficoTipo');
+        fecharModal('overlayParcelas');
         abrirModal('overlayCompra');
       } catch (e) { alert('Não consegui abrir o lançamento: ' + e.message); }
     }
@@ -2443,7 +2489,7 @@
             '<td><input type="date" value="' + String(p.data_vencimento).slice(0,10) + '" ' +
               'onchange="salvarVencimentoParcela(' + p.id + ', this.value)" ' +
               'style="padding:5px 7px;border:1px solid var(--cinza-borda);border-radius:6px;font-size:13px;width:140px;" /></td>' +
-            '<td>' + statusTxt + '</td><td>' + botaoDetalheCadastroHtml(parcelasCompraIdAtual) + ' ' + botaoReplicarHtml(parcelasCompraIdAtual) + ' ' + acao + '</td></tr>';
+            '<td>' + statusTxt + '</td><td>' + botaoDetalheCadastroHtml(parcelasCompraIdAtual) + ' ' + botaoEditarCadastroHtml(parcelasCompraIdAtual) + ' ' + botaoReplicarHtml(parcelasCompraIdAtual) + ' ' + acao + '</td></tr>';
         }).join('');
       } catch (e) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#922;">Erro ao carregar: ' + e.message + '</td></tr>'; }
     }
