@@ -340,7 +340,7 @@
         <div class="graficos-centralizados">
         <div class="card">
           <div class="titulo-com-ajuda"><h2 style="margin:0;">Total Compras por Forma de Pagamento</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-cartao', this)">?</button></div>
-          <div class="ajuda-balao" id="ajuda-cartao">Quanto você comprou em cada forma de pagamento (cartão, PIX, etc.), com vencimento dentro do período escolhido (deixe De/Até em branco pra somar de sempre). A barra é empilhada: o comprimento total é o total comprado, dividido entre o que já foi <b>pago</b> (azul) e o que ainda está <b>pendente</b> (vermelho) -- os dois valores aparecem à direita da barra. Clique numa barra pra ver as parcelas daquela forma de pagamento.</div>
+          <div class="ajuda-balao" id="ajuda-cartao">Quanto você comprou em cada forma de pagamento (cartão, PIX, etc.), com vencimento dentro do período escolhido (deixe De/Até em branco pra somar de sempre). Duas barras lado a lado por forma de pagamento: o que já foi <b>pago</b> (azul) e o que ainda está <b>pendente</b> (vermelho), cada uma com seu valor à direita. Clique numa barra pra ver as parcelas daquela forma de pagamento.</div>
           <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;">
             <div class="campo" style="margin-bottom:0;">
               <label>De</label>
@@ -1434,24 +1434,22 @@
     function renderCartao() {
       const f = totaisPorCartaoFiltrados();
 
-      // Altura por linha (o card voltou a dividir espaço com "Parcelado x À
-      // Vista", então precisa ser mais comedida que uma versão em largura
-      // total). Ainda precisa caber duas linhas de rótulo (Pago em cima,
-      // Pendente embaixo) à direita da barra sem encostar na vizinha.
+      // Barras AGRUPADAS (lado a lado -- uma pra Pago, outra pra Pendente),
+      // não mais empilhadas: cada uma tem seu próprio comprimento e seu
+      // próprio rótulo de uma linha só, centralizado nela mesma, à direita.
+      // Isso pediu bem menos altura por linha que a versão empilhada (lá
+      // eram duas linhas de texto espremidas ao redor de uma barra só).
       const estreita = telaEstreita();
-      const alturaPorLinha = estreita ? 78 : 62;
+      const alturaPorLinha = estreita ? 56 : 46;
       // Piso proporcional (3 linhas), não um valor fixo grande: com poucas
-      // formas de pagamento (às vezes só 1), um piso fixo de 300px sobrando
-      // vazio faz o Chart.js "engordar" a barra pra ocupar quase toda a
-      // linha -- daí o maxBarThickness abaixo trava a espessura, mas ainda
-      // assim não faz sentido a linha inteira ficar gigante à toa.
+      // formas de pagamento (às vezes só 1), um piso fixo sobrando vazio faz
+      // o Chart.js "engordar" as barras pra ocupar quase toda a linha.
       const alturaCalculada = Math.max(f.length * alturaPorLinha, alturaPorLinha * 3);
       const wrapInterno = document.getElementById('cartaoWrapInterno');
       if (wrapInterno) { wrapInterno.style.height = alturaCalculada + 'px'; wrapInterno.style.minHeight = alturaCalculada + 'px'; }
 
       const paddingRotulo = estreita ? 78 : 108;
       const fonteRotulo = estreita ? 8.5 : 10;
-      const offsetRotulo = estreita ? 5 : 7;
 
       const ctx = document.getElementById('graficoCartao');
       if (chartCartao) chartCartao.destroy();
@@ -1459,32 +1457,21 @@
         type:'bar',
         plugins: [ChartDataLabels],
         data:{ labels:f.map(d=>rotuloResponsivo(d.cartao)), datasets:[
-          { label:'Pago', data:f.map(d=>d.pago), backgroundColor:'#4A86E8', stack:'total', datalabels:{ display:false } },
-          // O rótulo fica só neste dataset (o último da pilha, cujo fim
-          // coincide com o fim da barra inteira): duas linhas empilhadas,
-          // Pago em cima / Pendente embaixo, sempre à direita da barra (fora
-          // dela), com espaço vertical de sobra (offset + linha mais alta
-          // acima) pra nunca mais encostar na linha vizinha.
-          { label:'Pendente', data:f.map(d=>d.pendente), backgroundColor:'#E57373', stack:'total',
-            datalabels: { anchor:'end', align:'right', font:{ size:fonteRotulo, weight:'600' },
-              labels: {
-                pago: { color:'#1F4E78', align:'top', offset:offsetRotulo, formatter:(v, c) => 'Pago: ' + brl(f[c.dataIndex].pago) },
-                pendente: { color:'#a13d3d', align:'bottom', offset:offsetRotulo, formatter:(v, c) => 'Pendente: ' + brl(v) },
-              } } },
+          { label:'Pago', data:f.map(d=>d.pago), backgroundColor:'#4A86E8',
+            datalabels: { anchor:'end', align:'right', color:'#1F4E78', font:{ size:fonteRotulo, weight:'600' }, formatter:(v) => 'Pago: ' + brl(v) } },
+          { label:'Pendente', data:f.map(d=>d.pendente), backgroundColor:'#E57373',
+            datalabels: { anchor:'end', align:'right', color:'#a13d3d', font:{ size:fonteRotulo, weight:'600' }, formatter:(v) => 'Pendente: ' + brl(v) } },
         ] },
         options:{ indexAxis:'y', maintainAspectRatio:false, layout:{ padding:{ right:paddingRotulo } },
           interaction: { mode:'y', intersect:false }, // clica em qualquer ponto da linha da barra, não só em cima do pedacinho pintado (barras de valor baixo ficam finas demais pra acertar)
-          // Espessura MÁXIMA travada -- sem isso, com poucas formas de
-          // pagamento cadastradas (às vezes só 1) a barra "engordava" até
-          // quase a altura inteira da linha, e os rótulos (deslocados um
-          // número fixo de pixels a partir do centro da barra) ficavam
-          // espremidos perto um do outro no meio de uma barra gigante, em
-          // vez de bem separados acima/abaixo dela.
-          maxBarThickness: 20,
+          // Espessura MÁXIMA travada por barra -- sem isso, com poucas formas
+          // de pagamento cadastradas (às vezes só 1) as duas barras "engordam"
+          // até quase a altura inteira da linha.
+          maxBarThickness: 16,
           onClick: (evt, elems) => { if (elems.length) detalheCartao(f[elems[0].index].cartao); },
           onHover: (evt, elems) => { evt.native.target.style.cursor = elems.length ? 'pointer' : 'default'; },
           plugins:{ legend:{display:false}, tooltip:{enabled:true, callbacks:{label:(c)=>c.dataset.label+': '+brl(c.raw)}} },
-          scales:{ x:{stacked:true, display:false,grid:{display:false}}, y:{stacked:true, grid:{display:false}, ticks:{ font:{ size:11 } }} } },
+          scales:{ x:{display:false,grid:{display:false}}, y:{grid:{display:false}, ticks:{ font:{ size:11 } }} } },
       });
       montarLegendaGrafico('legendaCartao', chartCartao, [
         { rotulo:'Pago', cor:'#4A86E8' },
