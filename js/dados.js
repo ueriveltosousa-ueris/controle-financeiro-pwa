@@ -387,6 +387,12 @@ async function corrigirDataCompra(id, dataCompra) {
 }
 
 async function excluirCompra(id) {
+  // Apaga as parcelas primeiro, explicitamente -- não dá pra confiar só no
+  // ON DELETE CASCADE da FK aqui: essa build do sql.js não estava fazendo a
+  // cascata de verdade, o que deixava as parcelas da compra excluída órfãs
+  // (sem compra_id válido) e ainda contando em todos os totais do sistema
+  // (KPIs, gráficos, tabelas) -- o valor "excluído" nunca saía da conta.
+  executar('DELETE FROM parcelas WHERE compra_id = ?', [Number(id)]);
   const r = executar('DELETE FROM compras WHERE id = ?', [Number(id)]);
   if (r.changes === 0) throw new Error('Compra não encontrada');
   await salvarBanco();
