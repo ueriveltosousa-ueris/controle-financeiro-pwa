@@ -76,6 +76,7 @@ async function despachar(metodo, caminho, params, corpo) {
     if (partes.length === 2 && metodo === 'PUT') return Dados.atualizarCompra(partes[1], corpo);
     if (partes.length === 2 && metodo === 'DELETE') return Dados.excluirCompra(partes[1]);
     if (partes.length === 3 && partes[2] === 'data-compra' && metodo === 'PATCH') return Dados.corrigirDataCompra(partes[1], corpo.data_compra);
+    if (partes.length === 3 && partes[2] === 'pagar-proxima' && metodo === 'PATCH') return Dados.pagarProximaParcela(partes[1], corpo.data_pagamento);
   }
 
   throw new Error('Rota não implementada: ' + metodo + ' ' + caminho);

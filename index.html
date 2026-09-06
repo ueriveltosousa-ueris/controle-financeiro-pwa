@@ -42,6 +42,12 @@
        lançamento de despesa, e o balão flutuante que ele abre. */
     .btn-detalhe-cadastro { background:var(--cinza-fundo); border:none; color:#7a8699; width:22px; height:22px; border-radius:50%; font-size:12px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding:0; line-height:1; font-family:inherit; flex-shrink:0; }
     .btn-detalhe-cadastro:hover { background:var(--azul-claro); color:#fff; }
+    /* Botão "✔" de dar baixa (marcar como paga) direto na linha da tabela —
+       mesmo tamanho/formato do "ⓘ" de detalhes, só que verde. Fica cinza e
+       desabilitado quando não há mais nada em aberto pra pagar naquela linha. */
+    .btn-baixa { background:#e2f3e6; border:none; color:#1e7e34; width:22px; height:22px; border-radius:50%; font-size:12px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding:0; line-height:1; font-family:inherit; flex-shrink:0; }
+    .btn-baixa:hover { background:var(--verde); color:#fff; }
+    .btn-baixa[disabled] { background:var(--cinza-fundo); color:#c3cad4; cursor:default; }
     #tooltipCadastro { display:none; position:fixed; background:#fff; color:var(--texto); border:1px solid var(--cinza-borda); border-radius:10px; box-shadow:0 10px 28px rgba(0,0,0,.2); padding:14px 16px; font-size:12.5px; line-height:1.6; z-index:250; }
     #tooltipCadastro.aberto { display:block; }
     #tooltipCadastro b { color:var(--azul); }
@@ -403,9 +409,11 @@
       <section class="card">
         <div class="titulo-com-ajuda"><h2 style="margin:0;">Compras e gastos lançados</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-lista-lancamentos', this)">?</button></div>
         <div class="ajuda-balao" id="ajuda-lista-lancamentos">
+          <b>✔</b>: dá baixa (marca como paga) na parcela pendente mais antiga da compra — numa compra parcelada, uma de cada vez.<br>
           <b>Parcelas</b>: marca pagamento, desfaz por engano, ou corrige a data de uma parcela específica.<br>
           <b>Editar</b>: muda a compra inteira.<br>
           <b>Excluir</b>: apaga a compra e todas as parcelas — não tem como desfazer.<br>
+          <b>Filtrar por período</b>: por Data da Compra ou Data de Vencimento (o próximo vencimento em aberto — compras já quitadas não têm um vencimento único, então não aparecem no modo "Data de Vencimento").<br>
           <span style="color:#8a6100;">⚠️ Mudar valor, nº de parcelas, data da compra ou forma de pagamento recria as parcelas do zero (o controle de pagamento recomeça). Só descrição/observações não mexem nas parcelas.</span>
         </div>
         <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;">
@@ -414,6 +422,24 @@
             <input type="text" id="filtroLancamentos" placeholder="Digite para filtrar..." oninput="aplicarFiltroLancamentos()" />
           </div>
           <button class="btn btn-cinza" onclick="document.getElementById('filtroLancamentos').value='';aplicarFiltroLancamentos();">Limpar</button>
+        </div>
+        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;">
+          <div class="campo" style="margin-bottom:0;">
+            <label>Filtrar por período de</label>
+            <select id="lancamentosTipoData" onchange="aplicarFiltroLancamentos()" style="padding:7px 10px;border:1px solid var(--cinza-borda);border-radius:7px;font-size:13px;font-family:inherit;">
+              <option value="compra">Data da Compra</option>
+              <option value="vencimento">Data de Vencimento</option>
+            </select>
+          </div>
+          <div class="campo" style="margin-bottom:0;">
+            <label>De</label>
+            <input type="month" id="lancamentosDe" onchange="aplicarFiltroLancamentos()" style="width:150px;" />
+          </div>
+          <div class="campo" style="margin-bottom:0;">
+            <label>Até</label>
+            <input type="month" id="lancamentosAte" onchange="aplicarFiltroLancamentos()" style="width:150px;" />
+          </div>
+          <button class="btn btn-cinza" onclick="limparFiltroPeriodoLancamentos()">Ver tudo</button>
         </div>
         <div class="tabela-scroll" style="max-height:500px;overflow-y:auto;">
           <table id="tabelaCompras">
@@ -1265,6 +1291,12 @@
       const wrapInterno = document.getElementById('projWrapInterno');
       if (wrapInterno) wrapInterno.style.minWidth = Math.max(dados.length * 200, 900) + 'px';
 
+      // Total pago em cada mês -- soma direto de ultimasParcelasTodas (já carregada
+      // sem filtro de mês em carregarTudo), independente do total_mes da view.
+      const totalPagoMes = (mes) => ultimasParcelasTodas
+        .filter(p => p.status === 'Pago' && String(p.data_vencimento).slice(0,7) === String(mes).slice(0,7))
+        .reduce((s,p) => s + Number(p.valor||0), 0);
+
       const ctx = document.getElementById('graficoProjecao');
       if (chartProjecao) chartProjecao.destroy();
       chartProjecao = new Chart(ctx, {
@@ -1278,6 +1310,10 @@
             categoryPercentage:0.8, barPercentage:0.9,
             datalabels: { display: (c) => c.dataset.data[c.dataIndex] > 0, anchor:'end', align:'top', rotation:0,
               color:'#2d6a2d', font:{ size:9, weight:'600' }, formatter:(v) => brl(v) } },
+          { type:'bar', label:'Total Pago', data:dados.map(d => totalPagoMes(d.mes)), backgroundColor:'#4A86E8',
+            categoryPercentage:0.8, barPercentage:0.9,
+            datalabels: { display: (c) => c.dataset.data[c.dataIndex] > 0, anchor:'end', align:'top', rotation:0,
+              color:'#1F4E78', font:{ size:9, weight:'600' }, formatter:(v) => brl(v) } },
           { type:'line', label:'Acumulado', data:dados.map(d => d.acumulado), borderColor:'#C0392B', backgroundColor:'#C0392B', yAxisID:'y1', tension:.3, order:1, pointRadius:2,
             datalabels: { display:false } } ] },
         options: { maintainAspectRatio:false, layout:{ padding:{ top:22 } },
@@ -1286,12 +1322,12 @@
               // Barra de valor baixo (ou zero) fica fina demais pra acertar clicando exatamente
               // em cima dela — tenta de novo pegando só a barra mais próxima do clique.
               elems = chartProjecao.getElementsAtEventForMode(evt, 'nearest', { intersect:false, axis:'x' }, true)
-                .filter((el) => el.datasetIndex !== 2); // ignora a linha do Acumulado, só interessa Gastos/Orçamento
+                .filter((el) => el.datasetIndex !== 3); // ignora a linha do Acumulado
             }
             if (!elems.length) return;
             const mes = dados[elems[0].index].mes;
             if (elems[0].datasetIndex === 1) detalheOrcamentoMes(mes); // barra Orçamento
-            else detalheMes(mes); // barra Gastos (e a linha Acumulado) -- mostra todas as parcelas do mês, pagas ou não
+            else detalheMes(mes); // Gastos, Total Pago (e a linha Acumulado) -- mostra todas as parcelas do mês, pagas ou não
           },
           onHover: (evt, elems) => { evt.native.target.style.cursor = elems.length ? 'pointer' : 'default'; },
           plugins:{
@@ -1305,6 +1341,7 @@
       montarLegendaGrafico('legendaProjecao', chartProjecao, [
         { rotulo:'Gastos', cor:'#E57373' },
         { rotulo:'Orçamento', cor:'#6AA84F' },
+        { rotulo:'Total Pago', cor:'#4A86E8' },
         { rotulo:'Acumulado', cor:'#C0392B', onHover:mostrarTooltipAcumulado, onLeave:esconderTooltipAcumulado },
       ]);
     }
@@ -1413,6 +1450,7 @@
     // Clique numa fatia do gráfico Parcelado x À Vista -> lista TODAS as parcelas
     // daquele tipo (pagas ou não), já respeitando o filtro De/Até aplicado no gráfico.
     function detalheTipo(tipo) {
+      ultimoDetalheRefresh = () => detalheTipo(tipo);
       const linhas = parcelasTipoFiltradas().filter(p => {
         const eParcelada = Number(p.qtd_parcelas) > 1;
         return tipo === 'parcelada' ? eParcelada : !eParcelada;
@@ -1434,7 +1472,7 @@
             '<td>' + formatarData(p.data_compra) + '</td><td>' + formatarData(p.data_vencimento) + '</td>' +
             '<td class="num">' + brl(p.valor_total) + '</td><td class="num">' + brl(p.valor) + '</td>' +
             '<td class="num">' + brl(p.saldo_aberto) + '</td><td>' + situBadge + '</td><td>' + badgeStatusParcela(p.status) + '</td>' +
-            '<td>' + botaoDetalheCadastroHtml(p.compra_id) + '</td></tr>' };
+            '<td>' + botaoDetalheCadastroHtml(p.compra_id) + ' ' + botaoBaixaParcelaHtml(p.parcela_id, p.status === 'Pago') + '</td></tr>' };
       });
       const montarTotal = (ls) => linhaTotal(10, ls.reduce((s,l) => s + Number(l.raw.valor||0), 0), 4);
       const titulo = (tipo === 'parcelada' ? 'Parcelado — total de compras' : 'À Vista — total de compras') + periodoTexto('tipoDe', 'tipoAte');
@@ -1502,6 +1540,7 @@
     }
     // Clique numa barra do gráfico por Descrição -> lista as compras com aquela descrição exata.
     function detalhePorDescricao(descricao) {
+      ultimoDetalheRefresh = () => detalhePorDescricao(descricao);
       const linhas = ultimaListaCompras.filter(c => c.descricao === descricao);
       const header = '<th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Parcelas em Aberto</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Valor da Compra</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Detalhes</th>';
       const linhasObj = linhas.map(c => {
@@ -1516,7 +1555,7 @@
             '<td>' + formatarData(c.data_compra) + '</td><td>' + formatarData(c.proximo_vencimento) + '</td>' +
             '<td class="num">' + brl(c.valor_total) + '</td><td class="num">' + brl(valorParcela(c)) + '</td><td class="num">' + brl(c.saldo_aberto) + '</td>' +
             '<td>' + (c.situacao === 'Quitada' ? '<span class="badge quitada">Quitada</span>' : '<span class="badge aberto">Em Aberto</span>') + '</td>' +
-            '<td>' + botaoDetalheCadastroHtml(c.compra_id) + '</td></tr>' };
+            '<td>' + botaoDetalheCadastroHtml(c.compra_id) + ' ' + botaoBaixaCompraHtml(c.compra_id, c.situacao === 'Quitada') + '</td></tr>' };
       });
       const montarTotal = (ls) => {
         const totalValor = ls.reduce((s,l) => s + Number(l.raw.valor_total||0), 0);
@@ -1577,6 +1616,48 @@
       if (!compraId) return '';
       return '<button class="btn-detalhe-cadastro" onclick="event.stopPropagation();mostrarDetalheCadastro(' + compraId + ', this)" title="Ver detalhes do cadastro" aria-label="Ver detalhes do cadastro">ⓘ</button>';
     }
+    // Botão "✔" de dar baixa (marcar como paga) direto na linha da tabela.
+    // Duas variantes: por COMPRA (tabelas onde uma linha = a compra inteira —
+    // Resumo, Lançamentos, Totais por Descrição) paga a parcela pendente mais
+    // antiga daquela compra; por PARCELA (tabelas onde uma linha já é uma
+    // parcela específica — os detalhamentos por clique nos gráficos) paga
+    // exatamente aquela parcela. Fica cinza/desabilitado quando não há mais
+    // nada em aberto pra pagar naquela linha.
+    function botaoBaixaCompraHtml(compraId, jaQuitada) {
+      if (!compraId) return '';
+      return jaQuitada
+        ? '<button class="btn-baixa" disabled title="Compra já quitada">✔</button>'
+        : '<button class="btn-baixa" onclick="event.stopPropagation();pagarProximaParcelaCompra(' + compraId + ')" title="Dar baixa na próxima parcela em aberto">✔</button>';
+    }
+    function botaoBaixaParcelaHtml(parcelaId, jaPaga) {
+      if (!parcelaId) return '';
+      return jaPaga
+        ? '<button class="btn-baixa" disabled title="Parcela já paga">✔</button>'
+        : '<button class="btn-baixa" onclick="event.stopPropagation();pagarParcelaTabela(' + parcelaId + ')" title="Dar baixa nesta parcela">✔</button>';
+    }
+    // Guarda como redesenhar o modal de detalhamento aberto no momento (cada
+    // detalheXxx() se registra aqui ao abrir), pra atualizar a lista na hora
+    // depois de uma baixa feita através dele — sem isso a linha ficaria com o
+    // status antigo até o usuário fechar e reabrir o modal.
+    let ultimoDetalheRefresh = null;
+    async function atualizarModalDetalheAberto() {
+      const detalhe = document.getElementById('overlayDetalhe');
+      if (detalhe && detalhe.classList.contains('aberto') && typeof ultimoDetalheRefresh === 'function') await ultimoDetalheRefresh();
+      const comparativo = document.getElementById('overlayComparativo');
+      if (comparativo && comparativo.classList.contains('aberto') && typeof ultimoComparativoRefresh === 'function') await ultimoComparativoRefresh();
+    }
+    async function pagarProximaParcelaCompra(compraId) {
+      try { await api('/compras/' + compraId + '/pagar-proxima', { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({}) }); }
+      catch (e) { alert('Erro ao dar baixa: ' + e.message); return; }
+      await carregarTudo();
+      await atualizarModalDetalheAberto();
+    }
+    async function pagarParcelaTabela(parcelaId) {
+      try { await api('/compras/parcelas/' + parcelaId + '/pagar', { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({}) }); }
+      catch (e) { alert('Erro ao dar baixa: ' + e.message); return; }
+      await carregarTudo();
+      await atualizarModalDetalheAberto();
+    }
     function posicionarTooltipCadastro(botao) {
       const tt = document.getElementById('tooltipCadastro');
       const margem = 10;
@@ -1630,6 +1711,7 @@
     // parcelas com vencimento no mês, pagas ou não (os dois já mostram o total do mês
     // independente de pagamento, então o detalhamento tem que bater com esse total).
     async function detalheMes(mesIso) {
+      ultimoDetalheRefresh = () => detalheMes(mesIso);
       const anoMes = String(mesIso).slice(0, 7);
       try {
         const linhas = await api('/dashboard/parcelas?mes=' + anoMes);
@@ -1650,7 +1732,7 @@
               '<td>' + formatarData(l.data_compra) + '</td><td>' + formatarData(l.data_vencimento) + '</td>' +
               '<td class="num">' + brl(l.valor_total) + '</td><td class="num">' + brl(l.valor) + '</td>' +
               '<td class="num">' + brl(l.saldo_aberto) + '</td><td>' + situBadge + '</td><td>' + badgeStatusParcela(l.status) + '</td>' +
-              '<td>' + botaoDetalheCadastroHtml(l.compra_id) + '</td></tr>' };
+              '<td>' + botaoDetalheCadastroHtml(l.compra_id) + ' ' + botaoBaixaParcelaHtml(l.parcela_id, l.status === 'Pago') + '</td></tr>' };
         });
         const montarTotal = (ls) => linhaTotal(10, ls.reduce((s,l) => s + Number(l.raw.valor||0), 0), 4);
         const titulo = 'Parcelas do mês — ' + labelMes(mesIso);
@@ -1676,7 +1758,9 @@
     }
     // Clique no card "Orçamento Mês" ou no gráfico "A Pagar x Orçamento" -> comparativo completo do mês.
     let chartComparativo;
+    let ultimoComparativoRefresh = null;
     async function detalheComparativoMes(mesIso) {
+      ultimoComparativoRefresh = () => detalheComparativoMes(mesIso);
       const anoMes = String(mesIso).slice(0, 7);
       const nomeMes = labelMes(mesIso);
       try {
@@ -1726,7 +1810,7 @@
                 '<td>' + formatarData(l.data_compra) + '</td><td>' + formatarData(l.data_vencimento) + '</td>' +
                 '<td class="num">' + brl(l.valor_total) + '</td><td class="num">' + brl(l.valor) + '</td>' +
                 '<td class="num">' + brl(l.saldo_aberto) + '</td><td>' + situBadge + '</td><td>' + badgeStatusParcela(l.status) + '</td>' +
-                '<td>' + botaoDetalheCadastroHtml(l.compra_id) + '</td></tr>';
+                '<td>' + botaoDetalheCadastroHtml(l.compra_id) + ' ' + botaoBaixaParcelaHtml(l.parcela_id, l.status === 'Pago') + '</td></tr>';
             }).join('') +
             '<tr style="font-weight:700;background:#f0f4fa;"><td colspan="10">Subtotal</td><td class="num">' + brl(totalGastos) + '</td><td colspan="4"></td></tr>'
           : '<tr><td colspan="15" style="text-align:center;color:#888;">Nenhuma parcela neste mês.</td></tr>';
@@ -1737,6 +1821,7 @@
     // Clique numa barra do gráfico Forma de Pagamento -> lista TODAS as parcelas
     // (pagas ou não) daquela forma de pagamento, já respeitando o filtro De/Até do gráfico.
     function detalheCartao(nomeCartao) {
+      ultimoDetalheRefresh = () => detalheCartao(nomeCartao);
       const linhas = filtrarParcelasPorPeriodo('cartaoDe', 'cartaoAte', ultimasParcelasTodas).filter(p => (p.cartao || '-') === nomeCartao);
       const header = '<th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Parcelas em Aberto</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Valor da Compra</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Status</th><th>Detalhes</th>';
       const linhasObj = linhas.map(p => {
@@ -1755,7 +1840,7 @@
             '<td>' + formatarData(p.data_compra) + '</td><td>' + formatarData(p.data_vencimento) + '</td>' +
             '<td class="num">' + brl(p.valor_total) + '</td><td class="num">' + brl(p.valor) + '</td>' +
             '<td class="num">' + brl(p.saldo_aberto) + '</td><td>' + situBadge + '</td><td>' + badgeStatusParcela(p.status) + '</td>' +
-            '<td>' + botaoDetalheCadastroHtml(p.compra_id) + '</td></tr>' };
+            '<td>' + botaoDetalheCadastroHtml(p.compra_id) + ' ' + botaoBaixaParcelaHtml(p.parcela_id, p.status === 'Pago') + '</td></tr>' };
       });
       const montarTotal = (ls) => linhaTotal(10, ls.reduce((s,l) => s + Number(l.raw.valor||0), 0), 4);
       const titulo = 'Compras — ' + nomeCartao + periodoTexto('cartaoDe', 'cartaoAte');
@@ -1843,6 +1928,7 @@
     }
     // Clique numa fatia/barra do gráfico comparativo (ou no card "Total a Pagar") -> lista as parcelas daquele status.
     async function detalheStatus(status) {
+      ultimoDetalheRefresh = () => detalheStatus(status);
       try {
         const linhas = await api('/dashboard/parcelas?status=' + status);
         const header = '<th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Parcelas em Aberto</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Valor da Compra</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Detalhes</th>';
@@ -1862,7 +1948,7 @@
               '<td>' + formatarData(l.data_compra) + '</td><td>' + formatarData(l.data_vencimento) + '</td>' +
               '<td class="num">' + brl(l.valor_total) + '</td><td class="num">' + brl(l.valor) + '</td>' +
               '<td class="num">' + brl(l.saldo_aberto) + '</td><td>' + situBadge + '</td>' +
-              '<td>' + botaoDetalheCadastroHtml(l.compra_id) + '</td></tr>' };
+              '<td>' + botaoDetalheCadastroHtml(l.compra_id) + ' ' + botaoBaixaParcelaHtml(l.parcela_id, l.status === 'Pago') + '</td></tr>' };
         });
         const montarTotal = (ls) => linhaTotal(10, ls.reduce((s,l) => s + Number(l.raw.valor||0), 0), 3);
         const titulo = status === 'Pago' ? 'Parcelas já pagas' : 'Parcelas em aberto (a pagar)';
@@ -1915,7 +2001,7 @@
           '<td>' + formatarData(d.data_compra) + '</td><td>' + formatarData(d.proximo_vencimento) + '</td>' +
           '<td class="num">' + brl(d.valor_total) + '</td><td class="num">' + brl(valorParcela(d)) + '</td>' +
           '<td class="num">' + brl(d.saldo_aberto) + '</td>' +
-          '<td>' + badge + '</td><td>' + botaoDetalheCadastroHtml(d.compra_id) + '</td></tr>';
+          '<td>' + badge + '</td><td>' + botaoDetalheCadastroHtml(d.compra_id) + ' ' + botaoBaixaCompraHtml(d.compra_id, d.situacao === 'Quitada') + '</td></tr>';
       }).join('');
       const totalValor = dados.reduce((s,d) => s + Number(d.valor_total||0), 0);
       const totalSaldo = dados.reduce((s,d) => s + Number(d.saldo_aberto||0), 0);
@@ -1932,24 +2018,49 @@
       if (lista) ultimaListaCompras = lista;
       aplicarFiltroLancamentos();
     }
-    // Filtro de texto livre que casa contra QUALQUER coluna visível da tabela
-    // (descrição, tipo, forma de pagamento, categoria, valores, parcelas,
-    // situação etc.) — mesmo padrão do filtro do Resumo por compra.
+    // Filtro de texto livre (casa contra QUALQUER coluna visível, mesmo padrão
+    // do Resumo por compra) combinado com o filtro de período por mês — por
+    // Data da Compra ou Data de Vencimento, à escolha do usuário no seletor.
+    // "Data de Vencimento" usa o próximo vencimento em aberto da compra: numa
+    // compra já quitada não sobra nenhum, então ela não aparece nesse modo
+    // (não existe um "vencimento" único pra uma compra com várias parcelas em
+    // datas diferentes já todas pagas).
     function aplicarFiltroLancamentos() {
       const termo = (document.getElementById('filtroLancamentos').value || '').trim().toLowerCase();
-      if (!termo) { desenharTabelaCompras(ultimaListaCompras); return; }
-      const filtrados = ultimaListaCompras.filter((d) => {
-        const avista = Number(d.qtd_parcelas) === 1;
-        const pagas = d.qtd_parcelas_pagas || 0;
-        const textoLinha = [
-          d.descricao, avista ? 'à vista' : 'parcelada', d.cartao, d.categoria,
-          pagas + '/' + d.qtd_parcelas, formatarData(d.data_compra), formatarData(d.proximo_vencimento),
-          brl(d.valor_total), brl(valorParcela(d)),
-          pagas, Number(d.qtd_parcelas || 0) - pagas, brl(d.saldo_aberto), d.situacao,
-        ].join(' ').toLowerCase();
-        return textoLinha.includes(termo);
-      });
-      desenharTabelaCompras(filtrados);
+      const tipoData = document.getElementById('lancamentosTipoData').value;
+      const de = document.getElementById('lancamentosDe').value;
+      const ate = document.getElementById('lancamentosAte').value;
+      let lista = ultimaListaCompras;
+      if (de || ate) {
+        const campo = tipoData === 'vencimento' ? 'proximo_vencimento' : 'data_compra';
+        lista = lista.filter((d) => {
+          const valor = String(d[campo] || '').slice(0, 7);
+          if (!valor) return false;
+          if (de && valor < de) return false;
+          if (ate && valor > ate) return false;
+          return true;
+        });
+      }
+      if (termo) {
+        lista = lista.filter((d) => {
+          const avista = Number(d.qtd_parcelas) === 1;
+          const pagas = d.qtd_parcelas_pagas || 0;
+          const textoLinha = [
+            d.descricao, avista ? 'à vista' : 'parcelada', d.cartao, d.categoria,
+            pagas + '/' + d.qtd_parcelas, formatarData(d.data_compra), formatarData(d.proximo_vencimento),
+            brl(d.valor_total), brl(valorParcela(d)),
+            pagas, Number(d.qtd_parcelas || 0) - pagas, brl(d.saldo_aberto), d.situacao,
+          ].join(' ').toLowerCase();
+          return textoLinha.includes(termo);
+        });
+      }
+      desenharTabelaCompras(lista);
+    }
+    // Botão "Ver tudo" do filtro de período de Lançamentos.
+    function limparFiltroPeriodoLancamentos() {
+      document.getElementById('lancamentosDe').value = '';
+      document.getElementById('lancamentosAte').value = '';
+      aplicarFiltroLancamentos();
     }
     function desenharTabelaCompras(lista) {
       lista = (lista || []).slice().sort((a, b) => a.descricao.localeCompare(b.descricao, 'pt-BR'));
@@ -1971,7 +2082,7 @@
           '<td>' + formatarData(d.data_compra) + '</td><td>' + formatarData(d.proximo_vencimento) + '</td>' +
           '<td class="num">' + brl(d.valor_total) + '</td><td class="num">' + brl(valorParcela(d)) + '</td>' +
           '<td class="num">' + brl(d.saldo_aberto) + '</td><td>' + situ + '</td>' +
-          '<td>' + botaoDetalheCadastroHtml(d.compra_id) + ' <button class="link-acao link-parcelas" onclick="abrirParcelas(' + d.compra_id + ", '" + nome + "')" + '">Parcelas</button>' +
+          '<td>' + botaoDetalheCadastroHtml(d.compra_id) + ' ' + botaoBaixaCompraHtml(d.compra_id, d.situacao === 'Quitada') + ' <button class="link-acao link-parcelas" onclick="abrirParcelas(' + d.compra_id + ", '" + nome + "')" + '">Parcelas</button>' +
           '<button class="link-acao link-editar" onclick="editarLancamento(' + d.compra_id + ')">Editar</button>' +
           '<button class="link-acao link-excluir" onclick="excluirCompra(' + d.compra_id + ", '" + nome + "')" + '">Excluir</button></td></tr>';
       }).join('');

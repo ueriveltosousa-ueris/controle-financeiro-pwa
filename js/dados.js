@@ -344,6 +344,19 @@ async function desfazerPagamento(id) {
   return { mensagem: 'Pagamento desfeito' };
 }
 
+// Baixa rápida usada pelas tabelas por COMPRA (uma linha = a compra inteira,
+// não uma parcela específica): dá baixa na parcela pendente mais antiga dessa
+// compra. Numa compra parcelada isso paga uma parcela de cada vez, na ordem
+// certa; numa compra à vista só existe uma parcela mesmo.
+async function pagarProximaParcela(compraId, dataPagamento) {
+  const proxima = primeiraLinha(
+    "SELECT id FROM parcelas WHERE compra_id = ? AND status = 'Pendente' ORDER BY data_vencimento ASC, num_parcela ASC LIMIT 1",
+    [Number(compraId)]
+  );
+  if (!proxima) throw new Error('Não há parcela pendente nesta compra');
+  return marcarParcelaPaga(proxima.id, dataPagamento);
+}
+
 async function corrigirVencimentoParcela(id, dataVencimento) {
   if (!dataVencimento) throw new Error('Campo obrigatório: data_vencimento');
   const r = executar('UPDATE parcelas SET data_vencimento = ? WHERE id = ?', [dataVencimento, Number(id)]);
@@ -508,7 +521,7 @@ return {
   listarGruposDespesa, criarGrupoDespesa, atualizarGrupoDespesa, excluirGrupoDespesa,
   criarTipoDespesa, atualizarTipoDespesa, excluirTipoDespesa,
   listarComprasResumo, obterCompra, criarCompra, atualizarCompra,
-  marcarParcelaPaga, desfazerPagamento, corrigirVencimentoParcela, corrigirDataCompra, excluirCompra,
+  marcarParcelaPaga, desfazerPagamento, pagarProximaParcela, corrigirVencimentoParcela, corrigirDataCompra, excluirCompra,
   dashboardKpis, dashboardSaldoPorCartao, dashboardSaldoPorCategoria, dashboardResumoPorCompra, dashboardProjecao, dashboardParcelas,
   listarItensOrcamento, totaisOrcamento, criarItemOrcamento, atualizarItemOrcamento, excluirItemOrcamento,
   listarParcelasOrfas, excluirParcelaOrfa,
