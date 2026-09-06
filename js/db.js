@@ -34,7 +34,10 @@ const NOME_METADADOS = 'meta';
 // vencimento entre as parcelas pendentes da compra) — usado pra padronizar
 // as tabelas de compras com uma coluna "Data de Vencimento" ao lado de
 // "Data da Compra".
-const VERSAO_ATUAL_VIEWS = 6;
+// v7: proximo_vencimento nunca mais fica em branco — numa compra já quitada
+// (sem parcela pendente) cai pro vencimento da última parcela (MAX), em vez
+// de NULL.
+const VERSAO_ATUAL_VIEWS = 7;
 
 let SQL = null;   // módulo sql.js carregado (initSqlJs())
 let db = null;    // instância do banco (SQL.Database)

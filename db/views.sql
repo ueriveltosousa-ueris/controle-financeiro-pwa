@@ -16,6 +16,12 @@
    inclui a quebra parcelado/à vista do "a vencer no próximo mês" — campos
    que a tela (index.html) já lê, mas que a view original em SQL Server
    nunca chegou a calcular (ficavam sempre em branco/zero).
+
+   proximo_vencimento nunca fica em branco: numa compra com parcela pendente
+   é o vencimento dela (a mais próxima); numa compra já quitada, cai pro
+   vencimento da última parcela (não existe mais "próximo" vencimento, mas a
+   coluna "Data de Vencimento" da tela precisa mostrar alguma coisa mesmo
+   assim).
    ===================================================================== */
 
 DROP VIEW IF EXISTS vw_kpis;
@@ -67,7 +73,8 @@ SELECT
     COUNT(CASE WHEN p.status = 'Pago' THEN 1 END)                                 AS qtd_parcelas_pagas,
     IFNULL(SUM(CASE WHEN p.status = 'Pago'     THEN p.valor_centavos END),0)      AS total_pago_centavos,
     IFNULL(SUM(CASE WHEN p.status = 'Pendente' THEN p.valor_centavos END),0)      AS saldo_aberto_centavos,
-    MIN(CASE WHEN p.status = 'Pendente' THEN p.data_vencimento END)              AS proximo_vencimento,
+    COALESCE(MIN(CASE WHEN p.status = 'Pendente' THEN p.data_vencimento END),
+             MAX(p.data_vencimento))                                            AS proximo_vencimento,
     CASE WHEN IFNULL(SUM(p.valor_centavos),0) = 0 THEN 0.0
          ELSE CAST(SUM(CASE WHEN p.status = 'Pago' THEN p.valor_centavos ELSE 0 END) AS REAL)
               / SUM(p.valor_centavos)

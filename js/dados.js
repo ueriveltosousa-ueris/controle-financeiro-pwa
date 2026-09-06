@@ -357,6 +357,19 @@ async function pagarProximaParcela(compraId, dataPagamento) {
   return marcarParcelaPaga(proxima.id, dataPagamento);
 }
 
+// Desfaz o "irmão" da baixa acima: volta a parcela paga mais recente (a
+// última que teria sido paga, na mesma ordem que pagarProximaParcela usa pra
+// avançar) pra pendente de novo. É o que o ícone "✔" chama quando o usuário
+// clica de novo numa compra já quitada, pra deixá-la pendente outra vez.
+async function desfazerUltimaParcelaPaga(compraId) {
+  const ultima = primeiraLinha(
+    "SELECT id FROM parcelas WHERE compra_id = ? AND status = 'Pago' ORDER BY data_vencimento DESC, num_parcela DESC LIMIT 1",
+    [Number(compraId)]
+  );
+  if (!ultima) throw new Error('Não há parcela paga nesta compra');
+  return desfazerPagamento(ultima.id);
+}
+
 async function corrigirVencimentoParcela(id, dataVencimento) {
   if (!dataVencimento) throw new Error('Campo obrigatório: data_vencimento');
   const r = executar('UPDATE parcelas SET data_vencimento = ? WHERE id = ?', [dataVencimento, Number(id)]);
@@ -521,7 +534,7 @@ return {
   listarGruposDespesa, criarGrupoDespesa, atualizarGrupoDespesa, excluirGrupoDespesa,
   criarTipoDespesa, atualizarTipoDespesa, excluirTipoDespesa,
   listarComprasResumo, obterCompra, criarCompra, atualizarCompra,
-  marcarParcelaPaga, desfazerPagamento, pagarProximaParcela, corrigirVencimentoParcela, corrigirDataCompra, excluirCompra,
+  marcarParcelaPaga, desfazerPagamento, pagarProximaParcela, desfazerUltimaParcelaPaga, corrigirVencimentoParcela, corrigirDataCompra, excluirCompra,
   dashboardKpis, dashboardSaldoPorCartao, dashboardSaldoPorCategoria, dashboardResumoPorCompra, dashboardProjecao, dashboardParcelas,
   listarItensOrcamento, totaisOrcamento, criarItemOrcamento, atualizarItemOrcamento, excluirItemOrcamento,
   listarParcelasOrfas, excluirParcelaOrfa,

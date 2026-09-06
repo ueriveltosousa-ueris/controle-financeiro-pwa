@@ -47,6 +47,11 @@
        desabilitado quando não há mais nada em aberto pra pagar naquela linha. */
     .btn-baixa { background:#e2f3e6; border:none; color:#1e7e34; width:22px; height:22px; border-radius:50%; font-size:12px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding:0; line-height:1; font-family:inherit; flex-shrink:0; }
     .btn-baixa:hover { background:var(--verde); color:#fff; }
+    /* "marcado" = já paga/quitada — continua clicável (clicar de novo desfaz
+       a baixa e volta pra pendente), só que com fundo verde sólido pra
+       distinguir visualmente do estado "ainda em aberto". */
+    .btn-baixa.marcado { background:var(--verde); color:#fff; }
+    .btn-baixa.marcado:hover { background:#4f8c3c; }
     .btn-baixa[disabled] { background:var(--cinza-fundo); color:#c3cad4; cursor:default; }
     #tooltipCadastro { display:none; position:fixed; background:#fff; color:var(--texto); border:1px solid var(--cinza-borda); border-radius:10px; box-shadow:0 10px 28px rgba(0,0,0,.2); padding:14px 16px; font-size:12.5px; line-height:1.6; z-index:250; }
     #tooltipCadastro.aberto { display:block; }
@@ -68,7 +73,9 @@
     .kpi.destaque:hover { background:#2a5a8a; border-color:#2a5a8a; }
     .kpi.alerta .valor { color:var(--vermelho); }
     .kpi-sub { font-size:11px; color:#9aa5b5; margin-top:8px; line-height:1.6; }
-    .kpi-sub-destaque { font-size:15px; font-weight:700; color:var(--azul); margin-top:10px; line-height:1.7; }
+    .kpi-sub-destaque { font-size:15px; font-weight:700; margin-top:10px; line-height:1.7; }
+    .kpi-sub-destaque .valor-pago { color:var(--azul-claro); }
+    .kpi-sub-destaque .valor-pendente { color:var(--vermelho); }
     .kpi.positivo .valor { color:var(--verde); }
     .kpi.negativo .valor { color:var(--vermelho); }
     .kpi-linha { font-size:15px; font-weight:600; color:var(--texto); margin-top:10px; }
@@ -409,7 +416,7 @@
       <section class="card">
         <div class="titulo-com-ajuda"><h2 style="margin:0;">Compras e gastos lançados</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-lista-lancamentos', this)">?</button></div>
         <div class="ajuda-balao" id="ajuda-lista-lancamentos">
-          <b>✔</b>: dá baixa (marca como paga) na parcela pendente mais antiga da compra — numa compra parcelada, uma de cada vez.<br>
+          <b>✔</b>: dá baixa (marca como paga) na parcela pendente mais antiga da compra — numa compra parcelada, uma de cada vez. Clicar de novo numa compra já quitada desfaz a última baixa e deixa pendente outra vez.<br>
           <b>Parcelas</b>: marca pagamento, desfaz por engano, ou corrige a data de uma parcela específica.<br>
           <b>Editar</b>: muda a compra inteira.<br>
           <b>Excluir</b>: apaga a compra e todas as parcelas — não tem como desfazer.<br>
@@ -647,7 +654,7 @@
 
   <!-- MODAL DETALHAMENTO (abre ao clicar numa barra/fatia dos gráficos) -->
   <div class="overlay" id="overlayDetalhe">
-    <div class="modal" style="width:95vw;max-width:1300px;">
+    <div class="modal" style="width:95vw;max-width:1650px;">
       <button class="modal-x" onclick="fecharModal('overlayDetalhe')" aria-label="Fechar">✕</button>
       <div class="titulo-modal-linha">
         <h3 id="tituloModalDetalhe">Detalhamento</h3>
@@ -679,7 +686,7 @@
 
   <!-- MODAL COMPARATIVO (Orçamento x Gastos do mês) — gráfico + duas tabelas -->
   <div class="overlay" id="overlayComparativo">
-    <div class="modal" style="width:95vw;max-width:950px;">
+    <div class="modal" style="width:95vw;max-width:1250px;">
       <button class="modal-x" onclick="fecharModal('overlayComparativo')" aria-label="Fechar">✕</button>
       <div class="titulo-modal-linha">
         <h3 id="tituloComparativo">Comparativo — Orçamento x Gastos</h3>
@@ -1218,8 +1225,9 @@
       const saldoOrcamento = orcamentoMes - totalMes;
       const corSaldo = saldoOrcamento < 0 ? 'negativo' : 'positivo';
 
-      const subVencer = '<div class="kpi-sub-destaque">Pago: ' + brl(totalPago) +
-        '<br>Pendente: ' + brl(totalPendente) + '</div>';
+      const subVencer = '<div class="kpi-sub-destaque">' +
+        '<span class="valor-pago">Pago: ' + brl(totalPago) + '</span>' +
+        '<br><span class="valor-pendente">Pendente: ' + brl(totalPendente) + '</span></div>';
 
       document.getElementById('kpis').innerHTML =
         '<div class="kpi destaque" onclick="detalheStatus(\'Pendente\')"><div class="rotulo">DESPESAS TOTAIS</div><div class="valor">' + brl(k.total_em_aberto) + '</div></div>' +
@@ -1327,7 +1335,8 @@
             if (!elems.length) return;
             const mes = dados[elems[0].index].mes;
             if (elems[0].datasetIndex === 1) detalheOrcamentoMes(mes); // barra Orçamento
-            else detalheMes(mes); // Gastos, Total Pago (e a linha Acumulado) -- mostra todas as parcelas do mês, pagas ou não
+            else if (elems[0].datasetIndex === 2) detalheMes(mes, 'Pago'); // barra Total Pago -- só as parcelas já pagas
+            else detalheMes(mes); // barra Gastos (e a linha Acumulado) -- todas as parcelas do mês, pagas ou não
           },
           onHover: (evt, elems) => { evt.native.target.style.cursor = elems.length ? 'pointer' : 'default'; },
           plugins:{
@@ -1626,13 +1635,13 @@
     function botaoBaixaCompraHtml(compraId, jaQuitada) {
       if (!compraId) return '';
       return jaQuitada
-        ? '<button class="btn-baixa" disabled title="Compra já quitada">✔</button>'
+        ? '<button class="btn-baixa marcado" onclick="event.stopPropagation();desfazerUltimaParcelaCompra(' + compraId + ')" title="Compra quitada — clique para desfazer a última baixa">✔</button>'
         : '<button class="btn-baixa" onclick="event.stopPropagation();pagarProximaParcelaCompra(' + compraId + ')" title="Dar baixa na próxima parcela em aberto">✔</button>';
     }
     function botaoBaixaParcelaHtml(parcelaId, jaPaga) {
       if (!parcelaId) return '';
       return jaPaga
-        ? '<button class="btn-baixa" disabled title="Parcela já paga">✔</button>'
+        ? '<button class="btn-baixa marcado" onclick="event.stopPropagation();desfazerParcelaTabela(' + parcelaId + ')" title="Parcela paga — clique para desfazer e deixar pendente">✔</button>'
         : '<button class="btn-baixa" onclick="event.stopPropagation();pagarParcelaTabela(' + parcelaId + ')" title="Dar baixa nesta parcela">✔</button>';
     }
     // Guarda como redesenhar o modal de detalhamento aberto no momento (cada
@@ -1655,6 +1664,18 @@
     async function pagarParcelaTabela(parcelaId) {
       try { await api('/compras/parcelas/' + parcelaId + '/pagar', { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({}) }); }
       catch (e) { alert('Erro ao dar baixa: ' + e.message); return; }
+      await carregarTudo();
+      await atualizarModalDetalheAberto();
+    }
+    async function desfazerUltimaParcelaCompra(compraId) {
+      try { await api('/compras/' + compraId + '/desfazer-ultima', { method:'PATCH' }); }
+      catch (e) { alert('Erro ao desfazer: ' + e.message); return; }
+      await carregarTudo();
+      await atualizarModalDetalheAberto();
+    }
+    async function desfazerParcelaTabela(parcelaId) {
+      try { await api('/compras/parcelas/' + parcelaId + '/despagar', { method:'PATCH' }); }
+      catch (e) { alert('Erro ao desfazer: ' + e.message); return; }
       await carregarTudo();
       await atualizarModalDetalheAberto();
     }
@@ -1710,11 +1731,15 @@
     // Clique no card "Despesas Mês" ou na barra "Gastos" da Projeção -> lista TODAS as
     // parcelas com vencimento no mês, pagas ou não (os dois já mostram o total do mês
     // independente de pagamento, então o detalhamento tem que bater com esse total).
-    async function detalheMes(mesIso) {
-      ultimoDetalheRefresh = () => detalheMes(mesIso);
+    // statusFiltro opcional ('Pago') -- usado pela barra "Total Pago" da
+    // Projeção, que só quer ver o que já foi pago naquele mês. Sem ele
+    // (chamado pela barra "Gastos", pelo card Despesas Mês etc.) mostra tudo,
+    // pago ou não, como sempre.
+    async function detalheMes(mesIso, statusFiltro) {
+      ultimoDetalheRefresh = () => detalheMes(mesIso, statusFiltro);
       const anoMes = String(mesIso).slice(0, 7);
       try {
-        const linhas = await api('/dashboard/parcelas?mes=' + anoMes);
+        const linhas = await api('/dashboard/parcelas?mes=' + anoMes + (statusFiltro ? '&status=' + statusFiltro : ''));
         const header = '<th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Parcelas em Aberto</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Valor da Compra</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Status</th><th>Detalhes</th>';
         const linhasObj = linhas.map(l => {
           const avista = Number(l.qtd_parcelas) === 1;
@@ -1735,8 +1760,10 @@
               '<td>' + botaoDetalheCadastroHtml(l.compra_id) + ' ' + botaoBaixaParcelaHtml(l.parcela_id, l.status === 'Pago') + '</td></tr>' };
         });
         const montarTotal = (ls) => linhaTotal(10, ls.reduce((s,l) => s + Number(l.raw.valor||0), 0), 4);
-        const titulo = 'Parcelas do mês — ' + labelMes(mesIso);
-        const obs = 'Todas as parcelas com vencimento no mês selecionado, pagas ou não.';
+        const titulo = (statusFiltro === 'Pago' ? 'Parcelas pagas — ' : 'Parcelas do mês — ') + labelMes(mesIso);
+        const obs = statusFiltro === 'Pago'
+          ? 'Parcelas já pagas com vencimento no mês selecionado.'
+          : 'Todas as parcelas com vencimento no mês selecionado, pagas ou não.';
         abrirDetalheModal(titulo, obs, header, linhasObj, montarTotal, 15);
       } catch (e) { alert('Erro ao carregar detalhamento: ' + e.message); }
     }
