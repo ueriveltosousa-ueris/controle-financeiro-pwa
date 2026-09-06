@@ -1399,7 +1399,12 @@
 
       // Altura dinâmica: no celular os nomes quebram em várias linhas (ver rotuloResponsivo),
       // então cada linha do gráfico precisa de mais espaço vertical pra não ficar apertado/sobreposto.
-      const alturaPorLinha = telaEstreita() ? 46 : 30;
+      // Aqui precisa de mais espaço ainda que os outros gráficos de barra (ver
+      // alturaPorLinha=30/46 no Grupo/Tipo de Despesa): as duas linhas de rótulo
+      // (Pago/Pendente) empilhadas fora da barra ocupam mais altura, e linhas
+      // vizinhas coladas demais colidiam entre si com poucas formas de pagamento
+      // cadastradas.
+      const alturaPorLinha = telaEstreita() ? 62 : 46;
       const alturaCalculada = Math.max(f.length * alturaPorLinha, 300);
       const wrapInterno = document.getElementById('cartaoWrapInterno');
       if (wrapInterno) { wrapInterno.style.height = alturaCalculada + 'px'; wrapInterno.style.minHeight = alturaCalculada + 'px'; }
