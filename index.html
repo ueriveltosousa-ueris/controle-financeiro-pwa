@@ -67,6 +67,12 @@
        partir de gráficos, que não tinham nenhuma forma de editar até agora. */
     .btn-editar-cadastro { background:#fdf0e0; border:none; color:#b8760f; width:22px; height:22px; border-radius:50%; font-size:12px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding:0; line-height:1; font-family:inherit; flex-shrink:0; }
     .btn-editar-cadastro:hover { background:var(--laranja); color:#fff; }
+    /* "+" verde ao lado do rótulo de Forma de Pagamento/Grupo/Tipo no formulário
+       de Lançamento -- pra quando o usuário percebe, no meio do lançamento,
+       que a opção que precisa ainda não existe. Leva direto pro cadastro
+       certo (aba "Despesas"), já com o campo de nome focado. */
+    .btn-cadastro-rapido { background:#e5f3e8; border:none; color:#2e7d32; width:18px; height:18px; border-radius:50%; font-size:12px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding:0; line-height:1; font-family:inherit; vertical-align:middle; }
+    .btn-cadastro-rapido:hover { background:var(--verde); color:#fff; }
     #tooltipCadastro { display:none; position:fixed; background:#fff; color:var(--texto); border:1px solid var(--cinza-borda); border-radius:10px; box-shadow:0 10px 28px rgba(0,0,0,.2); padding:14px 16px; font-size:12.5px; line-height:1.6; z-index:250; }
     #tooltipCadastro.aberto { display:block; }
     #tooltipCadastro b { color:var(--azul); }
@@ -637,13 +643,10 @@
       </div>
       <div class="aviso-edicao" id="avisoCompra">⚠️ Alterar o <b>valor</b>, o <b>nº de parcelas</b>, a <b>data da compra</b> ou a <b>forma de pagamento</b> recria as parcelas (o controle de pagamento recomeça). Mudar só descrição não mexe nas parcelas.</div>
       <div class="campo"><label>Descrição <span class="obrig">*</span></label><input type="text" id="c_descricao" placeholder="Ex.: TV 55 polegadas, Abastecimento..." /></div>
-      <div class="campo"><label>Forma de Pagamento <span class="obrig">*</span></label><select id="c_cartao" onchange="atualizarAvisoVencimento('c')"></select><div class="dica" id="c_aviso_vencimento" style="display:none;color:#9C6500;"></div></div>
+      <div class="campo"><label>Forma de Pagamento <span class="obrig">*</span> <button type="button" class="btn-cadastro-rapido" onclick="irParaCadastroFormaPagamento()" title="Cadastrar nova forma de pagamento" aria-label="Cadastrar nova forma de pagamento">+</button></label><select id="c_cartao" onchange="atualizarAvisoVencimento('c')"></select><div class="dica" id="c_aviso_vencimento" style="display:none;color:#9C6500;"></div></div>
       <div class="linha2">
-        <div class="campo"><label>Grupo de Despesa</label><select id="c_grupo"></select></div>
-        <div class="campo"><label>Tipo de Despesa</label><select id="c_categoria"></select></div>
-      </div>
-      <div class="dica" style="margin:-6px 0 14px;">
-        <button type="button" class="link-acao" style="color:var(--azul);padding:0;" onclick="irParaCadastro('cartoes')">💸 Não achou a forma de pagamento, o grupo ou o tipo de despesa? Cadastre um novo em "Cadastro Despesas"</button>
+        <div class="campo"><label>Grupo de Despesa <button type="button" class="btn-cadastro-rapido" onclick="irParaCadastroGrupo()" title="Cadastrar novo Grupo de Despesa" aria-label="Cadastrar novo Grupo de Despesa">+</button></label><select id="c_grupo"></select></div>
+        <div class="campo"><label>Tipo de Despesa <button type="button" class="btn-cadastro-rapido" onclick="irParaCadastroTipo()" title="Cadastrar novo Tipo de Despesa" aria-label="Cadastrar novo Tipo de Despesa">+</button></label><select id="c_categoria"></select></div>
       </div>
       <div class="linha2">
         <div class="campo"><label>Valor total <span class="obrig">*</span></label><input type="text" id="c_valor" inputmode="decimal" placeholder="3500,00" /><div class="dica">Use vírgula para os centavos.</div></div>
@@ -1339,6 +1342,20 @@
     }
     function esconderTooltipAcumulado() {
       document.getElementById('tooltipAcumulado').style.display = 'none';
+    }
+    // Fecha o tooltip ativo de QUALQUER gráfico Chart.js da tela (percorre
+    // Chart.instances, não uma lista fixa de variáveis -- pega até gráfico
+    // aberto dentro de modal), mais o balão "Acumulado" acima. No touch (sem
+    // mouseleave pra esconder sozinho) o tooltip de um gráfico às vezes fica
+    // "grudado" na tela depois de tocar numa barra; ESC sempre limpa tudo.
+    function fecharTooltipsGraficos() {
+      Object.values(Chart.instances).forEach((chart) => {
+        if (!chart) return;
+        chart.setActiveElements([]);
+        if (chart.tooltip) chart.tooltip.setActiveElements([], { x:0, y:0 });
+        chart.update();
+      });
+      esconderTooltipAcumulado();
     }
     // Legenda "congelada" fora da área com scroll do gráfico (ver comentário
     // da classe .legenda-grafico no <style>). Reproduz o comportamento padrão
@@ -2355,6 +2372,19 @@
       fecharModal('overlayParcelas');
       trocarAba(aba);
     }
+    // Atalhos do "+" ao lado de Forma de Pagamento/Grupo/Tipo no formulário de
+    // Lançamento -- vão pra aba "Despesas" e já focam o campo de nome do
+    // cadastro certo, pra cadastrar rapidinho sem procurar o card na mão.
+    function irParaCadastroCampo(idCampo) {
+      irParaCadastro('cartoes');
+      requestAnimationFrame(() => {
+        const el = document.getElementById(idCampo);
+        if (el) { el.scrollIntoView({ block:'center' }); el.focus(); }
+      });
+    }
+    function irParaCadastroFormaPagamento() { irParaCadastroCampo('nova_categoria_nome'); }
+    function irParaCadastroGrupo() { irParaCadastroCampo('novo_grupo_nome'); }
+    function irParaCadastroTipo() { irParaCadastroCampo('novo_tipo_nome'); }
 
     // ---- LANÇAMENTO DE DESPESA (à vista = 1 parcela, ou parcelado = 2+) ----
     function abrirModalCompra() {
@@ -2523,9 +2553,11 @@
     }
 
     document.querySelectorAll('.overlay').forEach(ov => ov.addEventListener('click', (e) => { if (e.target === ov) ov.classList.remove('aberto'); }));
-    // Tecla ESC fecha qualquer modal aberto (formulários e tabelas de detalhamento dos gráficos).
+    // Tecla ESC fecha qualquer modal aberto (formulários e tabelas de detalhamento
+    // dos gráficos) e, sempre, o tooltip ativo de qualquer gráfico na tela.
     document.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape') return;
+      fecharTooltipsGraficos();
       const aberto = document.querySelector('.overlay.aberto');
       if (aberto) aberto.classList.remove('aberto');
     });
