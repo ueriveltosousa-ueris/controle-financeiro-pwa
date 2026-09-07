@@ -72,6 +72,13 @@
        então o botão em si só chama a função normalmente. */
     .btn-excluir-cadastro { background:#fdecea; border:none; color:#a13d3d; width:22px; height:22px; border-radius:50%; font-size:12px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding:0; line-height:1; font-family:inherit; flex-shrink:0; }
     .btn-excluir-cadastro:hover { background:var(--vermelho); color:#fff; }
+    /* "+" azul de incluir cadastro novo -- vai DENTRO do cabeçalho "Ações" de
+       toda tabela de despesa/orçamento (não por linha, já que "incluir" não é
+       uma ação de uma linha específica). Mesmo tamanho da família de ícones
+       de linha, só que azul (cor de destaque) pra se diferenciar por ser uma
+       ação de tabela, não de registro. */
+    .btn-incluir-cadastro { background:var(--azul-claro); border:none; color:#fff; width:22px; height:22px; border-radius:50%; font-size:14px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding:0; line-height:1; font-family:inherit; vertical-align:middle; margin-left:6px; }
+    .btn-incluir-cadastro:hover { background:var(--azul); }
     /* "+" verde ao lado do rótulo de Forma de Pagamento/Grupo/Tipo no formulário
        de Lançamento -- pra quando o usuário percebe, no meio do lançamento,
        que a opção que precisa ainda não existe. Leva direto pro cadastro
@@ -444,11 +451,10 @@
             <input type="text" id="filtroResumo" placeholder="Digite para filtrar..." oninput="aplicarFiltroResumo()" />
           </div>
           <button class="btn btn-cinza" onclick="document.getElementById('filtroResumo').value='';aplicarFiltroResumo();">Limpar</button>
-          <button class="btn btn-verde" onclick="abrirModalCompra()" style="margin-left:auto;">➕ Novo Lançamento de Despesa</button>
         </div>
         <div class="tabela-scroll" style="max-height:500px;overflow-y:auto;">
           <table id="tabelaResumo">
-            <thead><tr><th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Parcelas em Aberto</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Valor da Compra</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Detalhes</th></tr></thead>
+            <thead><tr><th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Parcelas em Aberto</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Valor da Compra</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Ações <button class="btn-incluir-cadastro" onclick="abrirModalCompra()" title="Novo Lançamento de Despesa" aria-label="Novo Lançamento de Despesa">+</button></th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -496,7 +502,7 @@
         </div>
         <div class="tabela-scroll" style="max-height:500px;overflow-y:auto;">
           <table id="tabelaCompras">
-            <thead><tr><th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Parcelas em Aberto</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Valor da Compra</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Ações</th></tr></thead>
+            <thead><tr><th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Parcelas em Aberto</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Valor da Compra</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Ações <button class="btn-incluir-cadastro" onclick="abrirModalCompra()" title="Novo Lançamento de Despesa" aria-label="Novo Lançamento de Despesa">+</button></th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -509,7 +515,7 @@
         </div>
         <div class="tabela-scroll" style="max-height:400px;overflow-y:auto;">
           <table id="tabelaParcelasOrfas">
-            <thead><tr><th>Nº Parcela</th><th class="num">Valor</th><th>Vencimento</th><th>Status</th><th>Ações</th></tr></thead>
+            <thead><tr><th>Nº Parcela</th><th class="num">Valor</th><th>Vencimento</th><th>Status</th><th>Ações <button class="btn-incluir-cadastro" onclick="abrirModalCompra()" title="Novo Lançamento de Despesa" aria-label="Novo Lançamento de Despesa">+</button></th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -541,7 +547,7 @@
 
         <div class="tabela-scroll" style="max-height:400px;overflow-y:auto;">
           <table id="tabelaOrcamentoItens">
-            <thead><tr><th>Descrição</th><th class="num">Valor</th><th>Ações</th></tr></thead>
+            <thead><tr><th>Descrição</th><th class="num">Valor</th><th>Ações <button class="btn-incluir-cadastro" onclick="abrirModalNovoItemOrcamento()" title="Novo Item de Orçamento" aria-label="Novo Item de Orçamento">+</button></th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -719,7 +725,7 @@
       </div>
       <div class="tabela-scroll" style="max-height:400px;overflow-y:auto;">
         <table class="tabela-parcelas">
-          <thead><tr><th>Nº</th><th class="num">Valor Parcela</th><th>Data de Vencimento</th><th>Status</th><th>Ação</th></tr></thead>
+          <thead><tr><th>Nº</th><th class="num">Valor Parcela</th><th>Data de Vencimento</th><th>Status</th><th>Ações <button class="btn-incluir-cadastro" onclick="abrirModalCompra()" title="Novo Lançamento de Despesa" aria-label="Novo Lançamento de Despesa">+</button></th></tr></thead>
           <tbody id="corpoParcelas"></tbody>
         </table>
       </div>
@@ -757,7 +763,6 @@
         </table>
       </div>
       <div class="modal-rodape">
-        <button class="btn btn-verde" id="btnIncluirDetalhe" style="margin-right:auto;">➕ Novo Lançamento de Despesa</button>
         <button class="btn btn-cinza" onclick="fecharModal('overlayDetalhe')">Fechar</button>
       </div>
     </div>
@@ -781,7 +786,7 @@
       <div class="tabela-scroll" style="max-height:280px;overflow-y:auto;margin-bottom:16px;">
         <table class="tabela-parcelas">
           <thead><tr class="tabela-linha-titulo"><th colspan="3" style="background:#e8f5e9;color:#2d6a2d;">Itens de Orçamento</th></tr>
-          <tr class="tabela-linha-colunas"><th>Descrição</th><th class="num">Valor</th><th>Ações</th></tr></thead>
+          <tr class="tabela-linha-colunas"><th>Descrição</th><th class="num">Valor</th><th>Ações <button class="btn-incluir-cadastro" onclick="abrirModalNovoItemOrcamento()" title="Novo Item de Orçamento" aria-label="Novo Item de Orçamento">+</button></th></tr></thead>
           <tbody id="corpoComparativoOrcamento"></tbody>
         </table>
       </div>
@@ -789,14 +794,12 @@
         <table class="tabela-parcelas">
           <thead>
           <tr class="tabela-linha-titulo"><th colspan="15" style="background:#fdecea;color:#a13d3d;">Gastos do Mês (pagos e pendentes)</th></tr>
-          <tr class="tabela-linha-colunas"><th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Parcelas em Aberto</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Valor da Compra</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Status</th><th>Detalhes</th></tr>
+          <tr class="tabela-linha-colunas"><th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Parcelas em Aberto</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Valor da Compra</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Status</th><th>Ações <button class="btn-incluir-cadastro" onclick="abrirModalCompra()" title="Novo Lançamento de Despesa" aria-label="Novo Lançamento de Despesa">+</button></th></tr>
           </thead>
           <tbody id="corpoComparativoGastos"></tbody>
         </table>
       </div>
       <div class="modal-rodape">
-        <button class="btn btn-verde" onclick="abrirModalNovoItemOrcamento()">➕ Novo Item de Orçamento</button>
-        <button class="btn btn-verde" onclick="abrirModalCompra()" style="margin-right:auto;">➕ Novo Lançamento de Despesa</button>
         <button class="btn btn-cinza" onclick="fecharModal('overlayComparativo')">Fechar</button>
       </div>
     </div>
@@ -1680,7 +1683,7 @@
         const eParcelada = Number(p.qtd_parcelas) > 1;
         return tipo === 'parcelada' ? eParcelada : !eParcelada;
       });
-      const header = '<th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Parcelas em Aberto</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Valor da Compra</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Status</th><th>Detalhes</th>';
+      const header = '<th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Parcelas em Aberto</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Valor da Compra</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Status</th><th>Ações ' + botaoIncluirDespesaHtml() + '</th>';
       const linhasObj = linhas.map(p => {
         const avista = Number(p.qtd_parcelas) === 1;
         const tipoLabel = avista ? 'À vista' : 'Parcelada';
@@ -1767,7 +1770,7 @@
     function detalhePorDescricao(descricao) {
       ultimoDetalheRefresh = () => detalhePorDescricao(descricao);
       const linhas = ultimaListaCompras.filter(c => c.descricao === descricao);
-      const header = '<th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Parcelas em Aberto</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Valor da Compra</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Detalhes</th>';
+      const header = '<th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Parcelas em Aberto</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Valor da Compra</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Ações ' + botaoIncluirDespesaHtml() + '</th>';
       const linhasObj = linhas.map(c => {
         const avista = Number(c.qtd_parcelas) === 1;
         const tipoLabel = avista ? 'À vista' : 'Parcelada';
@@ -1799,26 +1802,18 @@
     let ultimoDetalheLinhas = [];
     let ultimoDetalheMontarTotal = null;
     let ultimoDetalheColspanVazio = 6;
-    function abrirDetalheModal(titulo, obs, headerHtml, linhas, montarTotalHtml, colspanVazio, tipoIncluir) {
+    function abrirDetalheModal(titulo, obs, headerHtml, linhas, montarTotalHtml, colspanVazio) {
       document.getElementById('tituloModalDetalhe').textContent = titulo;
       document.getElementById('obsModalDetalhe').textContent = obs;
+      // O "+" de incluir já vem embutido no próprio headerHtml (ver
+      // botaoIncluirDespesaHtml/botaoIncluirOrcamentoHtml), então não precisa
+      // de um botão à parte no rodapé pra cada tipo de tabela.
       document.getElementById('cabecalhoDetalhe').innerHTML = headerHtml;
       document.getElementById('filtroDetalhe').value = '';
       ultimoDetalheLinhas = linhas;
       ultimoDetalheMontarTotal = montarTotalHtml;
       ultimoDetalheColspanVazio = colspanVazio || 6;
       desenharCorpoDetalhe(linhas);
-      // Botão "➕ Incluir" do rodapé muda de alvo conforme o tipo de tabela
-      // mostrada -- a maioria dos detalhamentos é de despesa, só o de Orçamento
-      // (chamado com tipoIncluir='orcamento') abre o cadastro de item de orçamento.
-      const btnIncluir = document.getElementById('btnIncluirDetalhe');
-      if (tipoIncluir === 'orcamento') {
-        btnIncluir.textContent = '➕ Novo Item de Orçamento';
-        btnIncluir.onclick = () => abrirModalNovoItemOrcamento();
-      } else {
-        btnIncluir.textContent = '➕ Novo Lançamento de Despesa';
-        btnIncluir.onclick = () => abrirModalCompra();
-      }
       abrirModal('overlayDetalhe');
     }
     function desenharCorpoDetalhe(linhas) {
@@ -1872,6 +1867,15 @@
     function botaoExcluirCadastroHtml(compraId, nome) {
       if (!compraId) return '';
       return '<button class="btn-excluir-cadastro" onclick="event.stopPropagation();excluirCompra(' + compraId + ', \'' + String(nome||'').replace(/'/g,"\\'") + '\')" title="Excluir esta despesa" aria-label="Excluir">🗑</button>';
+    }
+    // "+" de incluir, embutido no cabeçalho "Ações" -- uma função pra cada
+    // tipo de tabela (despesa abre o Lançamento, orçamento abre o Item de
+    // Orçamento), sempre em branco/novo.
+    function botaoIncluirDespesaHtml() {
+      return '<button class="btn-incluir-cadastro" onclick="abrirModalCompra()" title="Novo Lançamento de Despesa" aria-label="Novo Lançamento de Despesa">+</button>';
+    }
+    function botaoIncluirOrcamentoHtml() {
+      return '<button class="btn-incluir-cadastro" onclick="abrirModalNovoItemOrcamento()" title="Novo Item de Orçamento" aria-label="Novo Item de Orçamento">+</button>';
     }
     // Botão "✔" de dar baixa (marcar como paga) direto na linha da tabela.
     // Duas variantes: por COMPRA (tabelas onde uma linha = a compra inteira —
@@ -1988,7 +1992,7 @@
       const anoMes = String(mesIso).slice(0, 7);
       try {
         const linhas = await api('/dashboard/parcelas?mes=' + anoMes + (statusFiltro ? '&status=' + statusFiltro : ''));
-        const header = '<th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Parcelas em Aberto</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Valor da Compra</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Status</th><th>Detalhes</th>';
+        const header = '<th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Parcelas em Aberto</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Valor da Compra</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Status</th><th>Ações ' + botaoIncluirDespesaHtml() + '</th>';
         const linhasObj = linhas.map(l => {
           const avista = Number(l.qtd_parcelas) === 1;
           const tipoLabel = avista ? 'À vista' : 'Parcelada';
@@ -2021,7 +2025,7 @@
       const anoMes = String(mesIso).slice(0, 7);
       try {
         const itens = await api('/orcamento?mes=' + anoMes);
-        const header = '<th>Descrição</th><th class="num">Valor</th><th>Ações</th>';
+        const header = '<th>Descrição</th><th class="num">Valor</th><th>Ações ' + botaoIncluirOrcamentoHtml() + '</th>';
         const linhasObj = itens.map(it => ({
           descricao: it.descricao,
           raw: it,
@@ -2032,7 +2036,7 @@
             '<button class="btn-excluir-cadastro" onclick="excluirItemOrcamentoDeDetalhe(' + it.id + ')" title="Excluir este item de orçamento" aria-label="Excluir">🗑</button></td></tr>',
         }));
         const montarTotal = (ls) => linhaTotal(1, ls.reduce((s,l) => s + Number(l.raw.valor||0), 0), 1);
-        abrirDetalheModal('Orçamento — ' + labelMes(mesIso), 'Itens de orçamento cadastrados para este mês (aba Orçamentos).', header, linhasObj, montarTotal, 3, 'orcamento');
+        abrirDetalheModal('Orçamento — ' + labelMes(mesIso), 'Itens de orçamento cadastrados para este mês (aba Orçamentos).', header, linhasObj, montarTotal, 3);
       } catch (e) { alert('Erro ao carregar detalhamento: ' + e.message); }
     }
     // Clique no card "Orçamento Mês" ou no gráfico "A Pagar x Orçamento" -> comparativo completo do mês.
@@ -2105,7 +2109,7 @@
     function detalheCartao(nomeCartao) {
       ultimoDetalheRefresh = () => detalheCartao(nomeCartao);
       const linhas = filtrarParcelasPorPeriodo('cartaoDe', 'cartaoAte', ultimasParcelasTodas).filter(p => (p.cartao || '-') === nomeCartao);
-      const header = '<th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Parcelas em Aberto</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Valor da Compra</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Status</th><th>Detalhes</th>';
+      const header = '<th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Parcelas em Aberto</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Valor da Compra</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Status</th><th>Ações ' + botaoIncluirDespesaHtml() + '</th>';
       const linhasObj = linhas.map(p => {
         const avista = Number(p.qtd_parcelas) === 1;
         const tipoLabel = avista ? 'À vista' : 'Parcelada';
@@ -2221,7 +2225,7 @@
       ultimoDetalheRefresh = () => detalheTipoDespesa(nomeGrupo, categoria);
       const linhas = filtrarParcelasPorPeriodo('grupoDe', 'grupoAte')
         .filter(p => (p.grupo || 'Sem grupo') === nomeGrupo && (p.categoria || 'Sem tipo') === categoria);
-      const header = '<th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Parcelas em Aberto</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Valor da Compra</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Detalhes</th>';
+      const header = '<th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Parcelas em Aberto</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Valor da Compra</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Ações ' + botaoIncluirDespesaHtml() + '</th>';
       const linhasObj = linhas.map(p => {
         const avista = Number(p.qtd_parcelas) === 1;
         const tipoLabel = avista ? 'À vista' : 'Parcelada';
@@ -2249,7 +2253,7 @@
       ultimoDetalheRefresh = () => detalheStatus(status);
       try {
         const linhas = await api('/dashboard/parcelas?status=' + status);
-        const header = '<th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Parcelas em Aberto</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Valor da Compra</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Detalhes</th>';
+        const header = '<th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Parcelas em Aberto</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Valor da Compra</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Ações ' + botaoIncluirDespesaHtml() + '</th>';
         const linhasObj = linhas.map(l => {
           const avista = Number(l.qtd_parcelas) === 1;
           const tipoLabel = avista ? 'À vista' : 'Parcelada';
