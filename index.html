@@ -185,6 +185,11 @@
        por isso fica num z-index maior que os outros overlays, garantindo que
        apareça por CIMA quando os dois estiverem abertos ao mesmo tempo. */
     #overlayDetalhe { z-index:160; }
+    /* #overlayCompra é o nível "mais interno de todos" -- Editar/Replicar (ver
+       botaoEditarCadastroHtml/botaoReplicarHtml) abrem ele SEM fechar a
+       tabela/gráfico de onde foram chamados, então Cancelar/"x"/ESC aqui volta
+       pra essa tabela em vez de ir pro Dashboard. Só o "🏠 Início" fecha tudo. */
+    #overlayCompra { z-index:170; }
     .modal { background:#fff; border-radius:12px; width:100%; max-width:520px; padding:24px 26px; box-shadow:0 10px 40px rgba(0,0,0,.2); position:relative; min-width:0; }
     .tabela-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; overscroll-behavior-x:contain; }
     /* Cabeçalho fixo: gruda no topo da própria caixa de rolagem (.tabela-scroll)
@@ -2460,14 +2465,10 @@
         document.getElementById('c_data').value = String(c.data_compra).slice(0,10);
         document.getElementById('c_obs').value = c.observacoes || '';
         atualizarAvisoVencimento('c');
-        // Fecha qualquer modal de detalhamento/parcelas por trás -- o "✎" de
-        // editar cadastro chama esta mesma função de dentro deles (ver
-        // botaoEditarCadastroHtml), e sem fechar primeiro o de detalhamento
-        // (que vem depois no HTML) ficava por cima, escondendo o formulário.
-        fecharModal('overlayDetalhe');
-        fecharModal('overlayComparativo');
-        fecharModal('overlayGraficoTipo');
-        fecharModal('overlayParcelas');
+        // NÃO fecha a tabela/modal de onde o "✎" foi clicado (ver
+        // botaoEditarCadastroHtml) -- #overlayCompra tem z-index maior (ver
+        // CSS), então abre por CIMA dela. Cancelar/"x"/ESC aqui fecham só
+        // este formulário e voltam pra essa tabela; só o "🏠 Início" fecha tudo.
         abrirModal('overlayCompra');
       } catch (e) { alert('Não consegui abrir o lançamento: ' + e.message); }
     }
@@ -2489,14 +2490,9 @@
         document.getElementById('c_data').value = String(c.data_compra).slice(0,10);
         document.getElementById('c_obs').value = c.observacoes || '';
         atualizarAvisoVencimento('c');
-        // Fecha qualquer modal de detalhamento/parcelas que possa estar aberto por
-        // trás -- o Replicar é chamado de várias tabelas dentro desses modais, e
-        // sem fechar primeiro o de detalhamento (que vem depois no HTML) ficava
-        // por cima, escondendo o de Lançamento mesmo já aberto.
-        fecharModal('overlayDetalhe');
-        fecharModal('overlayComparativo');
-        fecharModal('overlayGraficoTipo');
-        fecharModal('overlayParcelas');
+        // NÃO fecha a tabela/modal de onde o "⧉" foi clicado -- mesma lógica
+        // do editarLancamento acima: #overlayCompra abre por CIMA (z-index
+        // maior), e Cancelar/"x"/ESC voltam pra essa tabela, não pro Dashboard.
         abrirModal('overlayCompra');
       } catch (e) { alert('Não consegui replicar o lançamento: ' + e.message); }
     }
