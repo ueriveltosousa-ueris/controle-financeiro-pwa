@@ -267,15 +267,17 @@ function gerarParcelas(compraId, valorTotalCentavos, qtdParcelas, primeiroVencim
   }
 }
 
-async function criarCompra({ descricao, cartao_id, categoria_id, grupo_despesa_id, valor_total, qtd_parcelas, data_primeira_parcela, observacoes }) {
-  if (!descricao || !cartao_id || !valor_total || !qtd_parcelas || !data_primeira_parcela) {
-    throw new Error('Campos obrigatórios: descricao, cartao_id, valor_total, qtd_parcelas, data_primeira_parcela');
+// data_vencimento é o vencimento da 1ª parcela já resolvido pelo formulário
+// (sugerido a partir da forma de pagamento, mas editável pelo usuário) --
+// esta função não recalcula nada, só usa o valor recebido. Isso é o que
+// permite ajustar o vencimento de uma despesa específica sem tocar no
+// dia_vencimento cadastrado na forma de pagamento.
+async function criarCompra({ descricao, cartao_id, categoria_id, grupo_despesa_id, valor_total, qtd_parcelas, data_primeira_parcela, data_vencimento, observacoes }) {
+  if (!descricao || !cartao_id || !valor_total || !qtd_parcelas || !data_primeira_parcela || !data_vencimento) {
+    throw new Error('Campos obrigatórios: descricao, cartao_id, valor_total, qtd_parcelas, data_primeira_parcela, data_vencimento');
   }
 
   const resultado = transacao(() => {
-    const cartao = primeiraLinha('SELECT dia_vencimento FROM formas_pagamento WHERE id = ?', [cartao_id]);
-    const diaVencimentoCartao = cartao ? cartao.dia_vencimento : null;
-    const primeiroVencimento = calcularPrimeiroVencimento(data_primeira_parcela, diaVencimentoCartao);
     const valorTotalCentavos = paraCentavos(valor_total);
 
     executar(`INSERT INTO compras (descricao, cartao_id, categoria_id, grupo_despesa_id, valor_total_centavos, qtd_parcelas, data_compra, observacoes)
@@ -283,32 +285,34 @@ async function criarCompra({ descricao, cartao_id, categoria_id, grupo_despesa_i
       [descricao, cartao_id, categoria_id || null, grupo_despesa_id || null, valorTotalCentavos, qtd_parcelas, data_primeira_parcela, observacoes || null]);
     const compraId = ultimoIdInserido();
 
-    gerarParcelas(compraId, valorTotalCentavos, qtd_parcelas, primeiroVencimento);
-    return { compraId, primeiroVencimento };
+    gerarParcelas(compraId, valorTotalCentavos, qtd_parcelas, data_vencimento);
+    return { compraId };
   });
 
   await salvarBanco();
   return {
     id: resultado.compraId,
-    mensagem: `Compra criada com ${qtd_parcelas} parcela(s) gerada(s). 1ª parcela vence em ${resultado.primeiroVencimento}.`,
+    mensagem: `Compra criada com ${qtd_parcelas} parcela(s) gerada(s). 1ª parcela vence em ${data_vencimento}.`,
   };
 }
 
-async function atualizarCompra(id, { descricao, cartao_id, categoria_id, grupo_despesa_id, valor_total, qtd_parcelas, data_primeira_parcela, observacoes }) {
+async function atualizarCompra(id, { descricao, cartao_id, categoria_id, grupo_despesa_id, valor_total, qtd_parcelas, data_primeira_parcela, data_vencimento, observacoes }) {
   id = Number(id);
-  if (!descricao || !cartao_id || !valor_total || !qtd_parcelas || !data_primeira_parcela) {
-    throw new Error('Campos obrigatórios: descricao, cartao_id, valor_total, qtd_parcelas, data_primeira_parcela');
+  if (!descricao || !cartao_id || !valor_total || !qtd_parcelas || !data_primeira_parcela || !data_vencimento) {
+    throw new Error('Campos obrigatórios: descricao, cartao_id, valor_total, qtd_parcelas, data_primeira_parcela, data_vencimento');
   }
 
   const atual = primeiraLinha('SELECT valor_total_centavos, qtd_parcelas, cartao_id, data_compra FROM compras WHERE id = ?', [id]);
   if (!atual) throw new Error('Compra não encontrada');
+  const primeiraParcelaAtual = primeiraLinha('SELECT data_vencimento FROM parcelas WHERE compra_id = ? ORDER BY num_parcela LIMIT 1', [id]);
 
   const valorTotalCentavos = paraCentavos(valor_total);
   const precisaRecriar =
     atual.valor_total_centavos !== valorTotalCentavos ||
     Number(atual.qtd_parcelas) !== Number(qtd_parcelas) ||
     Number(atual.cartao_id) !== Number(cartao_id) ||
-    atual.data_compra !== data_primeira_parcela;
+    atual.data_compra !== data_primeira_parcela ||
+    !primeiraParcelaAtual || primeiraParcelaAtual.data_vencimento !== data_vencimento;
 
   transacao(() => {
     executar(`UPDATE compras SET descricao = ?, cartao_id = ?, categoria_id = ?, grupo_despesa_id = ?, valor_total_centavos = ?,
@@ -316,12 +320,8 @@ async function atualizarCompra(id, { descricao, cartao_id, categoria_id, grupo_d
       [descricao, cartao_id, categoria_id || null, grupo_despesa_id || null, valorTotalCentavos, qtd_parcelas, data_primeira_parcela, observacoes || null, id]);
 
     if (precisaRecriar) {
-      const cartao = primeiraLinha('SELECT dia_vencimento FROM formas_pagamento WHERE id = ?', [cartao_id]);
-      const diaVencimentoCartao = cartao ? cartao.dia_vencimento : null;
-      const primeiroVencimento = calcularPrimeiroVencimento(data_primeira_parcela, diaVencimentoCartao);
-
       executar('DELETE FROM parcelas WHERE compra_id = ?', [id]);
-      gerarParcelas(id, valorTotalCentavos, qtd_parcelas, primeiroVencimento);
+      gerarParcelas(id, valorTotalCentavos, qtd_parcelas, data_vencimento);
     }
   });
 

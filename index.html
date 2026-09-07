@@ -724,11 +724,12 @@
         </div>
         Se a forma de pagamento não tiver dia de vencimento configurado (ex.: PIX, Dinheiro), o vencimento vira a própria <b>data da compra</b> que você digitar.<br>
         A "Data da compra" é só uma referência sua — nunca muda nenhuma conta.<br>
+        A <b>Data de Vencimento</b> abaixo já vem preenchida com esse cálculo, mas você pode alterá-la à vontade — a mudança vale só para esta despesa e não mexe no dia de vencimento cadastrado na forma de pagamento.<br>
         <b>Grupo de Despesa</b> e <b>Tipo de Despesa</b> são opcionais e totalmente independentes entre si — cada um tem sua própria lista (cadastradas na aba "Despesas") e você escolhe os dois separadamente aqui, sem um depender do outro.
       </div>
-      <div class="aviso-edicao" id="avisoCompra">⚠️ Alterar o <b>valor</b>, o <b>nº de parcelas</b>, a <b>data da compra</b> ou a <b>forma de pagamento</b> recria as parcelas (o controle de pagamento recomeça). Mudar só descrição não mexe nas parcelas.</div>
+      <div class="aviso-edicao" id="avisoCompra">⚠️ Alterar o <b>valor</b>, o <b>nº de parcelas</b>, a <b>data da compra</b>, a <b>data de vencimento</b> ou a <b>forma de pagamento</b> recria as parcelas (o controle de pagamento recomeça). Mudar só descrição não mexe nas parcelas.</div>
       <div class="campo"><label>Descrição <span class="obrig">*</span></label><input type="text" id="c_descricao" placeholder="Ex.: TV 55 polegadas, Abastecimento..." /></div>
-      <div class="campo"><label>Forma de Pagamento <span class="obrig">*</span> <button type="button" class="btn-cadastro-rapido" onclick="irParaCadastroFormaPagamento()" title="Cadastrar nova forma de pagamento" aria-label="Cadastrar nova forma de pagamento">+</button></label><select id="c_cartao" onchange="atualizarAvisoVencimento('c')"></select><div class="dica" id="c_aviso_vencimento" style="display:none;color:#9C6500;"></div></div>
+      <div class="campo"><label>Forma de Pagamento <span class="obrig">*</span> <button type="button" class="btn-cadastro-rapido" onclick="irParaCadastroFormaPagamento()" title="Cadastrar nova forma de pagamento" aria-label="Cadastrar nova forma de pagamento">+</button></label><select id="c_cartao" onchange="atualizarAvisoVencimento('c'); atualizarVencimentoSugerido();"></select><div class="dica" id="c_aviso_vencimento" style="display:none;color:#9C6500;"></div></div>
       <div class="linha2">
         <div class="campo"><label>Grupo de Despesa <button type="button" class="btn-cadastro-rapido" onclick="irParaCadastroGrupo()" title="Cadastrar novo Grupo de Despesa" aria-label="Cadastrar novo Grupo de Despesa">+</button></label><select id="c_grupo"></select></div>
         <div class="campo"><label>Tipo de Despesa <button type="button" class="btn-cadastro-rapido" onclick="irParaCadastroTipo()" title="Cadastrar novo Tipo de Despesa" aria-label="Cadastrar novo Tipo de Despesa">+</button></label><select id="c_categoria"></select></div>
@@ -737,7 +738,8 @@
         <div class="campo"><label>Valor total <span class="obrig">*</span></label><input type="text" id="c_valor" inputmode="decimal" placeholder="3500,00" /><div class="dica">Use vírgula para os centavos.</div></div>
         <div class="campo"><label>Nº de parcelas <span class="obrig">*</span></label><input type="number" id="c_parcelas" min="1" value="1" /><div class="dica">1 = à vista. 2 ou mais = parcelado.</div></div>
       </div>
-      <div class="campo"><label>Data da compra <span class="obrig">*</span></label><input type="date" id="c_data" /><div class="dica">Apenas referência — não afeta o cálculo. O vencimento da 1ª parcela usa o dia de vencimento configurado na aba "Despesas" (se a forma de pagamento não tiver vencimento configurado, usa esta data).</div></div>
+      <div class="campo"><label>Data da compra <span class="obrig">*</span></label><input type="date" id="c_data" onchange="atualizarVencimentoSugerido()" /><div class="dica">Apenas referência — não afeta o cálculo. O vencimento sugerido abaixo usa o dia configurado na forma de pagamento (aba "Despesas"); se ela não tiver vencimento configurado, usa esta data.</div></div>
+      <div class="campo"><label>Data de Vencimento <span class="obrig">*</span></label><input type="date" id="c_vencimento" onchange="marcarVencimentoCompraEditadoManualmente()" /><div class="dica">Sugerida automaticamente a partir da forma de pagamento — pode ajustar se precisar. Vale só para esta despesa; não muda o vencimento cadastrado na forma de pagamento.</div></div>
       <div class="campo"><label>Observações</label><input type="text" id="c_obs" placeholder="(opcional)" /></div>
       <div class="modal-rodape">
         <button class="btn btn-cinza" id="btnCancelarCompra" onclick="fecharModal('overlayCompra')">Cancelar</button>
@@ -1474,6 +1476,24 @@
       } else {
         aviso.style.display = 'none';
       }
+    }
+
+    // Campo "Data de Vencimento" do Lançamento: começa sugerido (mesma conta
+    // de sempre -- data da compra + dia de vencimento da forma de pagamento),
+    // mas o usuário pode digitar outra data por cima. Enquanto ele não mexer
+    // nesse campo, trocar a forma de pagamento ou a data da compra continua
+    // atualizando a sugestão; assim que ele edita manualmente, a sugestão para
+    // de sobrescrever o que ele digitou (até abrir o formulário de novo).
+    let vencimentoCompraEditadoManualmente = false;
+    function atualizarVencimentoSugerido() {
+      if (vencimentoCompraEditadoManualmente) return;
+      const dataCompra = document.getElementById('c_data').value;
+      if (!dataCompra) return;
+      const cartao = cartoes.find(c => String(c.id) === String(document.getElementById('c_cartao').value));
+      document.getElementById('c_vencimento').value = calcularPrimeiroVencimento(dataCompra, cartao ? cartao.dia_vencimento : null);
+    }
+    function marcarVencimentoCompraEditadoManualmente() {
+      vencimentoCompraEditadoManualmente = true;
     }
 
     // Renderiza os 2 cards do topo do Dashboard ("Despesas Totais" foi cancelado
@@ -2777,7 +2797,7 @@
         await carregarTudo();
         if (cadastroRapidoTipo === 'grupo') document.getElementById('c_grupo').value = criado.id;
         else if (cadastroRapidoTipo === 'tipo') document.getElementById('c_categoria').value = criado.id;
-        else { document.getElementById('c_cartao').value = criado.id; atualizarAvisoVencimento('c'); }
+        else { document.getElementById('c_cartao').value = criado.id; atualizarAvisoVencimento('c'); atualizarVencimentoSugerido(); }
         fecharModal('overlayCadastroRapido');
       } catch (e) { alert('Erro ao cadastrar: ' + e.message); }
     }
@@ -2788,7 +2808,7 @@
     // abre pra criar/editar/replicar de verdade, pra não ficar travado dos
     // usos anteriores.
     function aplicarModoVisualizacaoCompra(somenteLeitura) {
-      ['c_descricao','c_cartao','c_grupo','c_categoria','c_valor','c_parcelas','c_data','c_obs'].forEach((id) => {
+      ['c_descricao','c_cartao','c_grupo','c_categoria','c_valor','c_parcelas','c_data','c_vencimento','c_obs'].forEach((id) => {
         document.getElementById(id).disabled = somenteLeitura;
       });
       document.querySelectorAll('#overlayCompra .btn-cadastro-rapido').forEach((b) => { b.style.display = somenteLeitura ? 'none' : ''; });
@@ -2810,6 +2830,8 @@
       document.getElementById('c_data').value = hojeLocal();
       document.getElementById('c_obs').value = '';
       atualizarAvisoVencimento('c');
+      vencimentoCompraEditadoManualmente = false;
+      atualizarVencimentoSugerido();
       aplicarModoVisualizacaoCompra(false);
       abrirModal('overlayCompra');
     }
@@ -2823,9 +2845,10 @@
         valor_total: valor,
         qtd_parcelas: Number(document.getElementById('c_parcelas').value),
         data_primeira_parcela: document.getElementById('c_data').value,
+        data_vencimento: document.getElementById('c_vencimento').value,
         observacoes: document.getElementById('c_obs').value.trim() || null,
       };
-      if (!corpo.descricao || !corpo.cartao_id || !valor || valor <= 0 || !corpo.qtd_parcelas || corpo.qtd_parcelas < 1 || !corpo.data_primeira_parcela) {
+      if (!corpo.descricao || !corpo.cartao_id || !valor || valor <= 0 || !corpo.qtd_parcelas || corpo.qtd_parcelas < 1 || !corpo.data_primeira_parcela || !corpo.data_vencimento) {
         alert('Preencha os campos obrigatórios (marcados com *) corretamente.'); return;
       }
       const b = document.getElementById('btnSalvarCompra'); b.disabled = true; b.textContent = 'Salvando...';
@@ -2851,6 +2874,8 @@
         document.getElementById('c_valor').value = paraCampoValor(c.valor_total);
         document.getElementById('c_parcelas').value = c.qtd_parcelas;
         document.getElementById('c_data').value = String(c.data_compra).slice(0,10);
+        document.getElementById('c_vencimento').value = (c.parcelas && c.parcelas[0]) ? String(c.parcelas[0].data_vencimento).slice(0,10) : '';
+        vencimentoCompraEditadoManualmente = false;
         document.getElementById('c_obs').value = c.observacoes || '';
         atualizarAvisoVencimento('c');
         aplicarModoVisualizacaoCompra(false);
@@ -2877,6 +2902,8 @@
         document.getElementById('c_valor').value = paraCampoValor(c.valor_total);
         document.getElementById('c_parcelas').value = c.qtd_parcelas;
         document.getElementById('c_data').value = String(c.data_compra).slice(0,10);
+        document.getElementById('c_vencimento').value = (c.parcelas && c.parcelas[0]) ? String(c.parcelas[0].data_vencimento).slice(0,10) : '';
+        vencimentoCompraEditadoManualmente = false;
         document.getElementById('c_obs').value = c.observacoes || '';
         atualizarAvisoVencimento('c');
         aplicarModoVisualizacaoCompra(false);
@@ -2901,6 +2928,8 @@
         document.getElementById('c_valor').value = paraCampoValor(c.valor_total);
         document.getElementById('c_parcelas').value = c.qtd_parcelas;
         document.getElementById('c_data').value = String(c.data_compra).slice(0,10);
+        document.getElementById('c_vencimento').value = (c.parcelas && c.parcelas[0]) ? String(c.parcelas[0].data_vencimento).slice(0,10) : '';
+        vencimentoCompraEditadoManualmente = false;
         document.getElementById('c_obs').value = c.observacoes || '';
         atualizarAvisoVencimento('c');
         aplicarModoVisualizacaoCompra(true);
