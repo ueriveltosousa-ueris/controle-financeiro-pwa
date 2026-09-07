@@ -190,6 +190,10 @@
        tabela/gráfico de onde foram chamados, então Cancelar/"x"/ESC aqui volta
        pra essa tabela em vez de ir pro Dashboard. Só o "🏠 Início" fecha tudo. */
     #overlayCompra { z-index:170; }
+    /* Mesmo nível do #overlayCompra e pelo mesmo motivo -- abre por cima do
+       detalhamento de Orçamento (ver replicarItemOrcamentoDeDetalhe) sem
+       fechá-lo, então Cancelar/"x"/ESC voltam pra ele. */
+    #overlayReplicarOrcamento { z-index:170; }
     .modal { background:#fff; border-radius:12px; width:100%; max-width:520px; padding:24px 26px; box-shadow:0 10px 40px rgba(0,0,0,.2); position:relative; min-width:0; }
     .tabela-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; overscroll-behavior-x:contain; }
     /* Cabeçalho fixo: gruda no topo da própria caixa de rolagem (.tabela-scroll)
@@ -667,6 +671,27 @@
       <div class="modal-rodape">
         <button class="btn btn-cinza" onclick="fecharModal('overlayCompra')">Cancelar</button>
         <button class="btn btn-verde" id="btnSalvarCompra" onclick="salvarCompra()">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL REPLICAR ITEM DE ORÇAMENTO (chamado de dentro do detalhamento do Dashboard) -->
+  <div class="overlay" id="overlayReplicarOrcamento">
+    <div class="modal">
+      <button class="modal-x" onclick="fecharModal('overlayReplicarOrcamento')" aria-label="Fechar">✕</button>
+      <div class="titulo-modal-linha">
+        <h3 style="margin:0;">Replicar Item de Orçamento</h3>
+        <div class="atalhos-cadastro">
+          <button class="atalho-cadastro" onclick="irParaInicio()" title="Ir para o Início (Dashboard)"><span class="icone">🏠</span><span class="rotulo">Início</span></button>
+        </div>
+      </div>
+      <div class="obs-topo">Cria um novo item de orçamento com estes dados — o original não é alterado.</div>
+      <div class="campo"><label>Mês <span class="obrig">*</span></label><input type="month" id="ro_mes" /></div>
+      <div class="campo"><label>Descrição <span class="obrig">*</span></label><input type="text" id="ro_descricao" placeholder="Ex.: Salário, Vendas, Comissões..." /></div>
+      <div class="campo"><label>Valor <span class="obrig">*</span></label><input type="text" id="ro_valor" inputmode="decimal" placeholder="4000,00" /><div class="dica">Use vírgula para os centavos.</div></div>
+      <div class="modal-rodape">
+        <button class="btn btn-cinza" onclick="fecharModal('overlayReplicarOrcamento')">Cancelar</button>
+        <button class="btn btn-verde" id="btnSalvarReplicarOrcamento" onclick="salvarReplicarOrcamento()">Salvar</button>
       </div>
     </div>
   </div>
@@ -1157,11 +1182,30 @@
       document.getElementById('orc_novo_valor').value = paraCampoValor(valor);
       document.getElementById('orc_nova_descricao').focus();
     }
-    // Mesma coisa, mas chamado de fora da aba Orçamentos (ex.: detalhamento do
-    // gráfico de Projeção) -- troca de aba primeiro pra depois preencher os campos.
-    function replicarItemOrcamentoDeDetalhe(descricao, valor) {
-      irParaCadastro('orcamentos');
-      replicarItemOrcamento(descricao, valor);
+    // Chamado de dentro do modal de detalhamento (Dashboard) -- NÃO navega pra
+    // aba Orçamentos nem fecha o modal de detalhamento: abre um modalzinho
+    // próprio por CIMA dele (mesmo z-index do #overlayCompra), pra Cancelar/
+    // "x"/ESC voltarem pro detalhamento em vez de irem direto pro Dashboard.
+    function replicarItemOrcamentoDeDetalhe(descricao, valor, anoMesOrigem) {
+      document.getElementById('ro_mes').value = anoMesOrigem || document.getElementById('orcamentoMesSelecionado').value || new Date().toISOString().slice(0,7);
+      document.getElementById('ro_descricao').value = descricao;
+      document.getElementById('ro_valor').value = paraCampoValor(valor);
+      abrirModal('overlayReplicarOrcamento');
+    }
+    async function salvarReplicarOrcamento() {
+      const mes = document.getElementById('ro_mes').value;
+      const descricao = document.getElementById('ro_descricao').value.trim();
+      const valor = parseValor(document.getElementById('ro_valor').value);
+      if (!mes) { alert('Escolha o mês.'); return; }
+      if (!descricao) { alert('Digite uma descrição.'); return; }
+      if (isNaN(valor) || valor < 0) { alert('Digite um valor válido.'); return; }
+      try {
+        await api('/orcamento', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ano_mes: mes, descricao, valor }) });
+        fecharModal('overlayReplicarOrcamento');
+        await carregarOrcamentosTab();
+        await carregarTudo();
+        await atualizarModalDetalheAberto();
+      } catch (e) { alert('Erro ao replicar: ' + e.message); }
     }
     async function editarItemOrcamento(id, descricaoAtual, valorAtual) {
       const novaDescricao = prompt('Descrição:', descricaoAtual);
@@ -1941,7 +1985,7 @@
           busca: montarBusca(it.descricao, brl(it.valor)),
           html: '<tr><td>' + it.descricao + '</td><td class="num">' + brl(it.valor) + '</td>' +
             '<td><button class="btn-editar-cadastro" onclick="editarItemOrcamentoDeDetalhe(' + it.id + ', \'' + String(it.descricao||'').replace(/'/g,"\\'") + '\', ' + it.valor + ')" title="Editar cadastro — edita este item de Orçamento" aria-label="Editar cadastro">✎</button> ' +
-            '<button class="btn-replicar" onclick="replicarItemOrcamentoDeDetalhe(\'' + String(it.descricao||'').replace(/'/g,"\\'") + '\', ' + it.valor + ')" title="Replicar — abre o cadastro de Orçamentos com estes dados" aria-label="Replicar">⧉</button></td></tr>',
+            '<button class="btn-replicar" onclick="replicarItemOrcamentoDeDetalhe(\'' + String(it.descricao||'').replace(/'/g,"\\'") + '\', ' + it.valor + ', \'' + anoMes + '\')" title="Replicar — cria um novo item de orçamento com estes dados" aria-label="Replicar">⧉</button></td></tr>',
         }));
         const montarTotal = (ls) => linhaTotal(1, ls.reduce((s,l) => s + Number(l.raw.valor||0), 0), 1);
         abrirDetalheModal('Orçamento — ' + labelMes(mesIso), 'Itens de orçamento cadastrados para este mês (aba Orçamentos).', header, linhasObj, montarTotal, 3);
@@ -2388,6 +2432,7 @@
       fecharModal('overlayGraficoTipo');
       fecharModal('overlayCompra');
       fecharModal('overlayParcelas');
+      fecharModal('overlayReplicarOrcamento');
       trocarAba(aba);
     }
     // Botão "🏠 Início" -- presente em todo modal/formulário do sistema (é o
