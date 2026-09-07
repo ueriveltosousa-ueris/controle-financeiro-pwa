@@ -852,15 +852,11 @@
         </table>
       </div>
       <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:10px;">
-        <div class="campo" style="margin-bottom:0;">
-          <label>De</label>
-          <input type="month" id="compGastosDe" onchange="compGastosFiltroAlterado()" style="width:150px;" />
+        <div class="campo" style="margin-bottom:0;max-width:360px;flex:1;">
+          <label>Pesquisar (qualquer coluna: descrição, despesa, categoria, valor...)</label>
+          <input type="text" id="compGastosFiltro" placeholder="Digite para filtrar..." oninput="aplicarFiltroCompGastos()" />
         </div>
-        <div class="campo" style="margin-bottom:0;">
-          <label>Até</label>
-          <input type="month" id="compGastosAte" onchange="compGastosFiltroAlterado()" style="width:150px;" />
-        </div>
-        <button class="btn btn-cinza" onclick="limparFiltroCompGastos()">Ver tudo</button>
+        <button class="btn btn-cinza" onclick="document.getElementById('compGastosFiltro').value='';aplicarFiltroCompGastos();">Limpar</button>
       </div>
       <div class="tabela-scroll" style="max-height:420px;overflow-y:auto;">
         <table class="tabela-parcelas">
@@ -2230,47 +2226,55 @@
             '<tr style="font-weight:700;background:#f0f4fa;"><td>Subtotal</td><td class="num">' + brl(totalOrc) + '</td><td></td></tr>'
           : '<tr><td colspan="3" style="text-align:center;color:#888;">Nenhum item cadastrado (aba Orçamentos).</td></tr>';
 
-        // A tabela "Gastos do Mês" tem filtro De/Até PRÓPRIO (igual às demais
-        // tabelas do sistema) -- começa alinhada com o mês deste comparativo,
-        // mas o usuário pode alargar/trocar o período sem afetar o gráfico
-        // Orçamento x Gastos nem o Saldo acima (que continuam fixos no mês
-        // escolhido no card/gráfico que abriu este modal).
-        document.getElementById('compGastosDe').value = anoMes;
-        document.getElementById('compGastosAte').value = anoMes;
-        renderGastosComparativo();
+        // A tabela "Gastos do Mês" continua mostrando só as parcelas deste
+        // mês (mesma lista usada no gráfico/Saldo acima) -- o filtro abaixo é
+        // busca por texto em qualquer coluna (mesmo padrão do "Resumo por
+        // compra" e do detalhamento por gráfico), não um filtro de período.
+        renderGastosComparativo(parcelas);
 
         abrirModal('overlayComparativo');
       } catch (e) { alert('Erro ao carregar comparativo: ' + e.message); }
     }
-    // Desenha (ou redesenha, quando o filtro De/Até muda) só a tabela "Gastos
-    // do Mês" do Comparativo -- lê o filtro client-side (mesmo esquema das
-    // outras tabelas: filtrarParcelasPorPeriodo contra ultimasParcelasTodas,
-    // que já tem pagas e pendentes) em vez do total fixo vindo da API.
-    function renderGastosComparativo() {
-      const parcelas = filtrarParcelasPorPeriodo('compGastosDe', 'compGastosAte', ultimasParcelasTodas);
-      const totalGastos = parcelas.reduce((s, l) => s + Number(l.valor||0), 0);
-      document.getElementById('corpoComparativoGastos').innerHTML = parcelas.length
-        ? parcelas.map(l => {
-            const avista = Number(l.qtd_parcelas) === 1;
-            const tipoBadge = avista ? '<span class="badge avista">À vista</span>' : '<span class="badge parcelada">Parcelada</span>';
-            const emAberto = Math.max(Number(l.qtd_parcelas||0)-Number(l.qtd_parcelas_pagas||0),0);
-            const situBadge = Number(l.saldo_aberto||0) <= 0 ? '<span class="badge quitada">Quitada</span>' : '<span class="badge aberto">Em Aberto</span>';
-            return '<tr><td>' + l.descricao + '</td><td>' + tipoBadge + '</td><td>' + (l.cartao||'-') + '</td><td>' + (l.categoria||'-') + '</td>' +
-              '<td>' + l.num_parcela + '/' + l.qtd_parcelas + '</td><td>' + (l.qtd_parcelas_pagas||0) + '</td><td>' + emAberto + '</td>' +
-              '<td>' + formatarData(l.data_compra) + '</td><td>' + formatarData(l.data_vencimento) + '</td>' +
-              '<td class="num">' + brl(l.valor_total) + '</td><td class="num">' + brl(l.valor) + '</td>' +
-              '<td class="num">' + brl(l.saldo_aberto) + '</td><td>' + situBadge + '</td><td>' + badgeStatusParcela(l.status) + '</td>' +
-              '<td>' + botaoDetalheCadastroHtml(l.compra_id) + ' ' + botaoVisualizarDespesaHtml(l.compra_id) + ' ' + botaoEditarCadastroHtml(l.compra_id) + ' ' + botaoReplicarHtml(l.compra_id) + ' ' + botaoExcluirCadastroHtml(l.compra_id, l.descricao) + ' ' + botaoBaixaParcelaHtml(l.parcela_id, l.status === 'Pago') + ' ' + botaoIncluirDespesaHtml() + '</td></tr>';
-          }).join('') +
-          '<tr style="font-weight:700;background:#f0f4fa;"><td colspan="10">Subtotal</td><td class="num">' + brl(totalGastos) + '</td><td colspan="4"></td></tr>'
-        : '<tr><td colspan="15" style="text-align:center;color:#888;">Nenhuma parcela neste período.</td></tr>';
+    // Monta as linhas da tabela "Gastos do Mês" do Comparativo a partir das
+    // parcelas do mês (pagas e pendentes) e já deixa pronto o campo "busca"
+    // de cada linha, pra filtro de texto por qualquer coluna.
+    let ultimoComparativoGastosLinhas = [];
+    function renderGastosComparativo(parcelas) {
+      ultimoComparativoGastosLinhas = parcelas.map(l => {
+        const avista = Number(l.qtd_parcelas) === 1;
+        const tipoLabel = avista ? 'À vista' : 'Parcelada';
+        const tipoBadge = avista ? '<span class="badge avista">À vista</span>' : '<span class="badge parcelada">Parcelada</span>';
+        const emAberto = Math.max(Number(l.qtd_parcelas||0)-Number(l.qtd_parcelas_pagas||0),0);
+        const situacao = Number(l.saldo_aberto||0) <= 0 ? 'Quitada' : 'Em Aberto';
+        const situBadge = situacao === 'Quitada' ? '<span class="badge quitada">Quitada</span>' : '<span class="badge aberto">Em Aberto</span>';
+        return {
+          valor: Number(l.valor||0),
+          busca: montarBusca(l.descricao, tipoLabel, l.cartao, l.categoria, l.num_parcela+'/'+l.qtd_parcelas, l.qtd_parcelas_pagas||0, emAberto, formatarData(l.data_compra), formatarData(l.data_vencimento), brl(l.valor_total), brl(l.valor), brl(l.saldo_aberto), situacao, l.status === 'Pago' ? 'Pago' : 'Pendente'),
+          html: '<tr><td>' + l.descricao + '</td><td>' + tipoBadge + '</td><td>' + (l.cartao||'-') + '</td><td>' + (l.categoria||'-') + '</td>' +
+            '<td>' + l.num_parcela + '/' + l.qtd_parcelas + '</td><td>' + (l.qtd_parcelas_pagas||0) + '</td><td>' + emAberto + '</td>' +
+            '<td>' + formatarData(l.data_compra) + '</td><td>' + formatarData(l.data_vencimento) + '</td>' +
+            '<td class="num">' + brl(l.valor_total) + '</td><td class="num">' + brl(l.valor) + '</td>' +
+            '<td class="num">' + brl(l.saldo_aberto) + '</td><td>' + situBadge + '</td><td>' + badgeStatusParcela(l.status) + '</td>' +
+            '<td>' + botaoDetalheCadastroHtml(l.compra_id) + ' ' + botaoVisualizarDespesaHtml(l.compra_id) + ' ' + botaoEditarCadastroHtml(l.compra_id) + ' ' + botaoReplicarHtml(l.compra_id) + ' ' + botaoExcluirCadastroHtml(l.compra_id, l.descricao) + ' ' + botaoBaixaParcelaHtml(l.parcela_id, l.status === 'Pago') + ' ' + botaoIncluirDespesaHtml() + '</td></tr>',
+        };
+      });
+      document.getElementById('compGastosFiltro').value = '';
+      desenharCorpoComparativoGastos(ultimoComparativoGastosLinhas);
     }
-    // onchange dos campos De/Até e botão "Ver tudo" da tabela Gastos do Mês.
-    function compGastosFiltroAlterado() { renderGastosComparativo(); }
-    function limparFiltroCompGastos() {
-      document.getElementById('compGastosDe').value = '';
-      document.getElementById('compGastosAte').value = '';
-      renderGastosComparativo();
+    function desenharCorpoComparativoGastos(linhas) {
+      const totalGastos = linhas.reduce((s, l) => s + l.valor, 0);
+      document.getElementById('corpoComparativoGastos').innerHTML = linhas.length
+        ? linhas.map(l => l.html).join('') +
+          '<tr style="font-weight:700;background:#f0f4fa;"><td colspan="10">Subtotal</td><td class="num">' + brl(totalGastos) + '</td><td colspan="4"></td></tr>'
+        : '<tr><td colspan="15" style="text-align:center;color:#888;">Nenhuma parcela neste mês.</td></tr>';
+    }
+    // Filtro de texto livre da tabela "Gastos do Mês" (mesmo padrão das
+    // outras tabelas): casa contra QUALQUER coluna visível da linha, e o
+    // Subtotal do rodapé recalcula só com o que sobrou do filtro.
+    function aplicarFiltroCompGastos() {
+      const termo = (document.getElementById('compGastosFiltro').value || '').trim().toLowerCase();
+      if (!termo) { desenharCorpoComparativoGastos(ultimoComparativoGastosLinhas); return; }
+      desenharCorpoComparativoGastos(ultimoComparativoGastosLinhas.filter(l => l.busca.includes(termo)));
     }
     // Clique numa barra do gráfico Forma de Pagamento -> lista TODAS as parcelas
     // (pagas ou não) daquela forma de pagamento, já respeitando o filtro De/Até do gráfico.
