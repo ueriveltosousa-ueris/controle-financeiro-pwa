@@ -204,6 +204,10 @@
        detalhamento de Orçamento (ver replicarItemOrcamentoDeDetalhe) sem
        fechá-lo, então Cancelar/"x"/ESC voltam pra ele. */
     #overlayReplicarOrcamento { z-index:170; }
+    /* #overlayCadastroRapido é o nível mais interno de todos -- abre de
+       dentro do #overlayCompra (os "+" de Forma de Pagamento/Grupo/Tipo), sem
+       fechá-lo, então precisa ficar por CIMA dele também. */
+    #overlayCadastroRapido { z-index:180; }
     .modal { background:#fff; border-radius:12px; width:100%; max-width:520px; padding:24px 26px; box-shadow:0 10px 40px rgba(0,0,0,.2); position:relative; min-width:0; }
     .tabela-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; overscroll-behavior-x:contain; }
     /* Cabeçalho fixo: gruda no topo da própria caixa de rolagem (.tabela-scroll)
@@ -639,6 +643,28 @@
       </section>
     </section>
   </main>
+  </div>
+
+  <!-- MODAL CADASTRO RÁPIDO (Grupo/Tipo/Forma de Pagamento, chamado de dentro do
+       Lançamento de Despesa -- abre por CIMA dele sem fechar nada, então o
+       pequeno "Fechar" no canto superior direito sempre volta pro Lançamento
+       exatamente como estava, concluindo o cadastro ou não). Vem ANTES do
+       #overlayCompra no HTML de propósito: o ESC fecha o primeiro ".overlay.
+       aberto" que encontrar no documento, então pra fechar só este (o mais
+       interno) sem derrubar o Lançamento junto, ele precisa vir antes dele. -->
+  <div class="overlay" id="overlayCadastroRapido">
+    <div class="modal" style="max-width:420px;">
+      <button class="modal-x" onclick="fecharModal('overlayCadastroRapido')" aria-label="Fechar">✕</button>
+      <div class="titulo-modal-linha">
+        <h3 id="tituloCadastroRapido" style="margin:0;">Novo Grupo de Despesa</h3>
+        <button class="btn btn-cinza" style="padding:4px 14px;font-size:12px;" onclick="fecharModal('overlayCadastroRapido')">Fechar</button>
+      </div>
+      <div class="campo"><label>Nome <span class="obrig">*</span></label><input type="text" id="cr_nome" /></div>
+      <div class="campo" id="cr_dia_wrap" style="display:none;"><label>Dia de vencimento</label><input type="number" id="cr_dia" min="1" max="31" placeholder="opcional" /></div>
+      <div class="modal-rodape">
+        <button class="btn btn-verde" id="btnSalvarCadastroRapido" onclick="salvarCadastroRapido()">➕ Adicionar</button>
+      </div>
+    </div>
   </div>
 
   <!-- MODAL COMPRA PARCELADA -->
@@ -1336,15 +1362,29 @@
 
     // Grupo de Despesa e Tipo de Despesa são independentes um do outro — cada
     // select mostra sua própria lista completa, sem filtrar um pelo outro.
+    // Preserva o valor já selecionado de cada select ao reconstruir as opções
+    // -- sem isso, salvar um cadastro rápido de Grupo/Tipo/Forma de Pagamento
+    // (que chama carregarTudo() -> preencherSelects() de novo) apagava a
+    // seleção que o usuário já tinha feito nos OUTROS campos do Lançamento.
     function preencherSelects() {
-      const optCartao = cartoes.map(c => '<option value="' + c.id + '">' + c.nome + '</option>').join('');
-      document.getElementById('c_cartao').innerHTML = optCartao;
+      const selCartao = document.getElementById('c_cartao');
+      const valorCartaoAtual = selCartao.value;
+      selCartao.innerHTML = cartoes.map(c => '<option value="' + c.id + '">' + c.nome + '</option>').join('');
+      if (valorCartaoAtual) selCartao.value = valorCartaoAtual;
 
       const selGrupo = document.getElementById('c_grupo');
-      if (selGrupo) selGrupo.innerHTML = '<option value="">— nenhum —</option>' + grupos.map(g => '<option value="' + g.id + '">' + g.nome + '</option>').join('');
+      if (selGrupo) {
+        const valorGrupoAtual = selGrupo.value;
+        selGrupo.innerHTML = '<option value="">— nenhum —</option>' + grupos.map(g => '<option value="' + g.id + '">' + g.nome + '</option>').join('');
+        if (valorGrupoAtual) selGrupo.value = valorGrupoAtual;
+      }
 
       const selCat = document.getElementById('c_categoria');
-      if (selCat) selCat.innerHTML = '<option value="">— nenhum —</option>' + categorias.map(t => '<option value="' + t.id + '">' + t.nome + '</option>').join('');
+      if (selCat) {
+        const valorCatAtual = selCat.value;
+        selCat.innerHTML = '<option value="">— nenhum —</option>' + categorias.map(t => '<option value="' + t.id + '">' + t.nome + '</option>').join('');
+        if (valorCatAtual) selCat.value = valorCatAtual;
+      }
     }
 
     // Mostra um aviso no formulário quando o cartão escolhido ainda não tem
@@ -2484,6 +2524,7 @@
       fecharModal('overlayCompra');
       fecharModal('overlayParcelas');
       fecharModal('overlayReplicarOrcamento');
+      fecharModal('overlayCadastroRapido');
       trocarAba(aba);
     }
     // Botão "🏠 Início" -- presente em todo modal/formulário do sistema (é o
@@ -2492,18 +2533,49 @@
     // do modal). Reaproveita o mesmo fechamento seguro de irParaCadastro.
     function irParaInicio() { irParaCadastro('dashboard'); }
     // Atalhos do "+" ao lado de Forma de Pagamento/Grupo/Tipo no formulário de
-    // Lançamento -- vão pra aba "Despesas" e já focam o campo de nome do
-    // cadastro certo, pra cadastrar rapidinho sem procurar o card na mão.
-    function irParaCadastroCampo(idCampo) {
-      irParaCadastro('cartoes');
-      requestAnimationFrame(() => {
-        const el = document.getElementById(idCampo);
-        if (el) { el.scrollIntoView({ block:'center' }); el.focus(); }
-      });
+    // Lançamento -- abrem um cadastro rápido POR CIMA do Lançamento (sem
+    // fechá-lo nem trocar de aba), então o "Fechar" sempre volta exatamente
+    // pra onde o usuário estava, com ou sem concluir o cadastro.
+    let cadastroRapidoTipo = null;
+    function abrirCadastroRapido(tipo) {
+      cadastroRapidoTipo = tipo;
+      const titulos = { grupo:'Novo Grupo de Despesa', tipo:'Novo Tipo de Despesa', cartao:'Nova Forma de Pagamento' };
+      const placeholders = { grupo:'Ex.: Alimentação, Transporte, Moradia...', tipo:'Ex.: Supermercado, Combustível, Medicamentos...', cartao:'Ex.: Cartão de crédito, PIX, Boleto...' };
+      document.getElementById('tituloCadastroRapido').textContent = titulos[tipo];
+      document.getElementById('cr_nome').value = '';
+      document.getElementById('cr_nome').placeholder = placeholders[tipo];
+      document.getElementById('cr_dia_wrap').style.display = tipo === 'cartao' ? '' : 'none';
+      document.getElementById('cr_dia').value = '';
+      abrirModal('overlayCadastroRapido');
+      requestAnimationFrame(() => document.getElementById('cr_nome').focus());
     }
-    function irParaCadastroFormaPagamento() { irParaCadastroCampo('nova_categoria_nome'); }
-    function irParaCadastroGrupo() { irParaCadastroCampo('novo_grupo_nome'); }
-    function irParaCadastroTipo() { irParaCadastroCampo('novo_tipo_nome'); }
+    function irParaCadastroFormaPagamento() { abrirCadastroRapido('cartao'); }
+    function irParaCadastroGrupo() { abrirCadastroRapido('grupo'); }
+    function irParaCadastroTipo() { abrirCadastroRapido('tipo'); }
+    // Salva o cadastro rápido, repopula os selects do Lançamento (mesmo truque
+    // de zerar "cartoes" usado em criarCategoriaDespesa, pra forçar
+    // carregarTudo() a rebuscar os três de uma vez) e já seleciona o item
+    // recém-criado no campo correspondente, pronto pra continuar o lançamento.
+    async function salvarCadastroRapido() {
+      const nome = document.getElementById('cr_nome').value.trim();
+      if (!nome) { alert('Digite um nome.'); return; }
+      const dia = document.getElementById('cr_dia').value.trim();
+      if (cadastroRapidoTipo === 'cartao' && dia && (Number(dia) < 1 || Number(dia) > 31)) {
+        alert('O dia de vencimento deve ser entre 1 e 31 (ou vazio).'); return;
+      }
+      try {
+        let criado;
+        if (cadastroRapidoTipo === 'grupo') criado = await api('/referencias/grupos-despesa', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ nome }) });
+        else if (cadastroRapidoTipo === 'tipo') criado = await api('/referencias/tipos-despesa', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ nome }) });
+        else criado = await api('/referencias/cartoes', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ nome, dia_vencimento: dia ? Number(dia) : null }) });
+        cartoes = []; // força carregarTudo() a rebuscar grupos/categorias/cartoes
+        await carregarTudo();
+        if (cadastroRapidoTipo === 'grupo') document.getElementById('c_grupo').value = criado.id;
+        else if (cadastroRapidoTipo === 'tipo') document.getElementById('c_categoria').value = criado.id;
+        else { document.getElementById('c_cartao').value = criado.id; atualizarAvisoVencimento('c'); }
+        fecharModal('overlayCadastroRapido');
+      } catch (e) { alert('Erro ao cadastrar: ' + e.message); }
+    }
 
     // ---- LANÇAMENTO DE DESPESA (à vista = 1 parcela, ou parcelado = 2+) ----
     function abrirModalCompra() {
