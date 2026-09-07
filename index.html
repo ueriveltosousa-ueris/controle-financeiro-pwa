@@ -67,13 +67,13 @@
        partir de gráficos, que não tinham nenhuma forma de editar até agora. */
     .btn-editar-cadastro { background:#fdf0e0; border:none; color:#b8760f; width:22px; height:22px; border-radius:50%; font-size:12px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding:0; line-height:1; font-family:inherit; flex-shrink:0; }
     .btn-editar-cadastro:hover { background:var(--laranja); color:#fff; }
-    /* "🗑" de excluir -- mesmo padrão dos outros três, vermelho. A confirmação
+    /* "✕" de excluir -- mesmo padrão dos outros três, vermelho. A confirmação
        (obrigatória) já é feita dentro de excluirCompra()/excluirItemOrcamento(),
        então o botão em si só chama a função normalmente. */
-    .btn-excluir-cadastro { background:#fdecea; border:none; color:#a13d3d; width:22px; height:22px; border-radius:50%; font-size:12px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding:0; line-height:1; font-family:inherit; flex-shrink:0; }
+    .btn-excluir-cadastro { background:#fdecea; border:none; color:#a13d3d; width:22px; height:22px; border-radius:50%; font-size:13px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding:0; line-height:1; font-family:inherit; flex-shrink:0; }
     .btn-excluir-cadastro:hover { background:var(--vermelho); color:#fff; }
     /* "+" azul de incluir cadastro novo -- ao lado dos outros ícones da linha
-       (ⓘ/✎/⧉/🗑/✔), mesmo tamanho, abre o formulário em branco (ao contrário
+       (ⓘ/✎/⧉/✕/✔), mesmo tamanho, abre o formulário em branco (ao contrário
        do "⧉" replicar, que vem preenchido com os dados da linha). */
     .btn-incluir-cadastro { background:var(--azul-claro); border:none; color:#fff; width:22px; height:22px; border-radius:50%; font-size:14px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding:0; line-height:1; font-family:inherit; flex-shrink:0; }
     .btn-incluir-cadastro:hover { background:var(--azul); }
@@ -1860,14 +1860,14 @@
       if (!compraId) return '';
       return '<button class="btn-editar-cadastro" onclick="event.stopPropagation();editarLancamento(' + compraId + ')" title="Editar cadastro — abre o Lançamento de Despesa para editar" aria-label="Editar cadastro">✎</button>';
     }
-    // Botão "🗑" de excluir em qualquer linha ligada a uma compra, nas tabelas/
+    // Botão "✕" de excluir em qualquer linha ligada a uma compra, nas tabelas/
     // modais abertos a partir de gráficos (a confirmação obrigatória já está
     // dentro de excluirCompra()).
     function botaoExcluirCadastroHtml(compraId, nome) {
       if (!compraId) return '';
-      return '<button class="btn-excluir-cadastro" onclick="event.stopPropagation();excluirCompra(' + compraId + ', \'' + String(nome||'').replace(/'/g,"\\'") + '\')" title="Excluir esta despesa" aria-label="Excluir">🗑</button>';
+      return '<button class="btn-excluir-cadastro" onclick="event.stopPropagation();excluirCompra(' + compraId + ', \'' + String(nome||'').replace(/'/g,"\\'") + '\')" title="Excluir esta despesa" aria-label="Excluir">✕</button>';
     }
-    // Botão "+" de incluir, junto dos outros ícones de cada linha (ⓘ/✎/⧉/🗑/✔)
+    // Botão "+" de incluir, junto dos outros ícones de cada linha (ⓘ/✎/⧉/✕/✔)
     // -- uma função pra cada tipo de tabela (despesa abre o Lançamento,
     // orçamento abre o Item de Orçamento), sempre em branco/novo, não
     // preenchido com os dados daquela linha (isso quem faz é o "⧉" replicar).
@@ -2033,7 +2033,7 @@
           html: '<tr><td>' + it.descricao + '</td><td class="num">' + brl(it.valor) + '</td>' +
             '<td><button class="btn-editar-cadastro" onclick="editarItemOrcamentoDeDetalhe(' + it.id + ', \'' + String(it.descricao||'').replace(/'/g,"\\'") + '\', ' + it.valor + ')" title="Editar cadastro — edita este item de Orçamento" aria-label="Editar cadastro">✎</button> ' +
             '<button class="btn-replicar" onclick="replicarItemOrcamentoDeDetalhe(\'' + String(it.descricao||'').replace(/'/g,"\\'") + '\', ' + it.valor + ', \'' + anoMes + '\')" title="Replicar — cria um novo item de orçamento com estes dados" aria-label="Replicar">⧉</button> ' +
-            '<button class="btn-excluir-cadastro" onclick="excluirItemOrcamentoDeDetalhe(' + it.id + ')" title="Excluir este item de orçamento" aria-label="Excluir">🗑</button> ' + botaoIncluirOrcamentoHtml() + '</td></tr>',
+            '<button class="btn-excluir-cadastro" onclick="excluirItemOrcamentoDeDetalhe(' + it.id + ')" title="Excluir este item de orçamento" aria-label="Excluir">✕</button> ' + botaoIncluirOrcamentoHtml() + '</td></tr>',
         }));
         const montarTotal = (ls) => linhaTotal(1, ls.reduce((s,l) => s + Number(l.raw.valor||0), 0), 1);
         abrirDetalheModal('Orçamento — ' + labelMes(mesIso), 'Itens de orçamento cadastrados para este mês (aba Orçamentos).', header, linhasObj, montarTotal, 3);
@@ -2081,7 +2081,7 @@
           ? itensOrc.map(it => '<tr><td>' + it.descricao + '</td><td class="num">' + brl(it.valor) + '</td><td>' +
               '<button class="btn-editar-cadastro" onclick="editarItemOrcamentoDeDetalhe(' + it.id + ', \'' + String(it.descricao||'').replace(/'/g,"\\'") + '\', ' + it.valor + ')" title="Editar cadastro — edita este item de Orçamento" aria-label="Editar cadastro">✎</button> ' +
               '<button class="btn-replicar" onclick="replicarItemOrcamentoDeDetalhe(\'' + String(it.descricao||'').replace(/'/g,"\\'") + '\', ' + it.valor + ', \'' + anoMes + '\')" title="Replicar — cria um novo item de orçamento com estes dados" aria-label="Replicar">⧉</button> ' +
-              '<button class="btn-excluir-cadastro" onclick="excluirItemOrcamentoDeDetalhe(' + it.id + ')" title="Excluir este item de orçamento" aria-label="Excluir">🗑</button> ' + botaoIncluirOrcamentoHtml() + '</td></tr>').join('') +
+              '<button class="btn-excluir-cadastro" onclick="excluirItemOrcamentoDeDetalhe(' + it.id + ')" title="Excluir este item de orçamento" aria-label="Excluir">✕</button> ' + botaoIncluirOrcamentoHtml() + '</td></tr>').join('') +
             '<tr style="font-weight:700;background:#f0f4fa;"><td>Subtotal</td><td class="num">' + brl(totalOrc) + '</td><td></td></tr>'
           : '<tr><td colspan="3" style="text-align:center;color:#888;">Nenhum item cadastrado (aba Orçamentos).</td></tr>';
 
