@@ -296,6 +296,32 @@
       main { padding:24px 20px; }
     }
     @media (max-width:820px){ .graficos{grid-template-columns:1fr;} .linha2{grid-template-columns:1fr;} }
+    /* Só no celular: linhas de tabela mais baixas (padding/fonte menores --
+       no desktop sobra espaço, no celular cada linha a mais é mais rolagem
+       vertical), e o cabeçalho "congelado" (position:sticky, ver regras
+       .tabela-scroll acima) sem tremer durante o arraste com o dedo. Esse
+       tremor é um bug conhecido do Safari/iOS: um elemento sticky dentro de
+       um contêiner com rolagem em toque perde a suavidade e "pisca"/desloca
+       por um instante a cada frame durante a rolagem por inércia --
+       translateZ força esse contêiner pra sua própria camada de composição
+       (GPU), o que resolve. Desligar o :hover evita um efeito parecido: em
+       tela de toque o realce da linha às vezes fica "grudado" na última
+       célula tocada e parece perseguir o dedo enquanto a lista rola por
+       baixo dele -- no celular ninguém usa mouse, então não faz falta. */
+    @media (max-width:820px) {
+      table td, table th, .tabela-parcelas td, .tabela-parcelas th { padding:6px 8px; font-size:12px; }
+      #overlayComparativo table { font-size:10.5px; }
+      /* Sem isso, "table{width:100%}" (regra base) faz o texto da Descrição
+         (e de outras colunas de texto livre) quebrar em várias linhas pra
+         caber na largura da tela, em vez de manter uma linha só e deixar a
+         rolagem horizontal (que a .tabela-scroll já oferece) cuidar do resto
+         -- é a wrap forçada, não o padding, quem deixava as linhas gigantes
+         no celular. */
+      .tabela-scroll table td, .tabela-scroll table th { white-space:nowrap; }
+      .tabela-scroll { transform:translateZ(0); }
+      .tabela-scroll thead tr.tabela-linha-colunas th { top:28.5px; }
+      table tbody tr:hover > td { background:none; }
+    }
   </style>
 </head>
 <body>
@@ -924,12 +950,24 @@
       let linhaAtual = '';
       for (const palavra of palavras) {
         const tentativa = linhaAtual ? linhaAtual + ' ' + palavra : palavra;
-        if (larguraTexto(tentativa, fonte) > larguraMaxima && linhaAtual) {
-          linhas.push(linhaAtual);
-          linhaAtual = palavra;
-        } else {
-          linhaAtual = tentativa;
+        if (larguraTexto(tentativa, fonte) <= larguraMaxima) { linhaAtual = tentativa; continue; }
+        if (linhaAtual) { linhas.push(linhaAtual); linhaAtual = ''; }
+        if (larguraTexto(palavra, fonte) <= larguraMaxima) { linhaAtual = palavra; continue; }
+        // Nem a palavra sozinha cabe (ex.: "Aluguel/Financiamento" -- uma
+        // categoria sem espaço nenhum pra quebrar) -- sem isso ela vira uma
+        // única linha maior que o espaço do eixo e o Chart.js corta as
+        // primeiras letras pra fora da área visível. Quebra por caractere.
+        let pedaco = '';
+        for (const ch of palavra) {
+          const tentativaChar = pedaco + ch;
+          if (pedaco && larguraTexto(tentativaChar, fonte) > larguraMaxima) {
+            linhas.push(pedaco);
+            pedaco = ch;
+          } else {
+            pedaco = tentativaChar;
+          }
         }
+        linhaAtual = pedaco;
       }
       if (linhaAtual) linhas.push(linhaAtual);
       return linhas;
