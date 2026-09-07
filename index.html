@@ -626,9 +626,14 @@
   <div class="overlay" id="overlayCompra">
     <div class="modal">
       <button class="modal-x" onclick="fecharModal('overlayCompra')" aria-label="Fechar">✕</button>
-      <div class="titulo-com-ajuda" style="margin-bottom:4px;">
-        <h3 id="tituloModalCompra" style="margin:0;">Novo Lançamento de Despesa</h3>
-        <button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-lancamento', this)">?</button>
+      <div class="titulo-modal-linha">
+        <div class="titulo-com-ajuda" style="margin-bottom:0;">
+          <h3 id="tituloModalCompra" style="margin:0;">Novo Lançamento de Despesa</h3>
+          <button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-lancamento', this)">?</button>
+        </div>
+        <div class="atalhos-cadastro">
+          <button class="atalho-cadastro" onclick="irParaInicio()" title="Ir para o Início (Dashboard)"><span class="icone">🏠</span><span class="rotulo">Início</span></button>
+        </div>
       </div>
       <div class="obs-topo">Qualquer despesa: à vista (1 parcela) ou parcelada (2 ou mais). O app gera as parcelas automaticamente.</div>
       <div class="ajuda-balao" id="ajuda-lancamento">
@@ -665,7 +670,12 @@
   <div class="overlay" id="overlayParcelas">
     <div class="modal" style="width:95vw;max-width:750px;">
       <button class="modal-x" onclick="fecharModal('overlayParcelas')" aria-label="Fechar">✕</button>
-      <h3 id="tituloModalParcelas">Parcelas</h3>
+      <div class="titulo-modal-linha">
+        <h3 id="tituloModalParcelas" style="margin:0;">Parcelas</h3>
+        <div class="atalhos-cadastro">
+          <button class="atalho-cadastro" onclick="irParaInicio()" title="Ir para o Início (Dashboard)"><span class="icone">🏠</span><span class="rotulo">Início</span></button>
+        </div>
+      </div>
       <div class="obs-topo" id="obsModalParcelas"></div>
       <div class="campo" style="max-width:220px;">
         <label>Data da Compra <span style="font-weight:400;color:#9aa5b5;">(informativa)</span></label>
@@ -693,6 +703,7 @@
           <button class="atalho-cadastro" onclick="irParaCadastro('lancamentos')" title="Ir para Lançamentos de Despesas"><span class="icone">🧾</span><span class="rotulo">Lançamentos</span></button>
           <button class="atalho-cadastro" onclick="irParaCadastro('orcamentos')" title="Ir para Cadastro de Orçamentos"><span class="icone">💰</span><span class="rotulo">Orçamentos</span></button>
           <button class="atalho-cadastro" onclick="irParaCadastro('cartoes')" title="Ir para Cadastro de Despesas"><span class="icone">💸</span><span class="rotulo">Despesas</span></button>
+          <button class="atalho-cadastro" onclick="irParaInicio()" title="Ir para o Início (Dashboard)"><span class="icone">🏠</span><span class="rotulo">Início</span></button>
         </div>
       </div>
       <div class="obs-topo" id="obsModalDetalhe">Clique numa barra ou fatia do gráfico para ver o detalhamento aqui.</div>
@@ -725,6 +736,7 @@
           <button class="atalho-cadastro" onclick="irParaCadastro('lancamentos')" title="Ir para Lançamentos de Despesas"><span class="icone">🧾</span><span class="rotulo">Lançamentos</span></button>
           <button class="atalho-cadastro" onclick="irParaCadastro('orcamentos')" title="Ir para Cadastro de Orçamentos"><span class="icone">💰</span><span class="rotulo">Orçamentos</span></button>
           <button class="atalho-cadastro" onclick="irParaCadastro('cartoes')" title="Ir para Cadastro de Despesas"><span class="icone">💸</span><span class="rotulo">Despesas</span></button>
+          <button class="atalho-cadastro" onclick="irParaInicio()" title="Ir para o Início (Dashboard)"><span class="icone">🏠</span><span class="rotulo">Início</span></button>
         </div>
       </div>
       <div class="obs-topo" id="obsComparativo"></div>
@@ -761,6 +773,7 @@
           <button class="atalho-cadastro" onclick="irParaCadastro('lancamentos')" title="Ir para Lançamentos de Despesas"><span class="icone">🧾</span><span class="rotulo">Lançamentos</span></button>
           <button class="atalho-cadastro" onclick="irParaCadastro('orcamentos')" title="Ir para Cadastro de Orçamentos"><span class="icone">💰</span><span class="rotulo">Orçamentos</span></button>
           <button class="atalho-cadastro" onclick="irParaCadastro('cartoes')" title="Ir para Cadastro de Despesas"><span class="icone">💸</span><span class="rotulo">Despesas</span></button>
+          <button class="atalho-cadastro" onclick="irParaInicio()" title="Ir para o Início (Dashboard)"><span class="icone">🏠</span><span class="rotulo">Início</span></button>
         </div>
       </div>
       <div class="obs-topo" id="obsGraficoTipoDespesa"></div>
@@ -2372,6 +2385,11 @@
       fecharModal('overlayParcelas');
       trocarAba(aba);
     }
+    // Botão "🏠 Início" -- presente em todo modal/formulário do sistema (é o
+    // único jeito de voltar pro Dashboard sem fechar manualmente o que está
+    // aberto primeiro, já que o menu lateral fica encoberto pelo fundo escuro
+    // do modal). Reaproveita o mesmo fechamento seguro de irParaCadastro.
+    function irParaInicio() { irParaCadastro('dashboard'); }
     // Atalhos do "+" ao lado de Forma de Pagamento/Grupo/Tipo no formulário de
     // Lançamento -- vão pra aba "Despesas" e já focam o campo de nome do
     // cadastro certo, pra cadastrar rapidinho sem procurar o card na mão.
