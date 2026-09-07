@@ -102,7 +102,7 @@
     .kpis > .kpi { flex:1 1 260px; max-width:380px; }
     .kpi { background:#fff; border:1px solid var(--cinza-borda); border-radius:10px; padding:16px 18px; box-shadow:0 1px 3px rgba(0,0,0,.04); cursor:pointer; transition:background .15s,border-color .15s,box-shadow .15s; text-align:center; }
     .kpi:hover { background:#eaf1fb; border-color:var(--azul-claro); box-shadow:0 2px 10px rgba(74,134,232,.25); }
-    .kpi .rotulo { font-size:12px; color:#7a8699; text-transform:uppercase; letter-spacing:.3px; }
+    .kpi .rotulo { font-size:15.6px; color:#7a8699; text-transform:uppercase; letter-spacing:.3px; }
     .kpi .valor { font-size:24px; font-weight:700; margin-top:6px; color:var(--azul); border:1.5px solid var(--azul); border-radius:8px; padding:4px 14px; display:inline-block; }
     .kpi-sub { font-size:11px; color:#9aa5b5; margin-top:8px; line-height:1.6; }
     .kpi-sub-destaque { font-size:15px; font-weight:700; margin-top:10px; line-height:1.7; }
@@ -361,7 +361,7 @@
       </div>
       <section class="graficos">
         <div class="card largo">
-          <div class="titulo-com-ajuda"><h2 style="margin:0;">Projeção dos próximos 24 meses</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-projecao', this)">?</button></div>
+          <div class="titulo-com-ajuda"><h2 style="margin:0;">Acompanhamento Mensal (até 24 meses)</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-projecao', this)">?</button></div>
           <div class="ajuda-balao" id="ajuda-projecao">
             Barras <b>vermelhas</b> = o total de parcelas com vencimento em cada mês, <b>pagas ou não</b> (marcar uma parcela como paga não tira ela dessa conta — quem quer só o que falta pagar usa os cards do topo ou os gráficos "Em Aberto"). Barras <b>verdes</b> = orçamento lançado pra aquele mês. A <b>linha</b> é a soma acumulada dos gastos, mês a mês (não inclui orçamento). Clique numa barra pra ver o detalhamento daquele mês.
           </div>
@@ -381,7 +381,7 @@
         </div>
         <div class="graficos-centralizados">
         <div class="card">
-          <div class="titulo-com-ajuda"><h2 style="margin:0;">Total Compras por Forma de Pagamento</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-cartao', this)">?</button></div>
+          <div class="titulo-com-ajuda"><h2 style="margin:0;">Compras por Forma de Pagamento</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-cartao', this)">?</button></div>
           <div class="ajuda-balao" id="ajuda-cartao">Quanto você comprou em cada forma de pagamento (cartão, PIX, etc.), com vencimento dentro do período escolhido (deixe De/Até em branco pra somar de sempre). Duas barras lado a lado por forma de pagamento: o que já foi <b>pago</b> (azul) e o que ainda está <b>pendente</b> (vermelho), cada uma com seu valor à direita. Clique numa barra pra ver as parcelas daquela forma de pagamento.</div>
           <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;">
             <div class="campo" style="margin-bottom:0;">
@@ -398,7 +398,7 @@
           <div class="legenda-grafico" id="legendaCartao"></div>
         </div>
         <div class="card">
-          <div class="titulo-com-ajuda"><h2 style="margin:0;">Total Compras: Parcelados x À Vista</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-tipo', this)">?</button></div>
+          <div class="titulo-com-ajuda"><h2 style="margin:0;">Compras: Parcelados x À Vista</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-tipo', this)">?</button></div>
           <div class="ajuda-balao" id="ajuda-tipo">Soma o total de compras — pagas ou não — de todas as parcelas com vencimento dentro do período escolhido — deixe De/Até em branco pra somar de sempre (sem limite de data).</div>
           <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;">
             <div class="campo" style="margin-bottom:0;">
@@ -415,7 +415,7 @@
         </div>
         </div>
         <div class="card largo">
-          <div class="titulo-com-ajuda"><h2 style="margin:0;">Total em Aberto por Grupo de Despesa</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-grupo-despesa', this)">?</button></div>
+          <div class="titulo-com-ajuda"><h2 style="margin:0;">Compras por Grupo de Despesa</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-grupo-despesa', this)">?</button></div>
           <div class="ajuda-balao" id="ajuda-grupo-despesa">Quanto falta pagar em cada Grupo de Despesa, somando as parcelas pendentes com vencimento dentro do período escolhido (deixe De/Até em branco pra somar de sempre). Clique numa barra pra ver a quebra por Tipo de Despesa daquele grupo.</div>
           <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;">
             <div class="campo" style="margin-bottom:0;">
@@ -431,7 +431,7 @@
           <div class="chart-wrap" style="height:auto;max-height:500px;overflow-y:auto;"><div id="grupoWrapInterno" style="min-height:300px;"><canvas id="graficoGrupo"></canvas></div></div>
         </div>
         <div class="card largo">
-          <div class="titulo-com-ajuda"><h2 style="margin:0;">Totais de Compras por Descrição</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-descricao', this)">?</button></div>
+          <div class="titulo-com-ajuda"><h2 style="margin:0;">Compras por Descrição</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-descricao', this)">?</button></div>
           <div class="ajuda-balao" id="ajuda-descricao">Agrupa e soma todas as compras com a mesma descrição — útil pra ver quanto você já gastou no total em algo, tipo "Mercado Livre" ou "Uber". Clique numa barra pra listar as compras daquela descrição.</div>
           <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;">
             <div class="campo" style="margin-bottom:0;max-width:320px;flex:1;">
@@ -1581,7 +1581,7 @@
       document.getElementById('projAte').value = '';
       renderProjecao();
     }
-    // Gráfico "Total Compras por Forma de Pagamento" — agrupa TODAS as
+    // Gráfico "Compras por Forma de Pagamento" — agrupa TODAS as
     // parcelas (já filtradas pelo período) por forma de pagamento, quebrando
     // cada uma em Pago/Pendente (barra empilhada): o comprimento total da
     // barra é o total comprado, e o pedaço azul mostra quanto disso já foi
@@ -1746,7 +1746,7 @@
       abrirDetalheModal(titulo, 'Detalhamento do tipo selecionado no gráfico.', header, linhasObj, montarTotal, 15);
     }
 
-    // Gráfico "Totais de Compras por Descrição" — agrupa e soma o Valor Total por Descrição.
+    // Gráfico "Compras por Descrição" — agrupa e soma o Valor Total por Descrição.
     function renderPorDescricao(lista) {
       lista = lista || ultimaListaCompras;
       const termo = (document.getElementById('filtroDescricaoGrafico').value || '').trim().toLowerCase();
@@ -2173,7 +2173,7 @@
       abrirDetalheModal(titulo, 'Detalhamento do cartão selecionado no gráfico.', header, linhasObj, montarTotal, 15);
     }
 
-    // Gráfico "Total em Aberto por Grupo de Despesa" — mesmo padrão dos outros
+    // Gráfico "Compras por Grupo de Despesa" — mesmo padrão dos outros
     // gráficos "Em Aberto" com filtro De/Até, agrupando por Grupo de Despesa.
     function totaisPorGrupoFiltrados() {
       const grupos = {};
