@@ -304,10 +304,10 @@
        um contêiner com rolagem em toque perde a suavidade e "pisca"/desloca
        por um instante a cada frame durante a rolagem por inércia --
        translateZ força esse contêiner pra sua própria camada de composição
-       (GPU), o que resolve. Desligar o :hover evita um efeito parecido: em
-       tela de toque o realce da linha às vezes fica "grudado" na última
-       célula tocada e parece perseguir o dedo enquanto a lista rola por
-       baixo dele -- no celular ninguém usa mouse, então não faz falta. */
+       (GPU), o que resolve. O destaque azul clarinho da linha tocada
+       (table tbody tr:hover, regra padrão lá em cima) continua valendo
+       igual no celular -- é o retorno visual de qual linha a pessoa tocou
+       por último, não tem relação com o tremor do cabeçalho. */
     @media (max-width:820px) {
       table td, table th, .tabela-parcelas td, .tabela-parcelas th { padding:6px 8px; font-size:12px; }
       #overlayComparativo table { font-size:10.5px; }
@@ -320,7 +320,6 @@
       .tabela-scroll table td, .tabela-scroll table th { white-space:nowrap; }
       .tabela-scroll { transform:translateZ(0); }
       .tabela-scroll thead tr.tabela-linha-colunas th { top:28.5px; }
-      table tbody tr:hover > td { background:none; }
     }
   </style>
 </head>
