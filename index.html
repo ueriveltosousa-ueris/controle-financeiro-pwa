@@ -138,6 +138,7 @@
        demais, só a cor muda. */
     .kpi.kpi-resumo-anual { background:var(--amarelo-claro); }
     .kpi.kpi-resumo-anual:hover { background:var(--amarelo-claro-hover); border-color:#E0B400; box-shadow:0 2px 10px rgba(224,180,0,.25); }
+    .kpi.kpi-resumo-anual .kpi-linha { color:var(--azul); }
     /* Título de cada seção de gráfico dentro de um modal com mais de um
        gráfico (ex.: Resumo Anual: linha mensal + barras por grupo). */
     .subtitulo-modal { font-size:15px; font-weight:600; color:var(--azul); margin:18px 0 10px; }
@@ -2661,11 +2662,26 @@
       if (chartResumoAnualMensal) chartResumoAnualMensal.destroy();
       chartResumoAnualMensal = new Chart(ctx, {
         type: 'line',
+        plugins: [ChartDataLabels],
         data: { labels: meses.map(d => labelMes(d.anoMes)), datasets: [
-          { label:'Orçamento', data:meses.map(d => d.orcamento), borderColor:'#6AA84F', backgroundColor:'#6AA84F', tension:.3, pointRadius:3, pointHoverRadius:5 },
-          { label:'Despesas', data:meses.map(d => d.despesa), borderColor:'#E57373', backgroundColor:'#E57373', tension:.3, pointRadius:3, pointHoverRadius:5 },
+          { label:'Orçamento', data:meses.map(d => d.orcamento), borderColor:'#6AA84F', backgroundColor:'#6AA84F', tension:.3, pointRadius:3, pointHoverRadius:5,
+            datalabels: { display:(c) => c.dataset.data[c.dataIndex] > 0, align:'top', anchor:'end', offset:4, color:'#2d6a2d', font:{ size:9, weight:'600' }, formatter:(v) => brl(v) } },
+          { label:'Despesas', data:meses.map(d => d.despesa), borderColor:'#E57373', backgroundColor:'#E57373', tension:.3, pointRadius:3, pointHoverRadius:5,
+            datalabels: { display:(c) => c.dataset.data[c.dataIndex] > 0, align:'bottom', anchor:'start', offset:4, color:'#a13d3d', font:{ size:9, weight:'600' }, formatter:(v) => brl(v) } },
         ] },
-        options: { maintainAspectRatio:false,
+        options: { maintainAspectRatio:false, layout:{ padding:{ top:18, bottom:18 } },
+          // Clicar em qualquer ponto (Orçamento ou Despesas) do mês abre a
+          // mesma tabela de despesas resumida por descrição daquele mês --
+          // "nearest"/intersect:false porque um ponto de valor baixo (ou
+          // zero) fica pequeno demais pra acertar clicando exatamente nele.
+          onClick: (evt, elems) => {
+            if (!elems.length) {
+              elems = chartResumoAnualMensal.getElementsAtEventForMode(evt, 'nearest', { intersect:false, axis:'x' }, true);
+            }
+            if (!elems.length) return;
+            detalheResumoAnualMes(meses[elems[0].index].anoMes + '-01');
+          },
+          onHover: (evt, elems) => { evt.native.target.style.cursor = elems.length ? 'pointer' : 'default'; },
           plugins:{ legend:{display:false}, tooltip:{enabled:true, callbacks:{label:(c) => c.dataset.label + ': ' + brl(c.raw)}} },
           scales:{ x:{grid:{display:false}}, y:{ticks:{callback:(v) => 'R$ ' + (v/1000) + 'k'}} } },
       });
@@ -2673,6 +2689,18 @@
         { rotulo:'Orçamento', cor:'#6AA84F' },
         { rotulo:'Despesas', cor:'#E57373' },
       ]);
+    }
+    // Clique num ponto do gráfico de linhas Orçamento x Despesas -> mesma
+    // tabela "resumida por descrição" (uma linha por despesa, sem detalhar
+    // cada parcela) usada no drill-down Grupo -> Tipo de Despesa, só que
+    // filtrada pelo mês do ponto clicado em vez de grupo+tipo.
+    function detalheResumoAnualMes(mesIso) {
+      ultimoDetalheRefresh = () => detalheResumoAnualMes(mesIso);
+      const anoMes = String(mesIso).slice(0, 7);
+      const parcelas = ultimasParcelasTodas.filter(p => String(p.data_vencimento).slice(0, 7) === anoMes);
+      const { header, linhasObj, montarTotal } = montarTabelaResumoCompra(parcelas);
+      const titulo = 'Despesas — ' + labelMes(mesIso);
+      abrirDetalheModal(titulo, 'Despesas do mês selecionado, uma linha por despesa (sem detalhar cada parcela).', header, linhasObj, montarTotal, 14);
     }
     // Gráfico de barras: total do ano (pago + pendente, mesmo conceito do
     // card "Despesa Anual") por Grupo de Despesa -- mesmo layout do gráfico
@@ -2789,11 +2817,13 @@
     // sem detalhar cada parcela) -- mesmo layout de colunas da tabela "Resumo
     // por compra" do Dashboard, já que aqui também é o total da compra que
     // importa, não o controle mês a mês de cada parcela.
-    function detalheResumoAnualTipo(ano, nomeGrupo, categoria) {
-      ultimoDetalheRefresh = () => detalheResumoAnualTipo(ano, nomeGrupo, categoria);
-      const parcelas = ultimasParcelasTodas.filter(p =>
-        String(p.data_vencimento).slice(0, 4) === String(ano) &&
-        (p.grupo || 'Sem grupo') === nomeGrupo && (p.categoria || 'Sem tipo') === categoria);
+    // Monta {header, linhasObj, montarTotal} da tabela "resumida por
+    // descrição" (uma linha por despesa/compra, valor TOTAL da compra, sem
+    // detalhar cada parcela) a partir de uma lista de parcelas já filtrada
+    // -- reaproveitado tanto pelo drill-down Grupo -> Tipo de Despesa quanto
+    // pelo clique num ponto do gráfico de linhas (que filtra por mês em vez
+    // de grupo+tipo). Ver agruparParcelasPorCompra() acima.
+    function montarTabelaResumoCompra(parcelas) {
       const linhas = agruparParcelasPorCompra(parcelas);
       const header = '<th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Parcelas em Aberto</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Valor da Compra</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Ações</th>';
       const linhasObj = linhas.map(d => {
@@ -2822,6 +2852,14 @@
           '<td class="num">' + brl(totalSaldo) + '</td>' +
           '<td></td><td></td></tr>';
       };
+      return { header, linhasObj, montarTotal };
+    }
+    function detalheResumoAnualTipo(ano, nomeGrupo, categoria) {
+      ultimoDetalheRefresh = () => detalheResumoAnualTipo(ano, nomeGrupo, categoria);
+      const parcelas = ultimasParcelasTodas.filter(p =>
+        String(p.data_vencimento).slice(0, 4) === String(ano) &&
+        (p.grupo || 'Sem grupo') === nomeGrupo && (p.categoria || 'Sem tipo') === categoria);
+      const { header, linhasObj, montarTotal } = montarTabelaResumoCompra(parcelas);
       const titulo = categoria + ' — ' + nomeGrupo + ' (' + ano + ')';
       abrirDetalheModal(titulo, 'Compras do ano selecionado, uma linha por despesa (sem detalhar cada parcela).', header, linhasObj, montarTotal, 14);
     }
