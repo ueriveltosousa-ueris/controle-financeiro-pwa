@@ -2760,36 +2760,70 @@
       ajustarQuebraGrafico(chartResumoAnualTipo, f.map(d => d.categoria));
       requestAnimationFrame(() => { if (chartResumoAnualTipo) chartResumoAnualTipo.resize(); });
     }
+    // Agrupa parcelas por compra (mesmo conceito da tabela "Resumo por
+    // compra" do Dashboard -- ver desenharTabelaResumo): uma linha por
+    // despesa, com o valor TOTAL da compra, em vez de uma linha por parcela.
+    // qtd_parcelas_pagas/saldo_aberto já vêm calculados pra compra inteira
+    // desde a API (dashboardParcelas, ver correlated subquery em
+    // dashboardParcelas()), então são os mesmos em qualquer parcela daquela
+    // compra -- só a "próxima data de vencimento" precisa ser calculada
+    // aqui, olhando as parcelas dessa compra dentro do recorte já filtrado
+    // (ano + grupo + tipo): a mais próxima ainda pendente ou, se já estiver
+    // tudo pago, a última.
+    function agruparParcelasPorCompra(parcelas) {
+      const porCompra = {};
+      parcelas.forEach(p => {
+        if (!porCompra[p.compra_id]) porCompra[p.compra_id] = { ...p, _datas: [] };
+        porCompra[p.compra_id]._datas.push({ data: p.data_vencimento, status: p.status });
+      });
+      return Object.values(porCompra).map(d => {
+        const pendentes = d._datas.filter(v => v.status !== 'Pago').map(v => v.data).sort();
+        const todas = d._datas.map(v => v.data).sort();
+        d.proximo_vencimento = pendentes.length ? pendentes[0] : todas[todas.length - 1];
+        delete d._datas;
+        return d;
+      });
+    }
     // Clique numa barra do gráfico "Tipo de Despesa" do Resumo Anual -> tabela
-    // padrão (mesmos ícones ⓘ/👁/✎/⧉/✕/✔/+) com as compras daquele grupo+tipo
-    // no ano, pagas e pendentes -- por isso tem coluna Status, igual à
-    // tabela "Gastos do Mês" do Comparativo (ao contrário do drill-down
-    // De/Até do Dashboard, que só mostra pendente e não precisa dessa coluna).
+    // padrão (mesmos ícones ⓘ/👁/✎/⧉/✕/✔/+), uma linha por DESPESA (resumida,
+    // sem detalhar cada parcela) -- mesmo layout de colunas da tabela "Resumo
+    // por compra" do Dashboard, já que aqui também é o total da compra que
+    // importa, não o controle mês a mês de cada parcela.
     function detalheResumoAnualTipo(ano, nomeGrupo, categoria) {
       ultimoDetalheRefresh = () => detalheResumoAnualTipo(ano, nomeGrupo, categoria);
-      const linhas = ultimasParcelasTodas.filter(p =>
+      const parcelas = ultimasParcelasTodas.filter(p =>
         String(p.data_vencimento).slice(0, 4) === String(ano) &&
         (p.grupo || 'Sem grupo') === nomeGrupo && (p.categoria || 'Sem tipo') === categoria);
-      const header = '<th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Parcelas em Aberto</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Valor da Compra</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Status</th><th>Ações</th>';
-      const linhasObj = linhas.map(l => {
-        const avista = Number(l.qtd_parcelas) === 1;
+      const linhas = agruparParcelasPorCompra(parcelas);
+      const header = '<th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Parcelas em Aberto</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Valor da Compra</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Ações</th>';
+      const linhasObj = linhas.map(d => {
+        const avista = Number(d.qtd_parcelas) === 1;
         const tipoLabel = avista ? 'À vista' : 'Parcelada';
         const tipoBadge = avista ? '<span class="badge avista">À vista</span>' : '<span class="badge parcelada">Parcelada</span>';
-        const emAberto = Math.max(Number(l.qtd_parcelas||0)-Number(l.qtd_parcelas_pagas||0),0);
-        const situacao = Number(l.saldo_aberto||0) <= 0 ? 'Quitada' : 'Em Aberto';
+        const pagas = d.qtd_parcelas_pagas || 0;
+        const emAberto = Math.max(Number(d.qtd_parcelas||0) - pagas, 0);
+        const situacao = Number(d.saldo_aberto||0) <= 0 ? 'Quitada' : 'Em Aberto';
         const situBadge = situacao === 'Quitada' ? '<span class="badge quitada">Quitada</span>' : '<span class="badge aberto">Em Aberto</span>';
-        return { descricao: l.descricao, raw: l,
-          busca: montarBusca(l.descricao, tipoLabel, l.cartao, l.categoria, l.num_parcela+'/'+l.qtd_parcelas, l.qtd_parcelas_pagas||0, emAberto, formatarData(l.data_compra), formatarData(l.data_vencimento), brl(l.valor_total), brl(l.valor), brl(l.saldo_aberto), situacao, l.status === 'Pago' ? 'Pago' : 'Pendente'),
-          html: '<tr><td>' + l.descricao + '</td><td>' + tipoBadge + '</td><td>' + (l.cartao||'-') + '</td><td>' + (l.categoria||'-') + '</td>' +
-            '<td>' + l.num_parcela + '/' + l.qtd_parcelas + '</td><td>' + (l.qtd_parcelas_pagas||0) + '</td><td>' + emAberto + '</td>' +
-            '<td>' + formatarData(l.data_compra) + '</td><td>' + formatarData(l.data_vencimento) + '</td>' +
-            '<td class="num">' + brl(l.valor_total) + '</td><td class="num">' + brl(l.valor) + '</td>' +
-            '<td class="num">' + brl(l.saldo_aberto) + '</td><td>' + situBadge + '</td><td>' + badgeStatusParcela(l.status) + '</td>' +
-            '<td>' + botaoDetalheCadastroHtml(l.compra_id) + ' ' + botaoVisualizarDespesaHtml(l.compra_id) + ' ' + botaoEditarCadastroHtml(l.compra_id) + ' ' + botaoReplicarHtml(l.compra_id) + ' ' + botaoExcluirCadastroHtml(l.compra_id, l.descricao) + ' ' + botaoBaixaParcelaHtml(l.parcela_id, l.status === 'Pago') + ' ' + botaoIncluirDespesaHtml() + '</td></tr>' };
+        return { descricao: d.descricao, raw: d,
+          busca: montarBusca(d.descricao, tipoLabel, d.cartao, d.categoria, pagas+'/'+d.qtd_parcelas, pagas, emAberto, formatarData(d.data_compra), formatarData(d.proximo_vencimento), brl(d.valor_total), brl(valorParcela(d)), brl(d.saldo_aberto), situacao),
+          html: '<tr><td>' + d.descricao + '</td><td>' + tipoBadge + '</td><td>' + (d.cartao||'-') + '</td><td>' + (d.categoria||'-') + '</td>' +
+            '<td>' + pagas + '/' + d.qtd_parcelas + '</td><td>' + pagas + '</td><td>' + emAberto + '</td>' +
+            '<td>' + formatarData(d.data_compra) + '</td><td>' + formatarData(d.proximo_vencimento) + '</td>' +
+            '<td class="num">' + brl(d.valor_total) + '</td><td class="num">' + brl(valorParcela(d)) + '</td>' +
+            '<td class="num">' + brl(d.saldo_aberto) + '</td><td>' + situBadge + '</td>' +
+            '<td>' + botaoDetalheCadastroHtml(d.compra_id) + ' ' + botaoVisualizarDespesaHtml(d.compra_id) + ' ' + botaoEditarCadastroHtml(d.compra_id) + ' ' + botaoReplicarHtml(d.compra_id) + ' ' + botaoExcluirCadastroHtml(d.compra_id, d.descricao) + ' ' + botaoBaixaCompraHtml(d.compra_id, situacao === 'Quitada') + ' ' + botaoIncluirDespesaHtml() + '</td></tr>' };
       });
-      const montarTotal = (ls) => linhaTotal(10, ls.reduce((s,l) => s + Number(l.raw.valor||0), 0), 4);
+      const montarTotal = (ls) => {
+        const totalValor = ls.reduce((s,l) => s + Number(l.raw.valor_total||0), 0);
+        const totalSaldo = ls.reduce((s,l) => s + Number(l.raw.saldo_aberto||0), 0);
+        return '<tr style="font-weight:700;background:#f0f4fa;">' +
+          '<td colspan="9">TOTAL</td>' +
+          '<td class="num">' + brl(totalValor) + '</td><td></td>' +
+          '<td class="num">' + brl(totalSaldo) + '</td>' +
+          '<td></td><td></td></tr>';
+      };
       const titulo = categoria + ' — ' + nomeGrupo + ' (' + ano + ')';
-      abrirDetalheModal(titulo, 'Compras do ano selecionado, pagas e pendentes.', header, linhasObj, montarTotal, 15);
+      abrirDetalheModal(titulo, 'Compras do ano selecionado, uma linha por despesa (sem detalhar cada parcela).', header, linhasObj, montarTotal, 14);
     }
 
     // Clique numa fatia/barra do gráfico comparativo (ou no card "Total a Pagar") -> lista as parcelas daquele status.
