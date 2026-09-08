@@ -2670,16 +2670,21 @@
             datalabels: { display:(c) => c.dataset.data[c.dataIndex] > 0, align:'bottom', anchor:'start', offset:4, color:'#a13d3d', font:{ size:9, weight:'600' }, formatter:(v) => brl(v) } },
         ] },
         options: { maintainAspectRatio:false, layout:{ padding:{ top:18, bottom:18 } },
-          // Clicar em qualquer ponto (Orçamento ou Despesas) do mês abre a
-          // mesma tabela de despesas resumida por descrição daquele mês --
-          // "nearest"/intersect:false porque um ponto de valor baixo (ou
-          // zero) fica pequeno demais pra acertar clicando exatamente nele.
+          // Clique num ponto da linha Orçamento -> resumo dos itens de
+          // orçamento do mês (mesma tabela do card ORÇAMENTO MÊS); clique
+          // num ponto da linha Despesas -> tabela de despesas resumida por
+          // descrição do mês. "nearest"/intersect:false (sem axis:'x', pra
+          // achar o ponto mais próximo de verdade, não só o mais próximo
+          // naquele mês) porque um ponto de valor baixo (ou zero) fica
+          // pequeno demais pra acertar clicando exatamente nele.
           onClick: (evt, elems) => {
             if (!elems.length) {
-              elems = chartResumoAnualMensal.getElementsAtEventForMode(evt, 'nearest', { intersect:false, axis:'x' }, true);
+              elems = chartResumoAnualMensal.getElementsAtEventForMode(evt, 'nearest', { intersect:false }, true);
             }
             if (!elems.length) return;
-            detalheResumoAnualMes(meses[elems[0].index].anoMes + '-01');
+            const mesIso = meses[elems[0].index].anoMes + '-01';
+            if (elems[0].datasetIndex === 0) detalheOrcamentoMes(mesIso);
+            else detalheResumoAnualMes(mesIso);
           },
           onHover: (evt, elems) => { evt.native.target.style.cursor = elems.length ? 'pointer' : 'default'; },
           plugins:{ legend:{display:false}, tooltip:{enabled:true, callbacks:{label:(c) => c.dataset.label + ': ' + brl(c.raw)}} },
@@ -2690,10 +2695,11 @@
         { rotulo:'Despesas', cor:'#E57373' },
       ]);
     }
-    // Clique num ponto do gráfico de linhas Orçamento x Despesas -> mesma
+    // Clique num ponto da linha DESPESAS do gráfico do Resumo Anual -> mesma
     // tabela "resumida por descrição" (uma linha por despesa, sem detalhar
     // cada parcela) usada no drill-down Grupo -> Tipo de Despesa, só que
-    // filtrada pelo mês do ponto clicado em vez de grupo+tipo.
+    // filtrada pelo mês do ponto clicado em vez de grupo+tipo. O ponto da
+    // linha ORÇAMENTO usa detalheOrcamentoMes() (já existente) em vez desta.
     function detalheResumoAnualMes(mesIso) {
       ultimoDetalheRefresh = () => detalheResumoAnualMes(mesIso);
       const anoMes = String(mesIso).slice(0, 7);
