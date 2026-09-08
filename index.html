@@ -19,7 +19,7 @@
   <script src="js/dados.js"></script>
   <script src="js/app.js"></script>
   <style>
-    :root { --azul:#1F4E78; --azul-claro:#4A86E8; --laranja:#F6B26B; --verde:#6AA84F; --vermelho:#C0392B; --cinza-fundo:#F4F6F9; --cinza-borda:#E2E7EF; --texto:#2C3E50; --linha-hover:#EAF3FF; }
+    :root { --azul:#1F4E78; --azul-claro:#4A86E8; --laranja:#F6B26B; --verde:#6AA84F; --vermelho:#C0392B; --cinza-fundo:#F4F6F9; --cinza-borda:#E2E7EF; --texto:#2C3E50; --linha-hover:#EAF3FF; --amarelo-claro:#FFF7D6; --amarelo-claro-hover:#FFF0AD; }
     * { box-sizing: border-box; }
     html, body { max-width:100%; overflow-x:clip; }
     body { margin:0; font-family:"Segoe UI",Arial,sans-serif; background:var(--cinza-fundo); color:var(--texto); }
@@ -104,10 +104,10 @@
     main { padding:24px 28px 24px 0; max-width:1900px; margin:0; flex:1; min-width:0; }
     .pagina { display:none; } .pagina.ativa { display:block; }
     #aviso { display:none; background:#fdecea; color:#922; border:1px solid #f5c6cb; padding:14px 18px; border-radius:8px; margin-bottom:20px; font-size:14px; }
-    /* Só 2 cards de KPI agora ("Despesas Totais" foi cancelado) -- flex em vez
-       de grid pra centralizar o par quando sobra espaço numa tela larga, em
-       vez de ficarem os dois grudados à esquerda com um vão vazio do lado
-       (mesma lógica de .graficos-centralizados). */
+    /* 3 cards de KPI (Despesas Mês, Orçamento Mês, Resumo Anual -- "Despesas
+       Totais" foi cancelado) -- flex em vez de grid pra centralizar o grupo
+       quando sobra espaço numa tela larga, em vez de ficarem grudados à
+       esquerda com um vão vazio do lado (mesma lógica de .graficos-centralizados). */
     .kpis { display:flex; flex-wrap:wrap; justify-content:center; gap:14px; margin-bottom:26px; }
     .kpis > .kpi { flex:1 1 260px; max-width:380px; }
     .kpi { background:#fff; border:1px solid var(--cinza-borda); border-radius:10px; padding:16px 18px; box-shadow:0 1px 3px rgba(0,0,0,.04); cursor:pointer; transition:background .15s,border-color .15s,box-shadow .15s; text-align:center; }
@@ -133,6 +133,15 @@
     .kpi.kpi-orcamento .kpi-linha.kpi-saldo { margin-top:10px; padding:8px 16px; border-top:none; border-radius:30px; font-size:24px; }
     .kpi.kpi-orcamento .kpi-linha.kpi-saldo.positivo { background:#d4edda; }
     .kpi.kpi-orcamento .kpi-linha.kpi-saldo.negativo { background:#fdecea; }
+    /* Card RESUMO ANUAL: fundo amarelo bem claro pra se destacar dos outros
+       2 cards (fundo branco) -- mesmo tamanho de fonte/layout padrão dos
+       demais, só a cor muda. */
+    .kpi.kpi-resumo-anual { background:var(--amarelo-claro); }
+    .kpi.kpi-resumo-anual:hover { background:var(--amarelo-claro-hover); border-color:#E0B400; box-shadow:0 2px 10px rgba(224,180,0,.25); }
+    /* Título de cada seção de gráfico dentro de um modal com mais de um
+       gráfico (ex.: Resumo Anual: linha mensal + barras por grupo). */
+    .subtitulo-modal { font-size:15px; font-weight:600; color:var(--azul); margin:18px 0 10px; }
+    .subtitulo-modal:first-of-type { margin-top:4px; }
     .kpis-filtro { display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
     .kpis-filtro label { font-size:12px; color:#7a8699; font-weight:600; }
     .kpis-filtro input[type="month"] { padding:7px 10px; border:1px solid var(--cinza-borda); border-radius:7px; font-size:13px; font-family:inherit; width:170px; }
@@ -212,6 +221,11 @@
        por isso fica num z-index maior que os outros overlays, garantindo que
        apareça por CIMA quando os dois estiverem abertos ao mesmo tempo. */
     #overlayDetalhe { z-index:160; }
+    /* #overlayResumoAnualTipo fica no meio da cadeia do card RESUMO ANUAL:
+       Dashboard -> #overlayResumoAnual (gráficos do ano) ->
+       #overlayResumoAnualTipo (Tipo de Despesa daquele grupo) ->
+       #overlayDetalhe (tabela de compras, sempre o mais interno de todos). */
+    #overlayResumoAnualTipo { z-index:155; }
     /* #overlayCompra é o nível "mais interno de todos" -- Editar/Replicar (ver
        botaoEditarCadastroHtml/botaoReplicarHtml) abrem ele SEM fechar a
        tabela/gráfico de onde foram chamados, então Cancelar/"x"/ESC aqui volta
@@ -919,6 +933,61 @@
     </div>
   </div>
 
+  <!-- MODAL TIPO DE DESPESA DO RESUMO ANUAL (drill-down do gráfico de Grupo
+       de Despesa dentro do card RESUMO ANUAL -- nível intermediário entre
+       #overlayResumoAnual e #overlayDetalhe; ver z-index acima). Precisa vir
+       ANTES de #overlayResumoAnual no HTML: o ESC fecha sempre o primeiro
+       ".overlay.aberto" que encontra no DOM, então o modal "mais de dentro"
+       tem que aparecer primeiro na ordem do documento (mesmo esquema já
+       usado por #overlayDetalhe, que fica antes de todos os outros). -->
+  <div class="overlay" id="overlayResumoAnualTipo">
+    <div class="modal" style="width:95vw;max-width:900px;">
+      <button class="modal-x" onclick="fecharModal('overlayResumoAnualTipo')" aria-label="Fechar">✕</button>
+      <div class="titulo-modal-linha">
+        <h3 id="tituloResumoAnualTipo">Tipo de Despesa</h3>
+        <div class="atalhos-cadastro">
+          <button class="atalho-cadastro" onclick="irParaCadastro('lancamentos')" title="Ir para Lançamentos de Despesas"><span class="icone">🧾</span><span class="rotulo">Lançamentos</span></button>
+          <button class="atalho-cadastro" onclick="irParaCadastro('orcamentos')" title="Ir para Cadastro de Orçamentos"><span class="icone">💰</span><span class="rotulo">Orçamentos</span></button>
+          <button class="atalho-cadastro" onclick="irParaCadastro('cartoes')" title="Ir para Cadastro de Despesas"><span class="icone">💸</span><span class="rotulo">Despesas</span></button>
+          <button class="atalho-cadastro" onclick="irParaInicio()" title="Ir para o Início (Dashboard)"><span class="icone">🏠</span><span class="rotulo">Início</span></button>
+        </div>
+      </div>
+      <div class="obs-topo" id="obsResumoAnualTipo"></div>
+      <div class="chart-wrap" style="height:auto;max-height:500px;overflow-y:auto;"><div id="resumoAnualTipoWrapInterno" style="min-height:300px;"><canvas id="graficoResumoAnualTipo"></canvas></div></div>
+      <div class="modal-rodape">
+        <button class="btn btn-cinza" onclick="fecharModal('overlayResumoAnualTipo')">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL RESUMO ANUAL (abre ao clicar no card amarelo RESUMO ANUAL do
+       Dashboard) -- 2 gráficos: linha mensal (Orçamento x Despesas do ano) e
+       barras por Grupo de Despesa, cujo clique abre #overlayResumoAnualTipo
+       por cima. -->
+  <div class="overlay" id="overlayResumoAnual">
+    <div class="modal" style="width:95vw;max-width:900px;">
+      <button class="modal-x" onclick="fecharModal('overlayResumoAnual')" aria-label="Fechar">✕</button>
+      <div class="titulo-modal-linha">
+        <h3 id="tituloResumoAnual">Resumo Anual</h3>
+        <div class="atalhos-cadastro">
+          <button class="atalho-cadastro" onclick="irParaCadastro('lancamentos')" title="Ir para Lançamentos de Despesas"><span class="icone">🧾</span><span class="rotulo">Lançamentos</span></button>
+          <button class="atalho-cadastro" onclick="irParaCadastro('orcamentos')" title="Ir para Cadastro de Orçamentos"><span class="icone">💰</span><span class="rotulo">Orçamentos</span></button>
+          <button class="atalho-cadastro" onclick="irParaCadastro('cartoes')" title="Ir para Cadastro de Despesas"><span class="icone">💸</span><span class="rotulo">Despesas</span></button>
+          <button class="atalho-cadastro" onclick="irParaInicio()" title="Ir para o Início (Dashboard)"><span class="icone">🏠</span><span class="rotulo">Início</span></button>
+        </div>
+      </div>
+      <div class="obs-topo" id="obsResumoAnual"></div>
+      <div class="subtitulo-modal">Orçamento x Despesas por mês</div>
+      <div class="chart-wrap" style="height:280px;"><canvas id="graficoResumoAnualMensal"></canvas></div>
+      <div class="legenda-grafico" id="legendaResumoAnualMensal"></div>
+      <div class="subtitulo-modal">Total por Grupo de Despesa <small style="font-weight:400;color:#9aa5b5;">(clique numa barra pra ver por Tipo de Despesa)</small></div>
+      <div class="chart-wrap" style="height:auto;max-height:400px;overflow-y:auto;"><div id="resumoAnualGrupoWrapInterno" style="min-height:300px;"><canvas id="graficoResumoAnualGrupo"></canvas></div></div>
+      <div class="modal-rodape">
+        <button class="btn btn-cinza" onclick="fecharModal('overlayResumoAnual')">Fechar</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const brl = (v) => new Intl.NumberFormat('pt-BR', { style:'currency', currency:'BRL' }).format(v || 0);
     // Valor de cada parcela de uma compra (valor_total / qtd_parcelas) — usado nas tabelas
@@ -1033,6 +1102,7 @@
     let orcamentoPorMes = {}; // chave "YYYY-MM" -> valor daquele mês
     let ultimaProjecaoDados = []; // guarda os 24 meses para o filtro reaplicar sem nova chamada à API
     let chartProjecao, chartCartao, chartTipo, chartDescricao, chartGrupo, chartTipoDespesaDrill, chartTipoDesp;
+    let chartResumoAnualMensal, chartResumoAnualGrupo, chartResumoAnualTipo;
     let compraEditandoId = null;
     let ultimoKpis = null; // guarda o resultado de /dashboard/kpis pro filtro de mês re-renderizar sem nova chamada
     let mesKpiSelecionado = null; // "YYYY-MM" usado pelos cards "Despesas Mês" e "Orçamento Mês"
@@ -1529,9 +1599,9 @@
       vencimentoCompraEditadoManualmente = true;
     }
 
-    // Renderiza os 2 cards do topo do Dashboard ("Despesas Totais" foi cancelado
-    // a pedido). "Despesas Mês" e "Orçamento Mês" usam o mês escolhido no filtro
-    // (mesKpiSelecionado), buscando as parcelas daquele mês direto.
+    // Renderiza os 3 cards do topo do Dashboard ("Despesas Totais" foi cancelado
+    // a pedido). "Despesas Mês", "Orçamento Mês" e "Resumo Anual" usam o mês
+    // escolhido no filtro (mesKpiSelecionado) -- o card anual usa só o ANO dele.
     // k (resultado de /dashboard/kpis) não é mais usado aqui, mas continua sendo
     // buscado/guardado em ultimoKpis — filtrarKpisPorMes ainda depende dele pra
     // saber se o carregamento inicial já terminou antes de reagir ao filtro.
@@ -1560,6 +1630,12 @@
         '<span class="valor-pago">Pago: ' + brl(totalPago) + '</span>' +
         '<br><span class="valor-pendente">Pendente: ' + brl(totalPendente) + '</span></div>';
 
+      // Totais do ANO inteiro (Jan a Dez de "ano") -- mesma soma que os
+      // gráficos do modal Resumo Anual usam, só que aqui já com tudo pronto
+      // (ultimasParcelasTodas/orcamentoPorMes já carregados em carregarTudo()).
+      const orcamentoAnual = totaisAnuais(ano).orcamento;
+      const despesaAnual = totaisAnuais(ano).despesa;
+
       document.getElementById('kpis').innerHTML =
         '<div class="kpi" onclick="detalheMes(\'' + mesIso + '\')">' +
           '<div class="rotulo">DESPESAS MÊS ' + nomeMes + '</div>' +
@@ -1572,7 +1648,24 @@
           '<div class="kpi-linha">Orçamento: <b>' + brl(orcamentoMes) + '</b></div>' +
           '<div class="kpi-linha kpi-saldo ' + corSaldo + '">Saldo: <b>' + brl(saldoOrcamento) + '</b></div>' +
           '<div class="kpi-sub">Clique para ver o comparativo</div>' +
+        '</div>' +
+        '<div class="kpi kpi-resumo-anual" onclick="detalheResumoAnual(\'' + ano + '\')">' +
+          '<div class="rotulo">RESUMO ANUAL ' + ano + '</div>' +
+          '<div class="kpi-linha">Orçamento Anual: <b>' + brl(orcamentoAnual) + '</b></div>' +
+          '<div class="kpi-linha">Despesa Anual: <b>' + brl(despesaAnual) + '</b></div>' +
+          '<div class="kpi-sub">Clique para ver o resumo anual</div>' +
         '</div>';
+    }
+    // Soma o Orçamento e a Despesa (parcelas pagas + pendentes, mesmo conceito
+    // do card "Despesas Mês") de TODOS os 12 meses de "ano" -- usado no card
+    // RESUMO ANUAL e como base dos 2 gráficos que ele abre.
+    function totaisAnuais(ano) {
+      let orcamento = 0;
+      for (let m = 1; m <= 12; m++) orcamento += orcamentoPorMes[ano + '-' + String(m).padStart(2, '0')] || 0;
+      const despesa = ultimasParcelasTodas
+        .filter(p => String(p.data_vencimento).slice(0, 4) === String(ano))
+        .reduce((s, p) => s + Number(p.valor || 0), 0);
+      return { orcamento, despesa };
     }
     // Chamado pelo filtro de mês (input#kpiMesSelecionado) — atualiza só os
     // cards "Despesas Mês" e "Orçamento Mês" pro mês escolhido, sem precisar
@@ -2532,6 +2625,173 @@
       const titulo = categoria + ' — ' + nomeGrupo + periodoTexto('grupoDe', 'grupoAte');
       abrirDetalheModal(titulo, 'Detalhamento do tipo de despesa selecionado no gráfico.', header, linhasObj, montarTotal, 14);
     }
+
+    // ---- RESUMO ANUAL (card amarelo do Dashboard) ----
+    // Abre o modal com os 2 gráficos do ano inteiro: linha mensal (Orçamento
+    // x Despesas) e barras por Grupo de Despesa -- que por sua vez abre um
+    // 2º gráfico por Tipo de Despesa ao clicar numa barra, igual ao
+    // drill-down Grupo -> Tipo que já existe no Dashboard (abrirGraficoTipoDespesa
+    // logo acima), só que aqui o filtro é sempre o ANO inteiro, não o
+    // período De/Até dos outros gráficos.
+    function detalheResumoAnual(ano) {
+      document.getElementById('tituloResumoAnual').textContent = 'Resumo Anual — ' + ano;
+      const totais = totaisAnuais(ano);
+      document.getElementById('obsResumoAnual').innerHTML =
+        '<b>Orçamento Anual:</b> ' + brl(totais.orcamento) + ' &nbsp;|&nbsp; <b>Despesa Anual:</b> ' + brl(totais.despesa);
+      // Abre o modal ANTES de desenhar os gráficos -- o gráfico de Grupo usa
+      // ajustarQuebraGrafico(), que mede a largura real do eixo Y pra quebrar
+      // os nomes; com o canvas ainda escondido (display:none) essa largura
+      // vem errada (bem menor que o real) e os nomes saem quebrados letra
+      // por letra. Desenhar só depois de abrir evita o problema na raiz.
+      abrirModal('overlayResumoAnual');
+      renderResumoAnualMensal(ano);
+      renderResumoAnualGrupo(ano);
+    }
+    // Gráfico de linhas: Orçamento x Despesas, mês a mês, de janeiro a dezembro do ano.
+    function renderResumoAnualMensal(ano) {
+      const meses = [];
+      for (let m = 1; m <= 12; m++) {
+        const anoMes = ano + '-' + String(m).padStart(2, '0');
+        const despesa = ultimasParcelasTodas
+          .filter(p => String(p.data_vencimento).slice(0, 7) === anoMes)
+          .reduce((s, p) => s + Number(p.valor || 0), 0);
+        meses.push({ anoMes, despesa, orcamento: orcamentoPorMes[anoMes] || 0 });
+      }
+      const ctx = document.getElementById('graficoResumoAnualMensal');
+      if (chartResumoAnualMensal) chartResumoAnualMensal.destroy();
+      chartResumoAnualMensal = new Chart(ctx, {
+        type: 'line',
+        data: { labels: meses.map(d => labelMes(d.anoMes)), datasets: [
+          { label:'Orçamento', data:meses.map(d => d.orcamento), borderColor:'#6AA84F', backgroundColor:'#6AA84F', tension:.3, pointRadius:3, pointHoverRadius:5 },
+          { label:'Despesas', data:meses.map(d => d.despesa), borderColor:'#E57373', backgroundColor:'#E57373', tension:.3, pointRadius:3, pointHoverRadius:5 },
+        ] },
+        options: { maintainAspectRatio:false,
+          plugins:{ legend:{display:false}, tooltip:{enabled:true, callbacks:{label:(c) => c.dataset.label + ': ' + brl(c.raw)}} },
+          scales:{ x:{grid:{display:false}}, y:{ticks:{callback:(v) => 'R$ ' + (v/1000) + 'k'}} } },
+      });
+      montarLegendaGrafico('legendaResumoAnualMensal', chartResumoAnualMensal, [
+        { rotulo:'Orçamento', cor:'#6AA84F' },
+        { rotulo:'Despesas', cor:'#E57373' },
+      ]);
+    }
+    // Gráfico de barras: total do ano (pago + pendente, mesmo conceito do
+    // card "Despesa Anual") por Grupo de Despesa -- mesmo layout do gráfico
+    // "Compras por Grupo de Despesa" do Dashboard, só que somando o ANO
+    // inteiro em vez do período De/Até daquele outro gráfico.
+    function totaisPorGrupoAnual(ano) {
+      const grupos = {};
+      ultimasParcelasTodas
+        .filter(p => String(p.data_vencimento).slice(0, 4) === String(ano))
+        .forEach(p => {
+          const nome = p.grupo || 'Sem grupo';
+          grupos[nome] = (grupos[nome] || 0) + Number(p.valor || 0);
+        });
+      return Object.keys(grupos).map(nome => ({ grupo: nome, total: grupos[nome] }))
+        .filter(d => d.total > 0).sort((a, b) => b.total - a.total);
+    }
+    function renderResumoAnualGrupo(ano) {
+      const f = totaisPorGrupoAnual(ano);
+      const alturaPorLinha = telaEstreita() ? 46 : 30;
+      const alturaCalculada = Math.max(f.length * alturaPorLinha, 300);
+      const wrapInterno = document.getElementById('resumoAnualGrupoWrapInterno');
+      if (wrapInterno) { wrapInterno.style.height = alturaCalculada + 'px'; wrapInterno.style.minHeight = alturaCalculada + 'px'; }
+
+      const ctx = document.getElementById('graficoResumoAnualGrupo');
+      if (chartResumoAnualGrupo) chartResumoAnualGrupo.destroy();
+      chartResumoAnualGrupo = new Chart(ctx, {
+        type:'bar',
+        plugins: [ChartDataLabels],
+        data:{ labels:f.map(d=>rotuloResponsivo(d.grupo)), datasets:[{ label:'Total', data:f.map(d=>d.total), backgroundColor:'#F6B26B',
+          datalabels: { anchor:'end', align:'end', color:'#8a5a1f', font:{ size:11, weight:'600' }, formatter:(v) => brl(v) } }] },
+        options:{ indexAxis:'y', maintainAspectRatio:false, layout:{ padding:{ right:70 } },
+          interaction: { mode:'y', intersect:false },
+          onClick: (evt, elems) => { if (elems.length) abrirResumoAnualTipoDespesa(ano, f[elems[0].index].grupo); },
+          onHover: (evt, elems) => { evt.native.target.style.cursor = elems.length ? 'pointer' : 'default'; },
+          plugins:{ legend:{display:false}, tooltip:{enabled:true, callbacks:{label:(c)=>brl(c.raw)}} },
+          scales:{ x:{display:false,grid:{display:false}}, y:{grid:{display:false}, ticks:{ font:{ size:11 } }} } },
+      });
+      ajustarQuebraGrafico(chartResumoAnualGrupo, f.map(d => d.grupo));
+      requestAnimationFrame(() => { if (chartResumoAnualGrupo) chartResumoAnualGrupo.resize(); });
+    }
+    // Clique numa barra de Grupo de Despesa do Resumo Anual -> abre um novo
+    // gráfico com a quebra por Tipo de Despesa, dentro daquele grupo,
+    // somando o ano inteiro -- mesmo esquema do drill-down Grupo -> Tipo já
+    // existente no Dashboard (abrirGraficoTipoDespesa), só que filtrado por
+    // ano em vez de período De/Até.
+    function abrirResumoAnualTipoDespesa(ano, nomeGrupo) {
+      const parcelas = ultimasParcelasTodas.filter(p =>
+        String(p.data_vencimento).slice(0, 4) === String(ano) && (p.grupo || 'Sem grupo') === nomeGrupo);
+      const tipos = {};
+      parcelas.forEach(p => {
+        const nome = p.categoria || 'Sem tipo';
+        tipos[nome] = (tipos[nome] || 0) + Number(p.valor || 0);
+      });
+      const f = Object.keys(tipos).map(nome => ({ categoria: nome, total: tipos[nome] }))
+        .filter(d => d.total > 0).sort((a, b) => b.total - a.total);
+
+      document.getElementById('tituloResumoAnualTipo').textContent = 'Tipo de Despesa — ' + nomeGrupo + ' (' + ano + ')';
+      document.getElementById('obsResumoAnualTipo').textContent = 'Total do ano por Tipo de Despesa, dentro do grupo selecionado.';
+
+      const alturaPorLinha = telaEstreita() ? 46 : 30;
+      const alturaCalculada = Math.max(f.length * alturaPorLinha, 300);
+      const wrapInterno = document.getElementById('resumoAnualTipoWrapInterno');
+      if (wrapInterno) { wrapInterno.style.height = alturaCalculada + 'px'; wrapInterno.style.minHeight = alturaCalculada + 'px'; }
+
+      // Abre o modal ANTES de criar o gráfico -- ver comentário equivalente
+      // em detalheResumoAnual: com o canvas ainda escondido (display:none),
+      // ajustarQuebraGrafico() mede a largura do eixo Y errada (bem menor
+      // que a real) e os nomes saem quebrados letra por letra.
+      abrirModal('overlayResumoAnualTipo');
+
+      const ctx = document.getElementById('graficoResumoAnualTipo');
+      if (chartResumoAnualTipo) chartResumoAnualTipo.destroy();
+      chartResumoAnualTipo = new Chart(ctx, {
+        type:'bar',
+        plugins: [ChartDataLabels],
+        data:{ labels:f.map(d=>rotuloResponsivo(d.categoria)), datasets:[{ label:'Total', data:f.map(d=>d.total), backgroundColor:'#8E6FC4',
+          datalabels: { anchor:'end', align:'end', color:'#5b3fa0', font:{ size:11, weight:'600' }, formatter:(v) => brl(v) } }] },
+        options:{ indexAxis:'y', maintainAspectRatio:false, layout:{ padding:{ right:70 } },
+          interaction: { mode:'y', intersect:false },
+          onClick: (evt, elems) => { if (elems.length) detalheResumoAnualTipo(ano, nomeGrupo, f[elems[0].index].categoria); },
+          onHover: (evt, elems) => { evt.native.target.style.cursor = elems.length ? 'pointer' : 'default'; },
+          plugins:{ legend:{display:false}, tooltip:{enabled:true, callbacks:{label:(c)=>brl(c.raw)}} },
+          scales:{ x:{display:false,grid:{display:false}}, y:{grid:{display:false}, ticks:{ font:{ size:11 } }} } },
+      });
+      ajustarQuebraGrafico(chartResumoAnualTipo, f.map(d => d.categoria));
+      requestAnimationFrame(() => { if (chartResumoAnualTipo) chartResumoAnualTipo.resize(); });
+    }
+    // Clique numa barra do gráfico "Tipo de Despesa" do Resumo Anual -> tabela
+    // padrão (mesmos ícones ⓘ/👁/✎/⧉/✕/✔/+) com as compras daquele grupo+tipo
+    // no ano, pagas e pendentes -- por isso tem coluna Status, igual à
+    // tabela "Gastos do Mês" do Comparativo (ao contrário do drill-down
+    // De/Até do Dashboard, que só mostra pendente e não precisa dessa coluna).
+    function detalheResumoAnualTipo(ano, nomeGrupo, categoria) {
+      ultimoDetalheRefresh = () => detalheResumoAnualTipo(ano, nomeGrupo, categoria);
+      const linhas = ultimasParcelasTodas.filter(p =>
+        String(p.data_vencimento).slice(0, 4) === String(ano) &&
+        (p.grupo || 'Sem grupo') === nomeGrupo && (p.categoria || 'Sem tipo') === categoria);
+      const header = '<th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Parcelas em Aberto</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Valor da Compra</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Status</th><th>Ações</th>';
+      const linhasObj = linhas.map(l => {
+        const avista = Number(l.qtd_parcelas) === 1;
+        const tipoLabel = avista ? 'À vista' : 'Parcelada';
+        const tipoBadge = avista ? '<span class="badge avista">À vista</span>' : '<span class="badge parcelada">Parcelada</span>';
+        const emAberto = Math.max(Number(l.qtd_parcelas||0)-Number(l.qtd_parcelas_pagas||0),0);
+        const situacao = Number(l.saldo_aberto||0) <= 0 ? 'Quitada' : 'Em Aberto';
+        const situBadge = situacao === 'Quitada' ? '<span class="badge quitada">Quitada</span>' : '<span class="badge aberto">Em Aberto</span>';
+        return { descricao: l.descricao, raw: l,
+          busca: montarBusca(l.descricao, tipoLabel, l.cartao, l.categoria, l.num_parcela+'/'+l.qtd_parcelas, l.qtd_parcelas_pagas||0, emAberto, formatarData(l.data_compra), formatarData(l.data_vencimento), brl(l.valor_total), brl(l.valor), brl(l.saldo_aberto), situacao, l.status === 'Pago' ? 'Pago' : 'Pendente'),
+          html: '<tr><td>' + l.descricao + '</td><td>' + tipoBadge + '</td><td>' + (l.cartao||'-') + '</td><td>' + (l.categoria||'-') + '</td>' +
+            '<td>' + l.num_parcela + '/' + l.qtd_parcelas + '</td><td>' + (l.qtd_parcelas_pagas||0) + '</td><td>' + emAberto + '</td>' +
+            '<td>' + formatarData(l.data_compra) + '</td><td>' + formatarData(l.data_vencimento) + '</td>' +
+            '<td class="num">' + brl(l.valor_total) + '</td><td class="num">' + brl(l.valor) + '</td>' +
+            '<td class="num">' + brl(l.saldo_aberto) + '</td><td>' + situBadge + '</td><td>' + badgeStatusParcela(l.status) + '</td>' +
+            '<td>' + botaoDetalheCadastroHtml(l.compra_id) + ' ' + botaoVisualizarDespesaHtml(l.compra_id) + ' ' + botaoEditarCadastroHtml(l.compra_id) + ' ' + botaoReplicarHtml(l.compra_id) + ' ' + botaoExcluirCadastroHtml(l.compra_id, l.descricao) + ' ' + botaoBaixaParcelaHtml(l.parcela_id, l.status === 'Pago') + ' ' + botaoIncluirDespesaHtml() + '</td></tr>' };
+      });
+      const montarTotal = (ls) => linhaTotal(10, ls.reduce((s,l) => s + Number(l.raw.valor||0), 0), 4);
+      const titulo = categoria + ' — ' + nomeGrupo + ' (' + ano + ')';
+      abrirDetalheModal(titulo, 'Compras do ano selecionado, pagas e pendentes.', header, linhasObj, montarTotal, 15);
+    }
+
     // Clique numa fatia/barra do gráfico comparativo (ou no card "Total a Pagar") -> lista as parcelas daquele status.
     async function detalheStatus(status) {
       ultimoDetalheRefresh = () => detalheStatus(status);
@@ -2765,6 +3025,8 @@
       fecharModal('overlayDetalhe');
       fecharModal('overlayComparativo');
       fecharModal('overlayGraficoTipo');
+      fecharModal('overlayResumoAnualTipo');
+      fecharModal('overlayResumoAnual');
       fecharModal('overlayCompra');
       fecharModal('overlayParcelas');
       fecharModal('overlayReplicarOrcamento');
