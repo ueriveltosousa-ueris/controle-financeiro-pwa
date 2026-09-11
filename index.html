@@ -192,6 +192,12 @@
     td.num, th.num { text-align:right; }
     td { transition:background-color .12s ease; }
     table tbody tr:hover > td { background:var(--linha-hover); }
+    /* Linhas de despesa/orçamento têm onclick="visualizarXxx(...)" (clicar em
+       qualquer parte da linha, com mouse ou dedo, abre a mesma tela do ícone
+       "👁") -- o seletor de atributo pega só essas linhas, não as de
+       Grupo/Tipo/Forma de Pagamento nem as de TOTAL/Subtotal, que não têm
+       onclick e continuam com o cursor padrão. */
+    table tbody tr[onclick] { cursor:pointer; }
     .badge { padding:3px 10px; border-radius:12px; font-size:11px; font-weight:600; }
     .badge.aberto { background:#fff3cd; color:#856404; }
     .badge.quitada { background:#d4edda; color:#155724; }
@@ -1336,15 +1342,15 @@
         if (!itens.length) {
           tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#888;">Nenhum item cadastrado para este mês.</td></tr>';
         } else {
-          tbody.innerHTML = itens.map(it => `<tr>
+          tbody.innerHTML = itens.map(it => `<tr onclick="visualizarItemOrcamento('${(it.descricao||'').replace(/'/g,"\\'")}', ${it.valor}, '${mes}')">
             <td>${it.descricao}</td>
             <td class="num">${brl(it.valor)}</td>
             <td>
-              <button class="btn-visualizar-cadastro" onclick="visualizarItemOrcamento('${(it.descricao||'').replace(/'/g,"\\'")}', ${it.valor}, '${mes}')" title="Visualizar (somente leitura)" aria-label="Visualizar">👁</button>
-              <button class="btn-replicar" onclick="replicarItemOrcamento('${(it.descricao||'').replace(/'/g,"\\'")}', ${it.valor})" title="Replicar — preenche os campos acima com estes dados, pra cadastrar em outro mês" aria-label="Replicar">⧉</button>
+              <button class="btn-visualizar-cadastro" onclick="event.stopPropagation();visualizarItemOrcamento('${(it.descricao||'').replace(/'/g,"\\'")}', ${it.valor}, '${mes}')" title="Visualizar (somente leitura)" aria-label="Visualizar">👁</button>
+              <button class="btn-replicar" onclick="event.stopPropagation();replicarItemOrcamento('${(it.descricao||'').replace(/'/g,"\\'")}', ${it.valor})" title="Replicar — preenche os campos acima com estes dados, pra cadastrar em outro mês" aria-label="Replicar">⧉</button>
               ${botaoIncluirOrcamentoHtml()}
-              <button class="link-acao link-editar" onclick="editarItemOrcamento(${it.id}, '${(it.descricao||'').replace(/'/g,"\\'")}', ${it.valor})">Editar</button>
-              <button class="link-acao link-excluir" onclick="excluirItemOrcamento(${it.id})">Excluir</button>
+              <button class="link-acao link-editar" onclick="event.stopPropagation();editarItemOrcamento(${it.id}, '${(it.descricao||'').replace(/'/g,"\\'")}', ${it.valor})">Editar</button>
+              <button class="link-acao link-excluir" onclick="event.stopPropagation();excluirItemOrcamento(${it.id})">Excluir</button>
             </td>
           </tr>`).join('');
         }
@@ -1954,7 +1960,7 @@
         const situBadge = situacao === 'Quitada' ? '<span class="badge quitada">Quitada</span>' : '<span class="badge aberto">Em Aberto</span>';
         return { descricao: p.descricao, raw: p,
           busca: montarBusca(p.descricao, tipoLabel, p.cartao, p.categoria, p.num_parcela+'/'+p.qtd_parcelas, p.qtd_parcelas_pagas||0, emAberto, formatarData(p.data_compra), formatarData(p.data_vencimento), brl(p.valor_total), brl(p.valor), brl(p.saldo_aberto), situacao, p.status === 'Pago' ? 'Pago' : 'Pendente'),
-          html: '<tr><td>' + p.descricao + '</td><td>' + tipoBadge + '</td><td>' + (p.cartao||'-') + '</td><td>' + (p.categoria||'-') + '</td>' +
+          html: '<tr onclick="visualizarCompra(' + p.compra_id + ')"><td>' + p.descricao + '</td><td>' + tipoBadge + '</td><td>' + (p.cartao||'-') + '</td><td>' + (p.categoria||'-') + '</td>' +
             '<td>' + p.num_parcela + '/' + p.qtd_parcelas + '</td>' +
             '<td>' + (p.qtd_parcelas_pagas || 0) + '</td>' +
             '<td>' + emAberto + '</td>' +
@@ -2039,7 +2045,7 @@
         const emAberto = Number(c.qtd_parcelas || 0) - (c.qtd_parcelas_pagas || 0);
         return { descricao: c.descricao, raw: c,
           busca: montarBusca(c.descricao, tipoLabel, c.cartao, c.categoria, (c.qtd_parcelas_pagas||0)+'/'+c.qtd_parcelas, emAberto, formatarData(c.data_compra), formatarData(c.proximo_vencimento), brl(c.valor_total), brl(valorParcela(c)), brl(c.saldo_aberto), c.situacao),
-          html: '<tr><td>' + c.descricao + '</td><td>' + tipo + '</td><td>' + (c.cartao||'-') + '</td><td>' + (c.categoria||'-') + '</td>' +
+          html: '<tr onclick="visualizarCompra(' + c.compra_id + ')"><td>' + c.descricao + '</td><td>' + tipo + '</td><td>' + (c.cartao||'-') + '</td><td>' + (c.categoria||'-') + '</td>' +
             '<td>' + (c.qtd_parcelas_pagas||0) + '/' + c.qtd_parcelas + '</td><td>' + (c.qtd_parcelas_pagas||0) + '</td><td>' + emAberto + '</td>' +
             '<td>' + formatarData(c.data_compra) + '</td><td>' + formatarData(c.proximo_vencimento) + '</td>' +
             '<td class="num">' + brl(c.valor_total) + '</td><td class="num">' + brl(valorParcela(c)) + '</td><td class="num">' + brl(c.saldo_aberto) + '</td>' +
@@ -2134,10 +2140,10 @@
     // orçamento abre o Item de Orçamento), sempre em branco/novo, não
     // preenchido com os dados daquela linha (isso quem faz é o "⧉" replicar).
     function botaoIncluirDespesaHtml() {
-      return '<button class="btn-incluir-cadastro" onclick="abrirModalCompra()" title="Novo Lançamento de Despesa" aria-label="Novo Lançamento de Despesa">+</button>';
+      return '<button class="btn-incluir-cadastro" onclick="event.stopPropagation();abrirModalCompra()" title="Novo Lançamento de Despesa" aria-label="Novo Lançamento de Despesa">+</button>';
     }
     function botaoIncluirOrcamentoHtml() {
-      return '<button class="btn-incluir-cadastro" onclick="abrirModalNovoItemOrcamento()" title="Novo Item de Orçamento" aria-label="Novo Item de Orçamento">+</button>';
+      return '<button class="btn-incluir-cadastro" onclick="event.stopPropagation();abrirModalNovoItemOrcamento()" title="Novo Item de Orçamento" aria-label="Novo Item de Orçamento">+</button>';
     }
     // Botão "👁" de visualizar em qualquer linha ligada a uma compra -- abre o
     // mesmo formulário de Editar, só que travado (só leitura, sem Salvar).
@@ -2147,7 +2153,7 @@
     }
     // Mesma coisa, pra item de orçamento.
     function botaoVisualizarOrcamentoHtml(descricao, valor, mes) {
-      return '<button class="btn-visualizar-cadastro" onclick="visualizarItemOrcamento(\'' + String(descricao||'').replace(/'/g,"\\'") + '\', ' + valor + ', \'' + (mes||'') + '\')" title="Visualizar (somente leitura)" aria-label="Visualizar">👁</button>';
+      return '<button class="btn-visualizar-cadastro" onclick="event.stopPropagation();visualizarItemOrcamento(\'' + String(descricao||'').replace(/'/g,"\\'") + '\', ' + valor + ', \'' + (mes||'') + '\')" title="Visualizar (somente leitura)" aria-label="Visualizar">👁</button>';
     }
     // Botão "✔" de dar baixa (marcar como paga) direto na linha da tabela.
     // Duas variantes: por COMPRA (tabelas onde uma linha = a compra inteira —
@@ -2274,7 +2280,7 @@
           const situBadge = situacao === 'Quitada' ? '<span class="badge quitada">Quitada</span>' : '<span class="badge aberto">Em Aberto</span>';
           return { descricao: l.descricao, raw: l,
             busca: montarBusca(l.descricao, tipoLabel, l.cartao, l.categoria, l.num_parcela+'/'+l.qtd_parcelas, l.qtd_parcelas_pagas||0, emAberto, formatarData(l.data_compra), formatarData(l.data_vencimento), brl(l.valor_total), brl(l.valor), brl(l.saldo_aberto), situacao, l.status === 'Pago' ? 'Pago' : 'Pendente'),
-            html: '<tr><td>' + l.descricao + '</td><td>' + tipoBadge + '</td><td>' + (l.cartao||'-') + '</td><td>' + (l.categoria||'-') + '</td>' +
+            html: '<tr onclick="visualizarCompra(' + l.compra_id + ')"><td>' + l.descricao + '</td><td>' + tipoBadge + '</td><td>' + (l.cartao||'-') + '</td><td>' + (l.categoria||'-') + '</td>' +
               '<td>' + l.num_parcela + '/' + l.qtd_parcelas + '</td>' +
               '<td>' + (l.qtd_parcelas_pagas || 0) + '</td>' +
               '<td>' + emAberto + '</td>' +
@@ -2302,10 +2308,10 @@
           descricao: it.descricao,
           raw: it,
           busca: montarBusca(it.descricao, brl(it.valor)),
-          html: '<tr><td>' + it.descricao + '</td><td class="num">' + brl(it.valor) + '</td>' +
-            '<td>' + botaoVisualizarOrcamentoHtml(it.descricao, it.valor, anoMes) + ' <button class="btn-editar-cadastro" onclick="editarItemOrcamentoDeDetalhe(' + it.id + ', \'' + String(it.descricao||'').replace(/'/g,"\\'") + '\', ' + it.valor + ')" title="Editar cadastro — edita este item de Orçamento" aria-label="Editar cadastro">✎</button> ' +
-            '<button class="btn-replicar" onclick="replicarItemOrcamentoDeDetalhe(\'' + String(it.descricao||'').replace(/'/g,"\\'") + '\', ' + it.valor + ', \'' + anoMes + '\')" title="Replicar — cria um novo item de orçamento com estes dados" aria-label="Replicar">⧉</button> ' +
-            '<button class="btn-excluir-cadastro" onclick="excluirItemOrcamentoDeDetalhe(' + it.id + ')" title="Excluir este item de orçamento" aria-label="Excluir">✕</button> ' + botaoIncluirOrcamentoHtml() + '</td></tr>',
+          html: '<tr onclick="visualizarItemOrcamento(\'' + String(it.descricao||'').replace(/'/g,"\\'") + '\', ' + it.valor + ', \'' + anoMes + '\')"><td>' + it.descricao + '</td><td class="num">' + brl(it.valor) + '</td>' +
+            '<td>' + botaoVisualizarOrcamentoHtml(it.descricao, it.valor, anoMes) + ' <button class="btn-editar-cadastro" onclick="event.stopPropagation();editarItemOrcamentoDeDetalhe(' + it.id + ', \'' + String(it.descricao||'').replace(/'/g,"\\'") + '\', ' + it.valor + ')" title="Editar cadastro — edita este item de Orçamento" aria-label="Editar cadastro">✎</button> ' +
+            '<button class="btn-replicar" onclick="event.stopPropagation();replicarItemOrcamentoDeDetalhe(\'' + String(it.descricao||'').replace(/'/g,"\\'") + '\', ' + it.valor + ', \'' + anoMes + '\')" title="Replicar — cria um novo item de orçamento com estes dados" aria-label="Replicar">⧉</button> ' +
+            '<button class="btn-excluir-cadastro" onclick="event.stopPropagation();excluirItemOrcamentoDeDetalhe(' + it.id + ')" title="Excluir este item de orçamento" aria-label="Excluir">✕</button> ' + botaoIncluirOrcamentoHtml() + '</td></tr>',
         }));
         const montarTotal = (ls) => linhaTotal(1, ls.reduce((s,l) => s + Number(l.raw.valor||0), 0), 1);
         abrirDetalheModal('Orçamento — ' + labelMes(mesIso), 'Itens de orçamento cadastrados para este mês (aba Orçamentos).', header, linhasObj, montarTotal, 3);
@@ -2350,10 +2356,10 @@
         });
 
         document.getElementById('corpoComparativoOrcamento').innerHTML = itensOrc.length
-          ? itensOrc.map(it => '<tr><td>' + it.descricao + '</td><td class="num">' + brl(it.valor) + '</td><td>' +
-              botaoVisualizarOrcamentoHtml(it.descricao, it.valor, anoMes) + ' <button class="btn-editar-cadastro" onclick="editarItemOrcamentoDeDetalhe(' + it.id + ', \'' + String(it.descricao||'').replace(/'/g,"\\'") + '\', ' + it.valor + ')" title="Editar cadastro — edita este item de Orçamento" aria-label="Editar cadastro">✎</button> ' +
-              '<button class="btn-replicar" onclick="replicarItemOrcamentoDeDetalhe(\'' + String(it.descricao||'').replace(/'/g,"\\'") + '\', ' + it.valor + ', \'' + anoMes + '\')" title="Replicar — cria um novo item de orçamento com estes dados" aria-label="Replicar">⧉</button> ' +
-              '<button class="btn-excluir-cadastro" onclick="excluirItemOrcamentoDeDetalhe(' + it.id + ')" title="Excluir este item de orçamento" aria-label="Excluir">✕</button> ' + botaoIncluirOrcamentoHtml() + '</td></tr>').join('') +
+          ? itensOrc.map(it => '<tr onclick="visualizarItemOrcamento(\'' + String(it.descricao||'').replace(/'/g,"\\'") + '\', ' + it.valor + ', \'' + anoMes + '\')"><td>' + it.descricao + '</td><td class="num">' + brl(it.valor) + '</td><td>' +
+              botaoVisualizarOrcamentoHtml(it.descricao, it.valor, anoMes) + ' <button class="btn-editar-cadastro" onclick="event.stopPropagation();editarItemOrcamentoDeDetalhe(' + it.id + ', \'' + String(it.descricao||'').replace(/'/g,"\\'") + '\', ' + it.valor + ')" title="Editar cadastro — edita este item de Orçamento" aria-label="Editar cadastro">✎</button> ' +
+              '<button class="btn-replicar" onclick="event.stopPropagation();replicarItemOrcamentoDeDetalhe(\'' + String(it.descricao||'').replace(/'/g,"\\'") + '\', ' + it.valor + ', \'' + anoMes + '\')" title="Replicar — cria um novo item de orçamento com estes dados" aria-label="Replicar">⧉</button> ' +
+              '<button class="btn-excluir-cadastro" onclick="event.stopPropagation();excluirItemOrcamentoDeDetalhe(' + it.id + ')" title="Excluir este item de orçamento" aria-label="Excluir">✕</button> ' + botaoIncluirOrcamentoHtml() + '</td></tr>').join('') +
             '<tr style="font-weight:700;background:#f0f4fa;"><td>Subtotal</td><td class="num">' + brl(totalOrc) + '</td><td></td></tr>'
           : '<tr><td colspan="3" style="text-align:center;color:#888;">Nenhum item cadastrado (aba Orçamentos).</td></tr>';
 
@@ -2427,7 +2433,7 @@
         const situBadge = situacao === 'Quitada' ? '<span class="badge quitada">Quitada</span>' : '<span class="badge aberto">Em Aberto</span>';
         return { descricao: p.descricao, raw: p,
           busca: montarBusca(p.descricao, tipoLabel, p.cartao, p.categoria, p.num_parcela+'/'+p.qtd_parcelas, p.qtd_parcelas_pagas||0, emAberto, formatarData(p.data_compra), formatarData(p.data_vencimento), brl(p.valor_total), brl(p.valor), brl(p.saldo_aberto), situacao, p.status === 'Pago' ? 'Pago' : 'Pendente'),
-          html: '<tr><td>' + p.descricao + '</td><td>' + tipoBadge + '</td><td>' + (p.cartao||'-') + '</td><td>' + (p.categoria||'-') + '</td>' +
+          html: '<tr onclick="visualizarCompra(' + p.compra_id + ')"><td>' + p.descricao + '</td><td>' + tipoBadge + '</td><td>' + (p.cartao||'-') + '</td><td>' + (p.categoria||'-') + '</td>' +
             '<td>' + p.num_parcela + '/' + p.qtd_parcelas + '</td>' +
             '<td>' + (p.qtd_parcelas_pagas || 0) + '</td>' +
             '<td>' + emAberto + '</td>' +
@@ -2545,7 +2551,7 @@
         const situBadge = situacao === 'Quitada' ? '<span class="badge quitada">Quitada</span>' : '<span class="badge aberto">Em Aberto</span>';
         return { descricao: p.descricao, raw: p,
           busca: montarBusca(p.descricao, tipoLabel, p.cartao, p.categoria, p.num_parcela+'/'+p.qtd_parcelas, p.qtd_parcelas_pagas||0, emAberto, formatarData(p.data_compra), formatarData(p.data_vencimento), brl(p.valor_total), brl(p.valor), brl(p.saldo_aberto), situacao),
-          html: '<tr><td>' + p.descricao + '</td><td>' + tipoBadge + '</td><td>' + (p.cartao||'-') + '</td><td>' + (p.categoria||'-') + '</td>' +
+          html: '<tr onclick="visualizarCompra(' + p.compra_id + ')"><td>' + p.descricao + '</td><td>' + tipoBadge + '</td><td>' + (p.cartao||'-') + '</td><td>' + (p.categoria||'-') + '</td>' +
             '<td>' + p.num_parcela + '/' + p.qtd_parcelas + '</td>' +
             '<td>' + (p.qtd_parcelas_pagas || 0) + '</td>' +
             '<td>' + emAberto + '</td>' +
@@ -2624,7 +2630,7 @@
         const situBadge = situacao === 'Quitada' ? '<span class="badge quitada">Quitada</span>' : '<span class="badge aberto">Em Aberto</span>';
         return { descricao: p.descricao, raw: p,
           busca: montarBusca(p.descricao, tipoLabel, p.cartao, p.categoria, p.num_parcela+'/'+p.qtd_parcelas, p.qtd_parcelas_pagas||0, emAberto, formatarData(p.data_compra), formatarData(p.data_vencimento), brl(p.valor_total), brl(p.valor), brl(p.saldo_aberto), situacao),
-          html: '<tr><td>' + p.descricao + '</td><td>' + tipoBadge + '</td><td>' + (p.cartao||'-') + '</td><td>' + (p.categoria||'-') + '</td>' +
+          html: '<tr onclick="visualizarCompra(' + p.compra_id + ')"><td>' + p.descricao + '</td><td>' + tipoBadge + '</td><td>' + (p.cartao||'-') + '</td><td>' + (p.categoria||'-') + '</td>' +
             '<td>' + p.num_parcela + '/' + p.qtd_parcelas + '</td>' +
             '<td>' + (p.qtd_parcelas_pagas || 0) + '</td>' +
             '<td>' + emAberto + '</td>' +
@@ -2853,7 +2859,7 @@
         const situBadge = situacao === 'Quitada' ? '<span class="badge quitada">Quitada</span>' : '<span class="badge aberto">Em Aberto</span>';
         return { descricao: d.descricao, raw: d,
           busca: montarBusca(d.descricao, tipoLabel, d.cartao, d.categoria, pagas+'/'+d.qtd_parcelas, pagas, emAberto, formatarData(d.data_compra), formatarData(d.proximo_vencimento), brl(d.valor_total), brl(valorParcela(d)), brl(d.saldo_aberto), situacao),
-          html: '<tr><td>' + d.descricao + '</td><td>' + tipoBadge + '</td><td>' + (d.cartao||'-') + '</td><td>' + (d.categoria||'-') + '</td>' +
+          html: '<tr onclick="visualizarCompra(' + d.compra_id + ')"><td>' + d.descricao + '</td><td>' + tipoBadge + '</td><td>' + (d.cartao||'-') + '</td><td>' + (d.categoria||'-') + '</td>' +
             '<td>' + pagas + '/' + d.qtd_parcelas + '</td><td>' + pagas + '</td><td>' + emAberto + '</td>' +
             '<td>' + formatarData(d.data_compra) + '</td><td>' + formatarData(d.proximo_vencimento) + '</td>' +
             '<td class="num">' + brl(d.valor_total) + '</td><td class="num">' + brl(valorParcela(d)) + '</td>' +
@@ -2896,7 +2902,7 @@
           const situBadge = situacao === 'Quitada' ? '<span class="badge quitada">Quitada</span>' : '<span class="badge aberto">Em Aberto</span>';
           return { descricao: l.descricao, raw: l,
             busca: montarBusca(l.descricao, tipoLabel, l.cartao, l.categoria, l.num_parcela+'/'+l.qtd_parcelas, l.qtd_parcelas_pagas||0, emAberto, formatarData(l.data_compra), formatarData(l.data_vencimento), brl(l.valor_total), brl(l.valor), brl(l.saldo_aberto), situacao),
-            html: '<tr><td>' + l.descricao + '</td><td>' + tipoBadge + '</td><td>' + (l.cartao||'-') + '</td><td>' + (l.categoria||'-') + '</td>' +
+            html: '<tr onclick="visualizarCompra(' + l.compra_id + ')"><td>' + l.descricao + '</td><td>' + tipoBadge + '</td><td>' + (l.cartao||'-') + '</td><td>' + (l.categoria||'-') + '</td>' +
               '<td>' + l.num_parcela + '/' + l.qtd_parcelas + '</td>' +
               '<td>' + (l.qtd_parcelas_pagas || 0) + '</td>' +
               '<td>' + emAberto + '</td>' +
@@ -2951,7 +2957,7 @@
         const tipo = avista ? '<span class="badge avista">À vista</span>' : '<span class="badge parcelada">Parcelada</span>';
         const pagas = d.qtd_parcelas_pagas || 0;
         const emAberto = Number(d.qtd_parcelas || 0) - pagas;
-        return '<tr><td>' + d.descricao + '</td><td>' + tipo + '</td><td>' + (d.cartao||'-') + '</td><td>' + (d.categoria||'-') + '</td>' +
+        return '<tr onclick="visualizarCompra(' + d.compra_id + ')"><td>' + d.descricao + '</td><td>' + tipo + '</td><td>' + (d.cartao||'-') + '</td><td>' + (d.categoria||'-') + '</td>' +
           '<td>' + pagas + '/' + d.qtd_parcelas + '</td><td>' + pagas + '</td><td>' + emAberto + '</td>' +
           '<td>' + formatarData(d.data_compra) + '</td><td>' + formatarData(d.proximo_vencimento) + '</td>' +
           '<td class="num">' + brl(d.valor_total) + '</td><td class="num">' + brl(valorParcela(d)) + '</td>' +
@@ -3032,14 +3038,14 @@
         const pagas = (d.qtd_parcelas_pagas || 0);
         const emAberto = Number(d.qtd_parcelas || 0) - pagas;
         const nome = (d.descricao || '').replace(/'/g, "\\'");
-        return '<tr><td>' + d.descricao + '</td><td>' + tipo + '</td><td>' + (d.cartao||'-') + '</td><td>' + (d.categoria||'-') + '</td>' +
+        return '<tr onclick="visualizarCompra(' + d.compra_id + ')"><td>' + d.descricao + '</td><td>' + tipo + '</td><td>' + (d.cartao||'-') + '</td><td>' + (d.categoria||'-') + '</td>' +
           '<td>' + pagas + '/' + d.qtd_parcelas + '</td><td>' + pagas + '</td><td>' + emAberto + '</td>' +
           '<td>' + formatarData(d.data_compra) + '</td><td>' + formatarData(d.proximo_vencimento) + '</td>' +
           '<td class="num">' + brl(d.valor_total) + '</td><td class="num">' + brl(valorParcela(d)) + '</td>' +
           '<td class="num">' + brl(d.saldo_aberto) + '</td><td>' + situ + '</td>' +
-          '<td>' + botaoDetalheCadastroHtml(d.compra_id) + ' ' + botaoVisualizarDespesaHtml(d.compra_id) + ' ' + botaoReplicarHtml(d.compra_id) + ' ' + botaoBaixaCompraHtml(d.compra_id, d.situacao === 'Quitada') + ' ' + botaoIncluirDespesaHtml() + ' <button class="link-acao link-parcelas" onclick="abrirParcelas(' + d.compra_id + ", '" + nome + "')" + '">Parcelas</button>' +
-          '<button class="link-acao link-editar" onclick="editarLancamento(' + d.compra_id + ')">Editar</button>' +
-          '<button class="link-acao link-excluir" onclick="excluirCompra(' + d.compra_id + ", '" + nome + "')" + '">Excluir</button></td></tr>';
+          '<td>' + botaoDetalheCadastroHtml(d.compra_id) + ' ' + botaoVisualizarDespesaHtml(d.compra_id) + ' ' + botaoReplicarHtml(d.compra_id) + ' ' + botaoBaixaCompraHtml(d.compra_id, d.situacao === 'Quitada') + ' ' + botaoIncluirDespesaHtml() + ' <button class="link-acao link-parcelas" onclick="event.stopPropagation();abrirParcelas(' + d.compra_id + ", '" + nome + "')" + '">Parcelas</button>' +
+          '<button class="link-acao link-editar" onclick="event.stopPropagation();editarLancamento(' + d.compra_id + ')">Editar</button>' +
+          '<button class="link-acao link-excluir" onclick="event.stopPropagation();excluirCompra(' + d.compra_id + ", '" + nome + "')" + '">Excluir</button></td></tr>';
       }).join('');
       const totalValor = lista.reduce((s,d) => s + Number(d.valor_total||0), 0);
       const totalSaldo = lista.reduce((s,d) => s + Number(d.saldo_aberto||0), 0);
@@ -3366,12 +3372,12 @@
             ? '<span class="badge quitada">Paga em ' + formatarData(p.data_pagamento) + '</span>'
             : (vencida ? '<span class="badge aberto" style="background:#fdecea;color:#922;">Vencida</span>' : '<span class="badge aberto">Pendente</span>');
           const acao = p.status === 'Pago'
-            ? '<button class="btn-desfazer" onclick="desfazerPagamento(' + p.id + ')">Desfazer</button>'
-            : '<button class="btn-pagar" onclick="marcarPaga(' + p.id + ')">Marcar Paga</button>';
-          return '<tr' + (vencida ? ' class="linha-vencida"' : '') + '>' +
+            ? '<button class="btn-desfazer" onclick="event.stopPropagation();desfazerPagamento(' + p.id + ')">Desfazer</button>'
+            : '<button class="btn-pagar" onclick="event.stopPropagation();marcarPaga(' + p.id + ')">Marcar Paga</button>';
+          return '<tr onclick="visualizarCompra(' + parcelasCompraIdAtual + ')"' + (vencida ? ' class="linha-vencida"' : '') + '>' +
             '<td>' + p.num_parcela + '</td><td class="num">' + brl(p.valor) + '</td>' +
             '<td><input type="date" value="' + String(p.data_vencimento).slice(0,10) + '" ' +
-              'onchange="salvarVencimentoParcela(' + p.id + ', this.value)" ' +
+              'onclick="event.stopPropagation()" onchange="salvarVencimentoParcela(' + p.id + ', this.value)" ' +
               'style="padding:5px 7px;border:1px solid var(--cinza-borda);border-radius:6px;font-size:13px;width:140px;" /></td>' +
             '<td>' + statusTxt + '</td><td>' + botaoDetalheCadastroHtml(parcelasCompraIdAtual) + ' ' + botaoVisualizarDespesaHtml(parcelasCompraIdAtual) + ' ' + botaoEditarCadastroHtml(parcelasCompraIdAtual) + ' ' + botaoReplicarHtml(parcelasCompraIdAtual) + ' ' + botaoExcluirCadastroHtml(parcelasCompraIdAtual, c.descricao) + ' ' + acao + ' ' + botaoIncluirDespesaHtml() + '</td></tr>';
         }).join('');
