@@ -2579,6 +2579,13 @@
       const wrapInterno = document.getElementById('tipoDespesaWrapInterno');
       if (wrapInterno) { wrapInterno.style.height = alturaCalculada + 'px'; wrapInterno.style.minHeight = alturaCalculada + 'px'; }
 
+      // Abre o modal ANTES de criar o gráfico -- com o canvas ainda
+      // escondido (display:none), ajustarQuebraGrafico() mede a largura do
+      // eixo Y errada (bem menor que a real) e os nomes de Tipo de Despesa
+      // saem quebrados letra por letra (aparecem "na vertical" no celular,
+      // que é onde essa quebra por largura entra em ação -- ver telaEstreita()).
+      abrirModal('overlayGraficoTipo');
+
       const ctx = document.getElementById('graficoTipoDespesaDrill');
       if (chartTipoDespesaDrill) chartTipoDespesaDrill.destroy();
       chartTipoDespesaDrill = new Chart(ctx, {
@@ -2594,7 +2601,6 @@
           scales:{ x:{display:false,grid:{display:false}}, y:{grid:{display:false}, ticks:{ font:{ size:11 } }} } },
       });
       ajustarQuebraGrafico(chartTipoDespesaDrill, f.map(d => d.categoria));
-      abrirModal('overlayGraficoTipo');
       requestAnimationFrame(() => { if (chartTipoDespesaDrill) chartTipoDespesaDrill.resize(); });
     }
     // Clique numa barra do gráfico "Tipo de Despesa" (drill-down do Grupo de
