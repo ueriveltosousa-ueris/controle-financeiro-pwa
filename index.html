@@ -513,7 +513,25 @@
         </div>
         <div class="card largo">
           <div class="titulo-com-ajuda"><h2 style="margin:0;">Compras por Descrição</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-descricao', this)">?</button></div>
-          <div class="ajuda-balao" id="ajuda-descricao">Agrupa e soma todas as compras com a mesma descrição — útil pra ver quanto você já gastou no total em algo, tipo "Mercado Livre" ou "Uber". Clique numa barra pra listar as compras daquela descrição.</div>
+          <div class="ajuda-balao" id="ajuda-descricao">Agrupa e soma todas as compras com a mesma descrição — útil pra ver quanto você já gastou no total em algo, tipo "Mercado Livre" ou "Uber". Só entram descrições dentro do período filtrado abaixo (deixe De/Até em branco pra somar de sempre). Clique numa barra pra listar as compras daquela descrição.</div>
+          <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;">
+            <div class="campo" style="margin-bottom:0;">
+              <label>Filtrar por período de</label>
+              <select id="descTipoData" onchange="renderPorDescricao()" style="padding:7px 10px;border:1px solid var(--cinza-borda);border-radius:7px;font-size:13px;font-family:inherit;">
+                <option value="compra">Data da Compra</option>
+                <option value="vencimento">Data de Vencimento</option>
+              </select>
+            </div>
+            <div class="campo" style="margin-bottom:0;">
+              <label>De</label>
+              <input type="date" id="descDe" onchange="renderPorDescricao()" style="width:150px;" />
+            </div>
+            <div class="campo" style="margin-bottom:0;">
+              <label>Até</label>
+              <input type="date" id="descAte" onchange="renderPorDescricao()" style="width:150px;" />
+            </div>
+            <button class="btn btn-cinza" onclick="limparFiltroPeriodoDescricao()">Ver tudo</button>
+          </div>
           <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;">
             <div class="campo" style="margin-bottom:0;max-width:320px;flex:1;">
               <label>Pesquisar por descrição</label>
@@ -527,7 +545,25 @@
       </section>
       <section class="card largo">
         <div class="titulo-com-ajuda"><h2 style="margin:0;">Resumo por compra</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-resumo', this)">?</button></div>
-        <div class="ajuda-balao" id="ajuda-resumo">Uma linha por compra, com quanto já foi pago e quanto falta. "Parcela do Mês" mostra quantas parcelas já foram pagas do total (ex.: 3/10). "Situação" fica <b>Quitada</b> quando não sobra mais nada pendente. O filtro de busca procura em todas as colunas ao mesmo tempo (descrição, forma de pagamento, categoria, valores, parcela, situação...).</div>
+        <div class="ajuda-balao" id="ajuda-resumo">Uma linha por compra, com quanto já foi pago e quanto falta. "Parcela do Mês" mostra quantas parcelas já foram pagas do total (ex.: 3/10). "Situação" fica <b>Quitada</b> quando não sobra mais nada pendente. O filtro de busca procura em todas as colunas ao mesmo tempo (descrição, forma de pagamento, categoria, valores, parcela, situação...). O filtro de período busca por ano, mês e dia exatos, da Data da Compra ou da Data de Vencimento, à escolha.</div>
+        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;">
+          <div class="campo" style="margin-bottom:0;">
+            <label>Filtrar por período de</label>
+            <select id="resumoTipoData" onchange="aplicarFiltroResumo()" style="padding:7px 10px;border:1px solid var(--cinza-borda);border-radius:7px;font-size:13px;font-family:inherit;">
+              <option value="compra">Data da Compra</option>
+              <option value="vencimento">Data de Vencimento</option>
+            </select>
+          </div>
+          <div class="campo" style="margin-bottom:0;">
+            <label>De</label>
+            <input type="date" id="resumoDe" onchange="aplicarFiltroResumo()" style="width:150px;" />
+          </div>
+          <div class="campo" style="margin-bottom:0;">
+            <label>Até</label>
+            <input type="date" id="resumoAte" onchange="aplicarFiltroResumo()" style="width:150px;" />
+          </div>
+          <button class="btn btn-cinza" onclick="limparFiltroPeriodoResumo()">Ver tudo</button>
+        </div>
         <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;">
           <div class="campo" style="margin-bottom:0;max-width:360px;flex:1;">
             <label>Pesquisar (qualquer coluna: descrição, despesa, categoria, valor, parcela...)</label>
@@ -555,7 +591,7 @@
           <b>Parcelas</b>: marca pagamento, desfaz por engano, ou corrige a data de uma parcela específica.<br>
           <b>Editar</b>: muda a compra inteira.<br>
           <b>Excluir</b>: apaga a compra e todas as parcelas — não tem como desfazer.<br>
-          <b>Filtrar por período</b>: por Data da Compra ou Data de Vencimento (o próximo vencimento em aberto — compras já quitadas não têm um vencimento único, então não aparecem no modo "Data de Vencimento").<br>
+          <b>Filtrar por período</b>: por ano, mês e dia exatos, da Data da Compra ou da Data de Vencimento (o próximo vencimento em aberto — compras já quitadas não têm um vencimento único, então não aparecem no modo "Data de Vencimento").<br>
           <span style="color:#8a6100;">⚠️ Mudar valor, nº de parcelas, data da compra ou forma de pagamento recria as parcelas do zero (o controle de pagamento recomeça). Só descrição/observações não mexem nas parcelas.</span>
         </div>
         <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;">
@@ -575,11 +611,11 @@
           </div>
           <div class="campo" style="margin-bottom:0;">
             <label>De</label>
-            <input type="month" id="lancamentosDe" onchange="aplicarFiltroLancamentos()" style="width:150px;" />
+            <input type="date" id="lancamentosDe" onchange="aplicarFiltroLancamentos()" style="width:150px;" />
           </div>
           <div class="campo" style="margin-bottom:0;">
             <label>Até</label>
-            <input type="month" id="lancamentosAte" onchange="aplicarFiltroLancamentos()" style="width:150px;" />
+            <input type="date" id="lancamentosAte" onchange="aplicarFiltroLancamentos()" style="width:150px;" />
           </div>
           <button class="btn btn-cinza" onclick="limparFiltroPeriodoLancamentos()">Ver tudo</button>
         </div>
@@ -857,6 +893,24 @@
       </div>
       <div class="obs-topo" id="obsModalDetalhe">Clique numa barra ou fatia do gráfico para ver o detalhamento aqui.</div>
       <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;">
+        <div class="campo" style="margin-bottom:0;">
+          <label>Filtrar por período de</label>
+          <select id="detalheTipoData" onchange="aplicarFiltroDetalhe()" style="padding:7px 10px;border:1px solid var(--cinza-borda);border-radius:7px;font-size:13px;font-family:inherit;">
+            <option value="compra">Data da Compra</option>
+            <option value="vencimento">Data de Vencimento</option>
+          </select>
+        </div>
+        <div class="campo" style="margin-bottom:0;">
+          <label>De</label>
+          <input type="date" id="detalheDe" onchange="aplicarFiltroDetalhe()" style="width:150px;" />
+        </div>
+        <div class="campo" style="margin-bottom:0;">
+          <label>Até</label>
+          <input type="date" id="detalheAte" onchange="aplicarFiltroDetalhe()" style="width:150px;" />
+        </div>
+        <button class="btn btn-cinza" onclick="limparFiltroPeriodoDetalhe()">Ver tudo</button>
+      </div>
+      <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;">
         <div class="campo" style="margin-bottom:0;max-width:360px;flex:1;">
           <label>Pesquisar (qualquer coluna)</label>
           <input type="text" id="filtroDetalhe" placeholder="Digite para filtrar..." oninput="aplicarFiltroDetalhe()" />
@@ -896,6 +950,24 @@
           <tr class="tabela-linha-colunas"><th>Descrição</th><th class="num">Valor</th><th>Ações</th></tr></thead>
           <tbody id="corpoComparativoOrcamento"></tbody>
         </table>
+      </div>
+      <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:10px;">
+        <div class="campo" style="margin-bottom:0;">
+          <label>Filtrar por período de</label>
+          <select id="compGastosTipoData" onchange="aplicarFiltroCompGastos()" style="padding:7px 10px;border:1px solid var(--cinza-borda);border-radius:7px;font-size:13px;font-family:inherit;">
+            <option value="compra">Data da Compra</option>
+            <option value="vencimento">Data de Vencimento</option>
+          </select>
+        </div>
+        <div class="campo" style="margin-bottom:0;">
+          <label>De</label>
+          <input type="date" id="compGastosDe" onchange="aplicarFiltroCompGastos()" style="width:150px;" />
+        </div>
+        <div class="campo" style="margin-bottom:0;">
+          <label>Até</label>
+          <input type="date" id="compGastosAte" onchange="aplicarFiltroCompGastos()" style="width:150px;" />
+        </div>
+        <button class="btn btn-cinza" onclick="limparFiltroPeriodoCompGastos()">Ver tudo</button>
       </div>
       <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:10px;">
         <div class="campo" style="margin-bottom:0;max-width:360px;flex:1;">
@@ -1940,6 +2012,36 @@
       if (ate) lista = lista.filter(p => String(p.data_vencimento).slice(0,7) <= ate);
       return lista;
     }
+    // Filtro de período por ano, mês E dia exatos (não só mês, como o de
+    // cima) da Data da Compra OU da Data de Vencimento, à escolha de um
+    // <select> — reaproveitado por toda tabela/gráfico de despesa do app
+    // (Resumo por compra, Lançamentos, Gastos do Mês, o modal genérico de
+    // detalhamento, e o gráfico Compras por Descrição). Cada item pode vir
+    // "cru" (data_compra/proximo_vencimento direto nele, como em
+    // ultimaListaCompras) ou envelopado em {raw:{...}} (como nas linhas dos
+    // detalhamentos, que também guardam "html"/"busca" prontos).
+    function aplicarFiltroPeriodoData(itens, idTipo, idDe, idAte) {
+      const tipoData = document.getElementById(idTipo).value;
+      const de = document.getElementById(idDe).value;
+      const ate = document.getElementById(idAte).value;
+      if (!de && !ate) return itens;
+      return itens.filter((item) => {
+        const bruto = item.raw || item;
+        const data = tipoData === 'vencimento' ? (bruto.data_vencimento || bruto.proximo_vencimento) : bruto.data_compra;
+        const valor = String(data || '').slice(0, 10);
+        if (!valor) return false;
+        if (de && valor < de) return false;
+        if (ate && valor > ate) return false;
+        return true;
+      });
+    }
+    // Botão "Ver tudo" genérico do filtro de período por data exata: limpa
+    // De/Até e reaplica quem chamou (cada tabela passa a própria função de render).
+    function limparFiltroPeriodoData(idDe, idAte, aplicar) {
+      document.getElementById(idDe).value = '';
+      document.getElementById(idAte).value = '';
+      aplicar();
+    }
     function periodoTexto(idDe, idAte) {
       const de = document.getElementById(idDe).value, ate = document.getElementById(idAte).value;
       if (!de && !ate) return '';
@@ -2006,6 +2108,7 @@
     // Gráfico "Compras por Descrição" — agrupa e soma o Valor Total por Descrição.
     function renderPorDescricao(lista) {
       lista = lista || ultimaListaCompras;
+      lista = aplicarFiltroPeriodoData(lista, 'descTipoData', 'descDe', 'descAte');
       const termo = (document.getElementById('filtroDescricaoGrafico').value || '').trim().toLowerCase();
       if (termo) lista = lista.filter(c => c.descricao.toLowerCase().includes(termo));
       const gruposPago = {}, gruposAberto = {}, gruposTotal = {};
@@ -2062,6 +2165,10 @@
       // rolagem) já assentou de verdade — evita que clique/tooltip apontem para a linha errada.
       requestAnimationFrame(() => { if (chartDescricao) chartDescricao.resize(); });
     }
+    // Botão "Ver tudo" do filtro de período do gráfico Compras por Descrição.
+    function limparFiltroPeriodoDescricao() {
+      limparFiltroPeriodoData('descDe', 'descAte', () => renderPorDescricao());
+    }
     // Clique numa barra do gráfico por Descrição -> lista as compras com aquela descrição exata.
     function detalhePorDescricao(descricao) {
       ultimoDetalheRefresh = () => detalhePorDescricao(descricao);
@@ -2106,6 +2213,9 @@
       // de um botão à parte no rodapé pra cada tipo de tabela.
       document.getElementById('cabecalhoDetalhe').innerHTML = headerHtml;
       document.getElementById('filtroDetalhe').value = '';
+      document.getElementById('detalheTipoData').value = 'compra';
+      document.getElementById('detalheDe').value = '';
+      document.getElementById('detalheAte').value = '';
       ultimoDetalheLinhas = linhas;
       ultimoDetalheMontarTotal = montarTotalHtml;
       ultimoDetalheColspanVazio = colspanVazio || 6;
@@ -2122,9 +2232,14 @@
     // Filtro de texto livre (mesmo padrão das outras tabelas do app): casa contra QUALQUER
     // coluna visível da linha, e o TOTAL do rodapé recalcula só com o que sobrou do filtro.
     function aplicarFiltroDetalhe() {
+      let linhas = aplicarFiltroPeriodoData(ultimoDetalheLinhas, 'detalheTipoData', 'detalheDe', 'detalheAte');
       const termo = (document.getElementById('filtroDetalhe').value || '').trim().toLowerCase();
-      if (!termo) { desenharCorpoDetalhe(ultimoDetalheLinhas); return; }
-      desenharCorpoDetalhe(ultimoDetalheLinhas.filter(l => (l.busca || '').includes(termo)));
+      if (termo) linhas = linhas.filter(l => (l.busca || '').includes(termo));
+      desenharCorpoDetalhe(linhas);
+    }
+    // Botão "Ver tudo" do filtro de período do modal genérico de detalhamento.
+    function limparFiltroPeriodoDetalhe() {
+      limparFiltroPeriodoData('detalheDe', 'detalheAte', aplicarFiltroDetalhe);
     }
     // Monta a linha de TOTAL do rodapé (colunas antes do valor viram um rótulo "TOTAL" mesclado).
     function linhaTotal(colspanAntes, valorTotal, colunasDepois) {
@@ -2416,6 +2531,7 @@
         return {
           descricao: l.descricao,
           valor: Number(l.valor||0),
+          raw: l,
           busca: montarBusca(l.descricao, tipoLabel, l.cartao, l.categoria, l.num_parcela+'/'+l.qtd_parcelas, l.qtd_parcelas_pagas||0, emAberto, formatarData(l.data_compra), formatarData(l.data_vencimento), brl(l.valor_total), brl(l.valor), brl(l.saldo_aberto), situacao, l.status === 'Pago' ? 'Pago' : 'Pendente'),
           html: '<tr onclick="visualizarCompra(' + l.compra_id + ')"><td>' + l.descricao + '</td><td>' + tipoBadge + '</td><td>' + (l.cartao||'-') + '</td><td>' + (l.categoria||'-') + '</td>' +
             '<td>' + l.num_parcela + '/' + l.qtd_parcelas + '</td><td>' + (l.qtd_parcelas_pagas||0) + '</td><td>' + emAberto + '</td>' +
@@ -2426,6 +2542,9 @@
         };
       });
       document.getElementById('compGastosFiltro').value = '';
+      document.getElementById('compGastosTipoData').value = 'compra';
+      document.getElementById('compGastosDe').value = '';
+      document.getElementById('compGastosAte').value = '';
       desenharCorpoComparativoGastos(ultimoComparativoGastosLinhas);
     }
     function desenharCorpoComparativoGastos(linhas) {
@@ -2443,9 +2562,14 @@
     // outras tabelas): casa contra QUALQUER coluna visível da linha, e o
     // Subtotal do rodapé recalcula só com o que sobrou do filtro.
     function aplicarFiltroCompGastos() {
+      let linhas = aplicarFiltroPeriodoData(ultimoComparativoGastosLinhas, 'compGastosTipoData', 'compGastosDe', 'compGastosAte');
       const termo = (document.getElementById('compGastosFiltro').value || '').trim().toLowerCase();
-      if (!termo) { desenharCorpoComparativoGastos(ultimoComparativoGastosLinhas); return; }
-      desenharCorpoComparativoGastos(ultimoComparativoGastosLinhas.filter(l => l.busca.includes(termo)));
+      if (termo) linhas = linhas.filter(l => l.busca.includes(termo));
+      desenharCorpoComparativoGastos(linhas);
+    }
+    // Botão "Ver tudo" do filtro de período da tabela "Gastos do Mês".
+    function limparFiltroPeriodoCompGastos() {
+      limparFiltroPeriodoData('compGastosDe', 'compGastosAte', aplicarFiltroCompGastos);
     }
     // Clique numa barra do gráfico Forma de Pagamento -> lista TODAS as parcelas
     // (pagas ou não) daquela forma de pagamento, já respeitando o filtro De/Até do gráfico.
@@ -2967,19 +3091,25 @@
     // etc.) — monta uma string com tudo que a linha mostra e procura o termo
     // digitado ali dentro, sem se prender a uma coluna específica.
     function aplicarFiltroResumo() {
+      let dados = aplicarFiltroPeriodoData(ultimoResumoDados, 'resumoTipoData', 'resumoDe', 'resumoAte');
       const termo = (document.getElementById('filtroResumo').value || '').trim().toLowerCase();
-      if (!termo) { desenharTabelaResumo(ultimoResumoDados); return; }
-      const filtrados = ultimoResumoDados.filter((d) => {
-        const avista = Number(d.qtd_parcelas) === 1;
-        const textoLinha = [
-          d.descricao, avista ? 'à vista' : 'parcelada', d.cartao, d.categoria,
-          (d.qtd_parcelas_pagas || 0) + '/' + d.qtd_parcelas, (d.qtd_parcelas_pagas || 0), Number(d.qtd_parcelas||0) - (d.qtd_parcelas_pagas||0),
-          formatarData(d.data_compra), formatarData(d.proximo_vencimento),
-          brl(d.valor_total), brl(valorParcela(d)), brl(d.saldo_aberto), d.situacao,
-        ].join(' ').toLowerCase();
-        return textoLinha.includes(termo);
-      });
-      desenharTabelaResumo(filtrados);
+      if (termo) {
+        dados = dados.filter((d) => {
+          const avista = Number(d.qtd_parcelas) === 1;
+          const textoLinha = [
+            d.descricao, avista ? 'à vista' : 'parcelada', d.cartao, d.categoria,
+            (d.qtd_parcelas_pagas || 0) + '/' + d.qtd_parcelas, (d.qtd_parcelas_pagas || 0), Number(d.qtd_parcelas||0) - (d.qtd_parcelas_pagas||0),
+            formatarData(d.data_compra), formatarData(d.proximo_vencimento),
+            brl(d.valor_total), brl(valorParcela(d)), brl(d.saldo_aberto), d.situacao,
+          ].join(' ').toLowerCase();
+          return textoLinha.includes(termo);
+        });
+      }
+      desenharTabelaResumo(dados);
+    }
+    // Botão "Ver tudo" do filtro de período do Resumo por compra.
+    function limparFiltroPeriodoResumo() {
+      limparFiltroPeriodoData('resumoDe', 'resumoAte', aplicarFiltroResumo);
     }
     function desenharTabelaResumo(dados) {
       const tbody = document.querySelector('#tabelaResumo tbody');
@@ -3025,20 +3155,7 @@
     // datas diferentes já todas pagas).
     function aplicarFiltroLancamentos() {
       const termo = (document.getElementById('filtroLancamentos').value || '').trim().toLowerCase();
-      const tipoData = document.getElementById('lancamentosTipoData').value;
-      const de = document.getElementById('lancamentosDe').value;
-      const ate = document.getElementById('lancamentosAte').value;
-      let lista = ultimaListaCompras;
-      if (de || ate) {
-        const campo = tipoData === 'vencimento' ? 'proximo_vencimento' : 'data_compra';
-        lista = lista.filter((d) => {
-          const valor = String(d[campo] || '').slice(0, 7);
-          if (!valor) return false;
-          if (de && valor < de) return false;
-          if (ate && valor > ate) return false;
-          return true;
-        });
-      }
+      let lista = aplicarFiltroPeriodoData(ultimaListaCompras, 'lancamentosTipoData', 'lancamentosDe', 'lancamentosAte');
       if (termo) {
         lista = lista.filter((d) => {
           const avista = Number(d.qtd_parcelas) === 1;
