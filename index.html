@@ -1076,6 +1076,35 @@
       if (typeof ajustarKpisFixo === 'function') ajustarKpisFixo();
     }
 
+    // Estilo "Pierre" pros gráficos do app: barras em formato de pílula
+    // (cantos bem arredondados nos 4 lados, não só em cima) em TODO gráfico
+    // de barras -- default global do Chart.js, não precisa repetir em cada
+    // gráfico. O Chart.js limita sozinho o raio ao tamanho da barra, então um
+    // valor bem alto (999) sempre dá o arredondamento máximo (pílula).
+    Chart.defaults.datasets.bar.borderRadius = 999;
+    Chart.defaults.datasets.bar.borderSkipped = false;
+    // Sem isso, gráfico com poucas categorias (às vezes só 1) "engorda" a
+    // barra até quase a altura/largura inteira disponível -- com o raio
+    // máximo acima, isso vira uma bolha oval em vez de pílula fina. Gráficos
+    // que já travam a própria espessura (ex.: chartCartao) continuam valendo
+    // essa, mais específica que o default.
+    Chart.defaults.datasets.bar.maxBarThickness = 22;
+
+    // Gradiente vertical (cor -> transparente) pra preencher a área sob uma
+    // linha, no mesmo estilo do gráfico de investimentos do Pierre. Recebe a
+    // cor em "R,G,B" (sem rgba()) porque isso é chamado de novo a cada
+    // render do Chart.js, já com o chartArea calculado.
+    function gradienteArea(rgb, opacidadeTopo) {
+      return (contexto) => {
+        const { ctx, chartArea } = contexto.chart;
+        if (!chartArea) return null;
+        const g = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+        g.addColorStop(0, 'rgba(' + rgb + ',' + opacidadeTopo + ')');
+        g.addColorStop(1, 'rgba(' + rgb + ',0)');
+        return g;
+      };
+    }
+
     // Plugin do Chart.js: desenha linhas pontilhadas bem claras entre cada mês,
     // separando visualmente os grupos de barras no gráfico de Projeção.
     const linhasDivisoriasMeses = {
@@ -1763,10 +1792,10 @@
             categoryPercentage:0.8, barPercentage:0.9,
             datalabels: { display: (c) => c.dataset.data[c.dataIndex] > 0, anchor:'end', align:'top', rotation:0,
               color:'#a13d3d', font:{ size:9, weight:'600' }, formatter:(v) => brl(v) } },
-          { type:'bar', label:'Orçamento', data:dados.map(d => orcamentoPorMes[String(d.mes).slice(0,7)] || 0), backgroundColor:'#6AA84F',
+          { type:'bar', label:'Orçamento', data:dados.map(d => orcamentoPorMes[String(d.mes).slice(0,7)] || 0), backgroundColor:'#7CB305',
             categoryPercentage:0.8, barPercentage:0.9,
             datalabels: { display: (c) => c.dataset.data[c.dataIndex] > 0, anchor:'end', align:'top', rotation:0,
-              color:'#2d6a2d', font:{ size:9, weight:'600' }, formatter:(v) => brl(v) } },
+              color:'#3F6600', font:{ size:9, weight:'600' }, formatter:(v) => brl(v) } },
           { type:'bar', label:'Total Pago', data:dados.map(d => totalPagoMes(d.mes)), backgroundColor:'#4A86E8',
             categoryPercentage:0.8, barPercentage:0.9,
             datalabels: { display: (c) => c.dataset.data[c.dataIndex] > 0, anchor:'end', align:'top', rotation:0,
@@ -1798,7 +1827,7 @@
       });
       montarLegendaGrafico('legendaProjecao', chartProjecao, [
         { rotulo:'Gastos', cor:'#E57373' },
-        { rotulo:'Orçamento', cor:'#6AA84F' },
+        { rotulo:'Orçamento', cor:'#7CB305' },
         { rotulo:'Total Pago', cor:'#4A86E8' },
         { rotulo:'Acumulado', cor:'#C0392B', onHover:mostrarTooltipAcumulado, onLeave:esconderTooltipAcumulado },
       ]);
@@ -2011,8 +2040,8 @@
         data: { labels: labelsExibicao, datasets: [
           { label:'Total Comprado', data: valoresTotal, backgroundColor:'#4A86E8',
             datalabels: { anchor:'end', align:'end', color:'#1F4E78', font:{ size:10, weight:'600' }, formatter:(v) => v > 0 ? brl(v) : '' } },
-          { label:'Total Pago', data: valoresPago, backgroundColor:'#6AA84F',
-            datalabels: { anchor:'end', align:'end', color:'#2d6a2d', font:{ size:10, weight:'600' }, formatter:(v) => v > 0 ? brl(v) : '' } },
+          { label:'Total Pago', data: valoresPago, backgroundColor:'#7CB305',
+            datalabels: { anchor:'end', align:'end', color:'#3F6600', font:{ size:10, weight:'600' }, formatter:(v) => v > 0 ? brl(v) : '' } },
           { label:'Total a Pagar', data: valoresAberto, backgroundColor:'#E57373',
             datalabels: { anchor:'end', align:'end', color:'#a13d3d', font:{ size:10, weight:'600' }, formatter:(v) => v > 0 ? brl(v) : '' } },
         ] },
@@ -2025,7 +2054,7 @@
       });
       montarLegendaGrafico('legendaDescricao', chartDescricao, [
         { rotulo:'Total Comprado', cor:'#4A86E8' },
-        { rotulo:'Total Pago', cor:'#6AA84F' },
+        { rotulo:'Total Pago', cor:'#7CB305' },
         { rotulo:'Total a Pagar', cor:'#E57373' },
       ]);
       ajustarQuebraGrafico(chartDescricao, labels);
@@ -2345,9 +2374,9 @@
           type:'bar',
           plugins: [ChartDataLabels],
           data:{ labels:['Orçamento','Gastos'], datasets:[
-            { data:[totalOrc, totalGastos], backgroundColor:['#6AA84F','#E57373'],
+            { data:[totalOrc, totalGastos], backgroundColor:['#7CB305','#E57373'],
               datalabels:{ anchor:'end', align:'end',
-                color:(c) => c.dataIndex === 0 ? '#2d6a2d' : '#a13d3d',
+                color:(c) => c.dataIndex === 0 ? '#3F6600' : '#a13d3d',
                 font:{ size:12, weight:'700' }, formatter:(v) => brl(v) } },
           ] },
           options:{ indexAxis:'y', maintainAspectRatio:false, layout:{ padding:{ right:90 } },
@@ -2681,9 +2710,17 @@
         type: 'line',
         plugins: [ChartDataLabels],
         data: { labels: meses.map(d => labelMes(d.anoMes)), datasets: [
-          { label:'Orçamento', data:meses.map(d => d.orcamento), borderColor:'#6AA84F', backgroundColor:'#6AA84F', tension:.3, pointRadius:3, pointHoverRadius:5,
-            datalabels: { display:(c) => c.dataset.data[c.dataIndex] > 0, align:'top', anchor:'end', offset:4, color:'#2d6a2d', font:{ size:9, weight:'600' }, formatter:(v) => brl(v) } },
-          { label:'Despesas', data:meses.map(d => d.despesa), borderColor:'#E57373', backgroundColor:'#E57373', tension:.3, pointRadius:3, pointHoverRadius:5,
+          // Orçamento = linha de referência (pontilhada, sem preenchimento e
+          // sem marcador em cada mês), no mesmo espírito da linha "100% CDI"
+          // do Pierre -- é o alvo/planejado, não o que de fato aconteceu.
+          { label:'Orçamento', data:meses.map(d => d.orcamento), borderColor:'#7CB305', backgroundColor:'#7CB305', borderDash:[6,4], tension:.3, pointRadius:0, pointHoverRadius:4,
+            datalabels: { display:(c) => c.dataset.data[c.dataIndex] > 0, align:'top', anchor:'end', offset:4, color:'#3F6600', font:{ size:9, weight:'600' }, formatter:(v) => brl(v) } },
+          // Despesas = linha "cheia" (o que de fato aconteceu): sólida, com
+          // área em degradê embaixo e o último ponto em destaque, no mesmo
+          // estilo do gráfico de investimentos do Pierre.
+          { label:'Despesas', data:meses.map(d => d.despesa), borderColor:'#E57373', backgroundColor:gradienteArea('229,115,115', 0.35), fill:true, tension:.3,
+            pointRadius:(c) => c.dataIndex === meses.length - 1 ? 5 : 3, pointHoverRadius:6,
+            pointBackgroundColor:'#E57373', pointBorderColor:'#fff', pointBorderWidth:1,
             datalabels: { display:(c) => c.dataset.data[c.dataIndex] > 0, align:'bottom', anchor:'start', offset:4, color:'#a13d3d', font:{ size:9, weight:'600' }, formatter:(v) => brl(v) } },
         ] },
         options: { maintainAspectRatio:false, layout:{ padding:{ top:18, bottom:18 } },
@@ -2708,7 +2745,7 @@
           scales:{ x:{grid:{display:false}}, y:{ticks:{callback:(v) => 'R$ ' + (v/1000) + 'k'}} } },
       });
       montarLegendaGrafico('legendaResumoAnualMensal', chartResumoAnualMensal, [
-        { rotulo:'Orçamento', cor:'#6AA84F' },
+        { rotulo:'Orçamento', cor:'#7CB305' },
         { rotulo:'Despesas', cor:'#E57373' },
       ]);
     }
