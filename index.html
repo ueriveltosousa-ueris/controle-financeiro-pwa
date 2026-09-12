@@ -901,6 +901,7 @@
         </div>
       </div>
       <div class="obs-topo" id="obsModalDetalhe">Clique numa barra ou fatia do gráfico para ver o detalhamento aqui.</div>
+      <button id="btnDiasCompra" class="btn btn-cinza" style="display:none;margin-bottom:14px;" onclick="alternarGraficoDiasCompra()">📅 Dias de Compras/Mês</button>
       <div class="chart-wrap" id="graficoGastoDiarioWrap" style="display:none;height:220px;margin-bottom:18px;"><canvas id="graficoGastoDiario"></canvas></div>
       <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;">
         <div class="campo" style="margin-bottom:0;">
@@ -1187,6 +1188,41 @@
         return g;
       };
     }
+    // Escurece uma cor hex (#RRGGBB) por um fator de 0 (sem mudança) a 1
+    // (preto) -- usado pra "parede" mais escura da pizza 3D abaixo.
+    function escurecerCor(hex, fator) {
+      const h = String(hex).replace('#', '');
+      const r = parseInt(h.substring(0, 2), 16), g = parseInt(h.substring(2, 4), 16), b = parseInt(h.substring(4, 6), 16);
+      const esc = (c) => Math.max(0, Math.round(c * (1 - fator)));
+      return 'rgb(' + esc(r) + ',' + esc(g) + ',' + esc(b) + ')';
+    }
+    // Plugin do Chart.js: desenha uma "parede" (várias camadas escurecidas,
+    // empilhadas logo abaixo) atrás de cada fatia de pizza, simulando
+    // profundidade 3D (efeito "pizza extrudada") -- estilo pedido pro
+    // gráfico Parcelado x À Vista.
+    const pizzaExtrudada3D = {
+      id: 'pizzaExtrudada3D',
+      beforeDatasetsDraw(chart) {
+        const meta = chart.getDatasetMeta(0);
+        if (!meta || !meta.data.length) return;
+        const cores = chart.data.datasets[0].backgroundColor;
+        const profundidade = 16;
+        const ctx = chart.ctx;
+        ctx.save();
+        for (let camada = profundidade; camada > 0; camada--) {
+          meta.data.forEach((arco, i) => {
+            if (!arco.circumference) return; // fatia com valor 0 -- nada a desenhar
+            ctx.beginPath();
+            ctx.fillStyle = escurecerCor(cores[i], 0.35);
+            ctx.arc(arco.x, arco.y + camada, arco.outerRadius, arco.startAngle, arco.endAngle);
+            ctx.arc(arco.x, arco.y + camada, arco.innerRadius, arco.endAngle, arco.startAngle, true);
+            ctx.closePath();
+            ctx.fill();
+          });
+        }
+        ctx.restore();
+      },
+    };
 
     // Plugin do Chart.js: desenha linhas pontilhadas bem claras entre cada mês,
     // separando visualmente os grupos de barras no gráfico de Projeção.
@@ -2180,11 +2216,11 @@
       const ctx = document.getElementById('graficoTipo');
       if (chartTipo) chartTipo.destroy();
       chartTipo = new Chart(ctx, {
-        type:'doughnut',
-        plugins: [ChartDataLabels],
+        type:'pie',
+        plugins: [pizzaExtrudada3D, ChartDataLabels],
         data:{ labels:['Parcelado','À Vista'], datasets:[{ data:[totalParcelado, totalAvista], backgroundColor:['#8E6FC4','#4A86E8'],
           datalabels: { color:'#fff', font:{ size:12, weight:'700' }, formatter:(v) => brl(v) } }] },
-        options:{ maintainAspectRatio:false,
+        options:{ maintainAspectRatio:false, layout:{ padding:{ bottom:18 } },
           interaction: { mode:'nearest', intersect:false }, // fatia com valor baixo fica fininha demais pra acertar exatamente
           onClick: (evt, elems) => { if (elems.length) detalheTipo(elems[0].index === 0 ? 'parcelada' : 'avista'); },
           onHover: (evt, elems) => { evt.native.target.style.cursor = elems.length ? 'pointer' : 'default'; },
@@ -2340,21 +2376,38 @@
     // ordenação de um detalhamento anterior com colunas diferentes.
     let ultimoDetalheExtrator = valorColunaDespesa;
     let ultimoDetalheIdTabela = 'detalhe';
-    // Gráfico de linha "Gasto diário" (Despesas, dia a dia do mês) -- só
-    // aparece nos detalhamentos de MÊS (Despesas Mês e Orçamento Mês), não
-    // nos outros que passam pelo mesmo modal genérico (Cartão, Tipo,
-    // Descrição etc., que não são de um mês específico). Escondido/destruído
-    // por padrão a cada abertura do modal (abrirDetalheModal); quem quiser o
-    // gráfico chama renderGraficoGastoDiario(anoMes) logo em seguida.
+    // Gráfico de linha "Dias de Compras/Mês" -- só aparece no detalhamento de
+    // Despesas Mês (detalheMes), atrás de um botão (não fica sempre visível):
+    // este gráfico é só sobre DESPESAS (quando as compras foram feitas), não
+    // faz sentido no detalhamento de Orçamento. Mostra o dia da COMPRA (não o
+    // de vencimento) de cada parcela com vencimento no mês selecionado -- como
+    // o vencimento normalmente cai no mês seguinte ao da compra (ciclo de
+    // fatura da forma de pagamento), o grid de dias exibido é o do MÊS
+    // ANTERIOR ao mês de vencimento sendo visto. Escondido/destruído por
+    // padrão a cada abertura do modal (abrirDetalheModal); detalheMes guarda
+    // o anoMes (ultimoDetalheAnoMesVencimento) e mostra o botão -- só ao
+    // clicar nele o gráfico é montado.
     let chartGastoDiario;
-    function renderGraficoGastoDiario(anoMes) {
+    let ultimoDetalheAnoMesVencimento = '';
+    function mesAnterior(anoMes) {
       const [ano, mes] = anoMes.split('-').map(Number);
+      const d = new Date(ano, mes - 2, 1);
+      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    }
+    function alternarGraficoDiasCompra() {
+      const abrir = document.getElementById('graficoGastoDiarioWrap').style.display === 'none';
+      if (abrir) renderGraficoDiasCompra(ultimoDetalheAnoMesVencimento);
+      else esconderGraficoGastoDiario();
+    }
+    function renderGraficoDiasCompra(anoMesVencimento) {
+      const anoMesCompra = mesAnterior(anoMesVencimento);
+      const [ano, mes] = anoMesCompra.split('-').map(Number);
       const diasNoMes = new Date(ano, mes, 0).getDate();
       const dias = [];
       for (let d = 1; d <= diasNoMes; d++) {
-        const dataIso = anoMes + '-' + String(d).padStart(2, '0');
+        const dataIso = anoMesCompra + '-' + String(d).padStart(2, '0');
         const totalDia = ultimasParcelasTodas
-          .filter(p => String(p.data_vencimento).slice(0, 10) === dataIso)
+          .filter(p => String(p.data_vencimento).slice(0, 7) === anoMesVencimento && String(p.data_compra).slice(0, 10) === dataIso)
           .reduce((s, p) => s + Number(p.valor || 0), 0);
         dias.push({ total: totalDia, rotulo: [String(d).padStart(2, '0'), nomesDiaSemana[new Date(ano, mes - 1, d).getDay()]] });
       }
@@ -2364,11 +2417,11 @@
       chartGastoDiario = new Chart(ctx, {
         type: 'line',
         data: { labels: dias.map(d => d.rotulo), datasets: [
-          { label: 'Despesas', data: dias.map(d => d.total), borderColor: '#E57373', backgroundColor: gradienteArea('229,115,115', 0.35), fill: true, tension: .3,
+          { label: 'Compras', data: dias.map(d => d.total), borderColor: '#E57373', backgroundColor: gradienteArea('229,115,115', 0.35), fill: true, tension: .3,
             pointRadius: 2, pointHoverRadius: 5, pointBackgroundColor: '#E57373', pointBorderColor: '#fff', pointBorderWidth: 1 },
         ] },
         options: { maintainAspectRatio: false, layout: { padding: { top: 10 } },
-          plugins: { legend: { display: false }, tooltip: { enabled: true, callbacks: { label: (c) => 'Gasto: ' + brl(c.raw) } } },
+          plugins: { legend: { display: false }, tooltip: { enabled: true, callbacks: { label: (c) => 'Comprado: ' + brl(c.raw) } } },
           scales: { x: { grid: { display: false }, ticks: { font: { size: 10 } } }, y: { ticks: { callback: (v) => 'R$ ' + (v / 1000) + 'k' } } } },
       });
     }
@@ -2387,6 +2440,7 @@
       document.getElementById('detalheTipoData').value = 'compra';
       document.getElementById('detalheDe').value = '';
       document.getElementById('detalheAte').value = '';
+      document.getElementById('btnDiasCompra').style.display = 'none';
       esconderGraficoGastoDiario();
       ultimoDetalheLinhas = linhas;
       ultimoDetalheMontarTotal = montarTotalHtml;
@@ -2616,7 +2670,8 @@
           ? 'Parcelas já pagas com vencimento no mês selecionado.'
           : 'Todas as parcelas com vencimento no mês selecionado, pagas ou não.';
         abrirDetalheModal(titulo, obs, header, linhasObj, montarTotal, 15);
-        renderGraficoGastoDiario(anoMes);
+        ultimoDetalheAnoMesVencimento = anoMes;
+        document.getElementById('btnDiasCompra').style.display = '';
       } catch (e) { alert('Erro ao carregar detalhamento: ' + e.message); }
     }
     // Clique na barra Orçamento do gráfico de Projeção -> lista os itens de orçamento daquele mês.
@@ -2639,7 +2694,6 @@
         const montarTotal = (ls) => linhaTotal(1, ls.reduce((s,l) => s + Number(l.raw.valor||0), 0), 1);
         const extrairOrc = (raw, campo) => campo === 'valor' ? Number(raw.valor || 0) : (raw.descricao || '');
         abrirDetalheModal('Orçamento — ' + labelMes(mesIso), 'Itens de orçamento cadastrados para este mês (aba Orçamentos).', header, linhasObj, montarTotal, 3, extrairOrc, 'detalheOrc');
-        renderGraficoGastoDiario(anoMes);
       } catch (e) { alert('Erro ao carregar detalhamento: ' + e.message); }
     }
     // Clique no card "Orçamento Mês" ou no gráfico "A Pagar x Orçamento" -> comparativo completo do mês.
