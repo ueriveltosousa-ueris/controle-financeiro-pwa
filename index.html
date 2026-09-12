@@ -901,6 +901,7 @@
         </div>
       </div>
       <div class="obs-topo" id="obsModalDetalhe">Clique numa barra ou fatia do gráfico para ver o detalhamento aqui.</div>
+      <div class="chart-wrap" id="graficoGastoDiarioWrap" style="display:none;height:220px;margin-bottom:18px;"><canvas id="graficoGastoDiario"></canvas></div>
       <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;">
         <div class="campo" style="margin-bottom:0;">
           <label>Filtrar por período de</label>
@@ -1085,6 +1086,7 @@
     // minúscula pra comparar contra o termo digitado — mesmo padrão usado em todo o app.
     const montarBusca = (...campos) => campos.map(v => (v === null || v === undefined) ? '' : String(v)).join(' ').toLowerCase();
     const nomesMes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    const nomesDiaSemana = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
     const labelMes = (iso) => { const p = String(iso).slice(0,7).split('-'); return nomesMes[Number(p[1]) - 1] + '/' + p[0]; };
     const hojeLocal = () => { const d = new Date(); const off = d.getTimezoneOffset(); return new Date(d.getTime() - off*60000).toISOString().slice(0,10); };
     const parseValor = (s) => { if (typeof s === 'number') return s; s = String(s).trim().replace(/\s/g,''); if (!s) return NaN; if (s.indexOf(',') > -1) s = s.replace(/\./g,'').replace(',', '.'); return Number(s); };
@@ -1761,10 +1763,13 @@
       const totalPendente = parcelasMes.filter(l => l.status !== 'Pago').reduce((s, l) => s + Number(l.valor || 0), 0);
 
       const orcamentoMes = orcamentoPorMes[anoMes] || 0;
-      // Saldo = orçamento menos só o que AINDA está pendente -- o que já foi
-      // pago/quitado é excluído da conta (esse dinheiro já é fato consumado,
-      // o saldo mostra se o orçamento cobre o que falta pagar no mês).
-      const saldoOrcamento = orcamentoMes - totalPendente;
+      // Saldo = orçamento menos TODA a despesa do mês (paga + pendente) --
+      // dinheiro já pago também saiu do orçamento deste mês, então tem que
+      // entrar na conta (excluir o que já foi pago fazia o saldo parecer
+      // maior do que realmente é: com orçamento 1.000, pago 800 e pendente
+      // 300, o saldo real é -100, não 700). Mesma conta que o modal
+      // Comparativo já faz (orçamento - total de gastos do mês).
+      const saldoOrcamento = orcamentoMes - totalMes;
       const corSaldo = saldoOrcamento < 0 ? 'negativo' : 'positivo';
 
       const subVencer = '<div class="kpi-sub-destaque">' +
@@ -2335,6 +2340,42 @@
     // ordenação de um detalhamento anterior com colunas diferentes.
     let ultimoDetalheExtrator = valorColunaDespesa;
     let ultimoDetalheIdTabela = 'detalhe';
+    // Gráfico de linha "Gasto diário" (Despesas, dia a dia do mês) -- só
+    // aparece nos detalhamentos de MÊS (Despesas Mês e Orçamento Mês), não
+    // nos outros que passam pelo mesmo modal genérico (Cartão, Tipo,
+    // Descrição etc., que não são de um mês específico). Escondido/destruído
+    // por padrão a cada abertura do modal (abrirDetalheModal); quem quiser o
+    // gráfico chama renderGraficoGastoDiario(anoMes) logo em seguida.
+    let chartGastoDiario;
+    function renderGraficoGastoDiario(anoMes) {
+      const [ano, mes] = anoMes.split('-').map(Number);
+      const diasNoMes = new Date(ano, mes, 0).getDate();
+      const dias = [];
+      for (let d = 1; d <= diasNoMes; d++) {
+        const dataIso = anoMes + '-' + String(d).padStart(2, '0');
+        const totalDia = ultimasParcelasTodas
+          .filter(p => String(p.data_vencimento).slice(0, 10) === dataIso)
+          .reduce((s, p) => s + Number(p.valor || 0), 0);
+        dias.push({ total: totalDia, rotulo: [String(d).padStart(2, '0'), nomesDiaSemana[new Date(ano, mes - 1, d).getDay()]] });
+      }
+      document.getElementById('graficoGastoDiarioWrap').style.display = '';
+      const ctx = document.getElementById('graficoGastoDiario');
+      if (chartGastoDiario) chartGastoDiario.destroy();
+      chartGastoDiario = new Chart(ctx, {
+        type: 'line',
+        data: { labels: dias.map(d => d.rotulo), datasets: [
+          { label: 'Despesas', data: dias.map(d => d.total), borderColor: '#E57373', backgroundColor: gradienteArea('229,115,115', 0.35), fill: true, tension: .3,
+            pointRadius: 2, pointHoverRadius: 5, pointBackgroundColor: '#E57373', pointBorderColor: '#fff', pointBorderWidth: 1 },
+        ] },
+        options: { maintainAspectRatio: false, layout: { padding: { top: 10 } },
+          plugins: { legend: { display: false }, tooltip: { enabled: true, callbacks: { label: (c) => 'Gasto: ' + brl(c.raw) } } },
+          scales: { x: { grid: { display: false }, ticks: { font: { size: 10 } } }, y: { ticks: { callback: (v) => 'R$ ' + (v / 1000) + 'k' } } } },
+      });
+    }
+    function esconderGraficoGastoDiario() {
+      document.getElementById('graficoGastoDiarioWrap').style.display = 'none';
+      if (chartGastoDiario) { chartGastoDiario.destroy(); chartGastoDiario = null; }
+    }
     function abrirDetalheModal(titulo, obs, headerHtml, linhas, montarTotalHtml, colspanVazio, extrairColuna, idTabelaOrdenacao) {
       document.getElementById('tituloModalDetalhe').textContent = titulo;
       document.getElementById('obsModalDetalhe').textContent = obs;
@@ -2346,6 +2387,7 @@
       document.getElementById('detalheTipoData').value = 'compra';
       document.getElementById('detalheDe').value = '';
       document.getElementById('detalheAte').value = '';
+      esconderGraficoGastoDiario();
       ultimoDetalheLinhas = linhas;
       ultimoDetalheMontarTotal = montarTotalHtml;
       ultimoDetalheColspanVazio = colspanVazio || 6;
@@ -2574,6 +2616,7 @@
           ? 'Parcelas já pagas com vencimento no mês selecionado.'
           : 'Todas as parcelas com vencimento no mês selecionado, pagas ou não.';
         abrirDetalheModal(titulo, obs, header, linhasObj, montarTotal, 15);
+        renderGraficoGastoDiario(anoMes);
       } catch (e) { alert('Erro ao carregar detalhamento: ' + e.message); }
     }
     // Clique na barra Orçamento do gráfico de Projeção -> lista os itens de orçamento daquele mês.
@@ -2596,6 +2639,7 @@
         const montarTotal = (ls) => linhaTotal(1, ls.reduce((s,l) => s + Number(l.raw.valor||0), 0), 1);
         const extrairOrc = (raw, campo) => campo === 'valor' ? Number(raw.valor || 0) : (raw.descricao || '');
         abrirDetalheModal('Orçamento — ' + labelMes(mesIso), 'Itens de orçamento cadastrados para este mês (aba Orçamentos).', header, linhasObj, montarTotal, 3, extrairOrc, 'detalheOrc');
+        renderGraficoGastoDiario(anoMes);
       } catch (e) { alert('Erro ao carregar detalhamento: ' + e.message); }
     }
     // Clique no card "Orçamento Mês" ou no gráfico "A Pagar x Orçamento" -> comparativo completo do mês.
