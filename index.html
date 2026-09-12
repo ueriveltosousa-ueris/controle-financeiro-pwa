@@ -189,6 +189,15 @@
        pra melhorar a leitura -> 11.44px). */
     #overlayComparativo table { font-size:11.44px; }
     th { background:#f0f4fa; color:var(--azul); font-weight:600; }
+    /* Cabeçalho de coluna clicável (ordenar A->Z / Z->A) -- usado em toda
+       tabela do app. A setinha some (⇅ apagada) até a coluna ser clicada; ao
+       clicar mostra ▲ (crescente) ou ▼ (decrescente), e clicar de novo na
+       mesma coluna alterna entre as duas. */
+    th.ordenavel { cursor:pointer; user-select:none; }
+    th.ordenavel:hover { background:#e2ecfb; }
+    th.ordenavel .seta-ord::after { content:'⇅'; margin-left:5px; font-size:10px; opacity:.4; }
+    th.ordenavel.ord-asc .seta-ord::after { content:'▲'; opacity:1; }
+    th.ordenavel.ord-desc .seta-ord::after { content:'▼'; opacity:1; }
     td.num, th.num { text-align:right; }
     td { transition:background-color .12s ease; }
     table tbody tr:hover > td { background:var(--linha-hover); }
@@ -573,7 +582,7 @@
         </div>
         <div class="tabela-scroll" style="max-height:500px;overflow-y:auto;">
           <table id="tabelaResumo">
-            <thead><tr><th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Parcelas em Aberto</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Valor da Compra</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Ações</th></tr></thead>
+            <thead><tr id="cabecalhoResumo"></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -621,7 +630,7 @@
         </div>
         <div class="tabela-scroll" style="max-height:500px;overflow-y:auto;">
           <table id="tabelaCompras">
-            <thead><tr><th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Parcelas em Aberto</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Valor da Compra</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Ações</th></tr></thead>
+            <thead><tr id="cabecalhoLancamentos"></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -634,7 +643,7 @@
         </div>
         <div class="tabela-scroll" style="max-height:400px;overflow-y:auto;">
           <table id="tabelaParcelasOrfas">
-            <thead><tr><th>Nº Parcela</th><th class="num">Valor</th><th>Vencimento</th><th>Status</th><th>Ações</th></tr></thead>
+            <thead><tr id="cabecalhoParcelasOrfas"></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -666,7 +675,7 @@
 
         <div class="tabela-scroll" style="max-height:400px;overflow-y:auto;">
           <table id="tabelaOrcamentoItens">
-            <thead><tr><th>Descrição</th><th class="num">Valor</th><th>Ações</th></tr></thead>
+            <thead><tr id="cabecalhoOrcamentoItens"></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -692,7 +701,7 @@
         </div>
         <div class="tabela-scroll" style="max-height:300px;overflow-y:auto;">
           <table id="tabelaGrupos">
-            <thead><tr><th>Grupo de Despesa</th><th>Ações</th></tr></thead>
+            <thead><tr id="cabecalhoGrupos"></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -716,7 +725,7 @@
         </div>
         <div class="tabela-scroll" style="max-height:400px;overflow-y:auto;">
           <table id="tabelaTipos">
-            <thead><tr><th>Tipo de Despesa</th><th>Ações</th></tr></thead>
+            <thead><tr id="cabecalhoTipos"></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -753,7 +762,7 @@
 
         <div class="tabela-scroll" style="max-height:400px;overflow-y:auto;">
           <table id="tabelaCartoes">
-            <thead><tr><th>Forma de Pagamento</th><th>Dia de vencimento</th><th>Ações</th></tr></thead>
+            <thead><tr id="cabecalhoCartoes"></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -868,7 +877,7 @@
       </div>
       <div class="tabela-scroll" style="max-height:400px;overflow-y:auto;">
         <table class="tabela-parcelas">
-          <thead><tr><th>Nº</th><th class="num">Valor Parcela</th><th>Data de Vencimento</th><th>Status</th><th>Ações</th></tr></thead>
+          <thead><tr id="cabecalhoParcelasModal"></tr></thead>
           <tbody id="corpoParcelas"></tbody>
         </table>
       </div>
@@ -947,7 +956,7 @@
       <div class="tabela-scroll" style="max-height:280px;overflow-y:auto;margin-bottom:16px;">
         <table class="tabela-parcelas">
           <thead><tr class="tabela-linha-titulo"><th colspan="3" style="background:#e8f5e9;color:#2d6a2d;">Itens de Orçamento</th></tr>
-          <tr class="tabela-linha-colunas"><th>Descrição</th><th class="num">Valor</th><th>Ações</th></tr></thead>
+          <tr class="tabela-linha-colunas" id="cabecalhoComparativoOrcamento"></tr></thead>
           <tbody id="corpoComparativoOrcamento"></tbody>
         </table>
       </div>
@@ -980,7 +989,7 @@
         <table class="tabela-parcelas">
           <thead>
           <tr class="tabela-linha-titulo"><th colspan="15" style="background:#fdecea;color:#a13d3d;">Gastos do Mês (pagos e pendentes)</th></tr>
-          <tr class="tabela-linha-colunas"><th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Parcelas em Aberto</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Valor da Compra</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Status</th><th>Ações</th></tr>
+          <tr class="tabela-linha-colunas" id="cabecalhoComparativoGastos"></tr>
           </thead>
           <tbody id="corpoComparativoGastos"></tbody>
         </table>
@@ -1271,23 +1280,28 @@
       tbody.innerHTML = '<tr><td colspan="2" style="text-align:center;color:#888;">Carregando...</td></tr>';
       try {
         grupos = await api('/referencias/grupos-despesa');
-        tbody.innerHTML = !grupos.length
-          ? '<tr><td colspan="2" style="text-align:center;color:#888;">Nenhum grupo cadastrado.</td></tr>'
-          : grupos.map(g => `<tr>
-              <td>
-                <input type="text" style="width:260px;padding:6px 8px;border:1px solid var(--cinza-borda);border-radius:6px;"
-                       id="grupo_nome_${g.id}" value="${(g.nome||'').replace(/"/g,'&quot;')}" />
-              </td>
-              <td>
-                <button class="btn-visualizar-cadastro" onclick="visualizarCadastroRapido('grupo', '${(g.nome||'').replace(/'/g,"\\'")}', null)" title="Visualizar (somente leitura)" aria-label="Visualizar">👁</button>
-                <button class="btn btn-azul" style="padding:6px 12px;" onclick="salvarGrupo(${g.id})">Salvar</button>
-                <button class="btn-replicar" onclick="replicarGrupo('${(g.nome||'').replace(/'/g,"\\'")}')" title="Replicar — preenche 'Novo grupo de despesa' com este nome" aria-label="Replicar">⧉</button>
-                <button class="link-acao link-excluir" onclick="excluirGrupo(${g.id}, '${(g.nome||'').replace(/'/g,"\\'")}')">Excluir</button>
-              </td>
-            </tr>`).join('');
+        redesenharGruposTab();
       } catch (e) {
         tbody.innerHTML = '<tr><td colspan="2" style="text-align:center;color:#922;">Erro ao carregar: ' + e.message + '</td></tr>';
       }
+    }
+    function redesenharGruposTab() {
+      const tbody = document.querySelector('#tabelaGrupos tbody');
+      const ordenados = aplicarOrdenacaoSalva('grupos', grupos, (g) => g.nome || '');
+      tbody.innerHTML = !ordenados.length
+        ? '<tr><td colspan="2" style="text-align:center;color:#888;">Nenhum grupo cadastrado.</td></tr>'
+        : ordenados.map(g => `<tr>
+            <td>
+              <input type="text" style="width:260px;padding:6px 8px;border:1px solid var(--cinza-borda);border-radius:6px;"
+                     id="grupo_nome_${g.id}" value="${(g.nome||'').replace(/"/g,'&quot;')}" />
+            </td>
+            <td>
+              <button class="btn-visualizar-cadastro" onclick="visualizarCadastroRapido('grupo', '${(g.nome||'').replace(/'/g,"\\'")}', null)" title="Visualizar (somente leitura)" aria-label="Visualizar">👁</button>
+              <button class="btn btn-azul" style="padding:6px 12px;" onclick="salvarGrupo(${g.id})">Salvar</button>
+              <button class="btn-replicar" onclick="replicarGrupo('${(g.nome||'').replace(/'/g,"\\'")}')" title="Replicar — preenche 'Novo grupo de despesa' com este nome" aria-label="Replicar">⧉</button>
+              <button class="link-acao link-excluir" onclick="excluirGrupo(${g.id}, '${(g.nome||'').replace(/'/g,"\\'")}')">Excluir</button>
+            </td>
+          </tr>`).join('');
     }
     async function criarGrupoDespesa() {
       const nome = document.getElementById('novo_grupo_nome').value.trim();
@@ -1328,24 +1342,29 @@
       tbody.innerHTML = '<tr><td colspan="2" style="text-align:center;color:#888;">Carregando...</td></tr>';
       try {
         categorias = await api('/referencias/categorias'); // tipos de despesa (lista simples, sem grupo)
-        tbody.innerHTML = !categorias.length
-          ? '<tr><td colspan="2" style="text-align:center;color:#888;">Nenhum tipo de despesa cadastrado.</td></tr>'
-          : categorias.map(t => `<tr>
-              <td>
-                <input type="text" style="width:260px;padding:6px 8px;border:1px solid var(--cinza-borda);border-radius:6px;"
-                       id="tipo_nome_${t.id}" value="${(t.nome||'').replace(/"/g,'&quot;')}" />
-              </td>
-              <td>
-                <button class="btn-visualizar-cadastro" onclick="visualizarCadastroRapido('tipo', '${(t.nome||'').replace(/'/g,"\\'")}', null)" title="Visualizar (somente leitura)" aria-label="Visualizar">👁</button>
-                <button class="btn btn-azul" style="padding:6px 12px;" onclick="salvarTipo(${t.id})">Salvar</button>
-                <button class="btn-replicar" onclick="replicarTipo('${(t.nome||'').replace(/'/g,"\\'")}')" title="Replicar — preenche 'Novo tipo de despesa' com este nome" aria-label="Replicar">⧉</button>
-                <button class="link-acao link-excluir" onclick="excluirTipo(${t.id}, '${(t.nome||'').replace(/'/g,"\\'")}')">Excluir</button>
-              </td>
-            </tr>`).join('');
+        redesenharTiposTab();
         preencherSelects(); // repopula o "Tipo de Despesa" do formulário de lançamento
       } catch (e) {
         tbody.innerHTML = '<tr><td colspan="2" style="text-align:center;color:#922;">Erro ao carregar: ' + e.message + '</td></tr>';
       }
+    }
+    function redesenharTiposTab() {
+      const tbody = document.querySelector('#tabelaTipos tbody');
+      const ordenadas = aplicarOrdenacaoSalva('tipos', categorias, (t) => t.nome || '');
+      tbody.innerHTML = !ordenadas.length
+        ? '<tr><td colspan="2" style="text-align:center;color:#888;">Nenhum tipo de despesa cadastrado.</td></tr>'
+        : ordenadas.map(t => `<tr>
+            <td>
+              <input type="text" style="width:260px;padding:6px 8px;border:1px solid var(--cinza-borda);border-radius:6px;"
+                     id="tipo_nome_${t.id}" value="${(t.nome||'').replace(/"/g,'&quot;')}" />
+            </td>
+            <td>
+              <button class="btn-visualizar-cadastro" onclick="visualizarCadastroRapido('tipo', '${(t.nome||'').replace(/'/g,"\\'")}', null)" title="Visualizar (somente leitura)" aria-label="Visualizar">👁</button>
+              <button class="btn btn-azul" style="padding:6px 12px;" onclick="salvarTipo(${t.id})">Salvar</button>
+              <button class="btn-replicar" onclick="replicarTipo('${(t.nome||'').replace(/'/g,"\\'")}')" title="Replicar — preenche 'Novo tipo de despesa' com este nome" aria-label="Replicar">⧉</button>
+              <button class="link-acao link-excluir" onclick="excluirTipo(${t.id}, '${(t.nome||'').replace(/'/g,"\\'")}')">Excluir</button>
+            </td>
+          </tr>`).join('');
     }
     async function criarTipoDespesa() {
       const nome = document.getElementById('novo_tipo_nome').value.trim();
@@ -1377,30 +1396,36 @@
     }
 
     // ---- FORMA DE PAGAMENTO ----
+    let ultimosCartoesTab = [];
     async function carregarCartoesTab() {
       const tbody = document.querySelector('#tabelaCartoes tbody');
       tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#888;">Carregando...</td></tr>';
       try {
-        const lista = await api('/referencias/cartoes');
-        tbody.innerHTML = lista.map(c => `<tr>
-          <td>
-            <input type="text" style="width:220px;padding:6px 8px;border:1px solid var(--cinza-borda);border-radius:6px;"
-                   id="nome_${c.id}" value="${(c.nome||'').replace(/"/g,'&quot;')}" />
-          </td>
-          <td>
-            <input type="number" min="1" max="31" style="width:80px;padding:6px 8px;border:1px solid var(--cinza-borda);border-radius:6px;"
-                   id="venc_${c.id}" value="${c.dia_vencimento != null ? c.dia_vencimento : ''}" placeholder="—" />
-          </td>
-          <td>
-            <button class="btn-visualizar-cadastro" onclick="visualizarCadastroRapido('cartao', '${(c.nome||'').replace(/'/g,"\\'")}', ${c.dia_vencimento != null ? c.dia_vencimento : 'null'})" title="Visualizar (somente leitura)" aria-label="Visualizar">👁</button>
-            <button class="btn btn-azul" style="padding:6px 12px;" onclick="salvarVencimentoCartao(${c.id})">Salvar</button>
-            <button class="btn-replicar" onclick="replicarCartao('${(c.nome||'').replace(/'/g,"\\'")}', ${c.dia_vencimento != null ? c.dia_vencimento : 'null'})" title="Replicar — preenche 'Nova forma de pagamento' com estes dados" aria-label="Replicar">⧉</button>
-            <button class="link-acao link-excluir" onclick="excluirCategoriaDespesa(${c.id}, '${(c.nome||'').replace(/'/g,"\\'")}')">Excluir</button>
-          </td>
-        </tr>`).join('');
+        ultimosCartoesTab = await api('/referencias/cartoes');
+        redesenharCartoesTab();
       } catch (e) {
         tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#922;">Erro ao carregar: ' + e.message + '</td></tr>';
       }
+    }
+    function redesenharCartoesTab() {
+      const tbody = document.querySelector('#tabelaCartoes tbody');
+      const ordenados = aplicarOrdenacaoSalva('cartoesTab', ultimosCartoesTab, (c, campo) => campo === 'diaVencimento' ? Number(c.dia_vencimento || 0) : (c.nome || ''));
+      tbody.innerHTML = ordenados.map(c => `<tr>
+        <td>
+          <input type="text" style="width:220px;padding:6px 8px;border:1px solid var(--cinza-borda);border-radius:6px;"
+                 id="nome_${c.id}" value="${(c.nome||'').replace(/"/g,'&quot;')}" />
+        </td>
+        <td>
+          <input type="number" min="1" max="31" style="width:80px;padding:6px 8px;border:1px solid var(--cinza-borda);border-radius:6px;"
+                 id="venc_${c.id}" value="${c.dia_vencimento != null ? c.dia_vencimento : ''}" placeholder="—" />
+        </td>
+        <td>
+          <button class="btn-visualizar-cadastro" onclick="visualizarCadastroRapido('cartao', '${(c.nome||'').replace(/'/g,"\\'")}', ${c.dia_vencimento != null ? c.dia_vencimento : 'null'})" title="Visualizar (somente leitura)" aria-label="Visualizar">👁</button>
+          <button class="btn btn-azul" style="padding:6px 12px;" onclick="salvarVencimentoCartao(${c.id})">Salvar</button>
+          <button class="btn-replicar" onclick="replicarCartao('${(c.nome||'').replace(/'/g,"\\'")}', ${c.dia_vencimento != null ? c.dia_vencimento : 'null'})" title="Replicar — preenche 'Nova forma de pagamento' com estes dados" aria-label="Replicar">⧉</button>
+          <button class="link-acao link-excluir" onclick="excluirCategoriaDespesa(${c.id}, '${(c.nome||'').replace(/'/g,"\\'")}')">Excluir</button>
+        </td>
+      </tr>`).join('');
     }
     async function criarCategoriaDespesa() {
       const nome = document.getElementById('nova_categoria_nome').value.trim();
@@ -1434,32 +1459,40 @@
       } catch (e) { alert(e.message); }
     }
     // ---- ORÇAMENTOS: itens identificados por mês (salário, extras, economias...) ----
+    let ultimosItensOrcamentoTab = [];
     async function carregarOrcamentosTab() {
       const mes = document.getElementById('orcamentoMesSelecionado').value; // "YYYY-MM"
       const tbody = document.querySelector('#tabelaOrcamentoItens tbody');
       tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#888;">Carregando...</td></tr>';
       try {
-        const itens = await api('/orcamento?mes=' + mes);
-        if (!itens.length) {
-          tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#888;">Nenhum item cadastrado para este mês.</td></tr>';
-        } else {
-          tbody.innerHTML = itens.map(it => `<tr onclick="visualizarItemOrcamento('${(it.descricao||'').replace(/'/g,"\\'")}', ${it.valor}, '${mes}')">
-            <td>${it.descricao}</td>
-            <td class="num">${brl(it.valor)}</td>
-            <td>
-              <button class="btn-visualizar-cadastro" onclick="event.stopPropagation();visualizarItemOrcamento('${(it.descricao||'').replace(/'/g,"\\'")}', ${it.valor}, '${mes}')" title="Visualizar (somente leitura)" aria-label="Visualizar">👁</button>
-              <button class="btn-replicar" onclick="event.stopPropagation();replicarItemOrcamento('${(it.descricao||'').replace(/'/g,"\\'")}', ${it.valor})" title="Replicar — preenche os campos acima com estes dados, pra cadastrar em outro mês" aria-label="Replicar">⧉</button>
-              ${botaoIncluirOrcamentoHtml()}
-              <button class="link-acao link-editar" onclick="event.stopPropagation();editarItemOrcamento(${it.id}, '${(it.descricao||'').replace(/'/g,"\\'")}', ${it.valor})">Editar</button>
-              <button class="link-acao link-excluir" onclick="event.stopPropagation();excluirItemOrcamento(${it.id})">Excluir</button>
-            </td>
-          </tr>`).join('');
-        }
-        const total = itens.reduce((s, it) => s + Number(it.valor || 0), 0);
-        tbody.innerHTML += '<tr style="font-weight:700;background:#f0f4fa;"><td>TOTAL DO MÊS</td><td class="num">' + brl(total) + '</td><td></td></tr>';
+        ultimosItensOrcamentoTab = await api('/orcamento?mes=' + mes);
+        redesenharOrcamentoItensTab();
       } catch (e) {
         tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#922;">Erro ao carregar: ' + e.message + '</td></tr>';
       }
+    }
+    function redesenharOrcamentoItensTab() {
+      const mes = document.getElementById('orcamentoMesSelecionado').value;
+      const itens = ultimosItensOrcamentoTab;
+      const tbody = document.querySelector('#tabelaOrcamentoItens tbody');
+      if (!itens.length) {
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#888;">Nenhum item cadastrado para este mês.</td></tr>';
+      } else {
+        const ordenados = aplicarOrdenacaoSalva('orcamentoItensTab', itens, (it, campo) => campo === 'valor' ? Number(it.valor || 0) : (it.descricao || ''));
+        tbody.innerHTML = ordenados.map(it => `<tr onclick="visualizarItemOrcamento('${(it.descricao||'').replace(/'/g,"\\'")}', ${it.valor}, '${mes}')">
+          <td>${it.descricao}</td>
+          <td class="num">${brl(it.valor)}</td>
+          <td>
+            <button class="btn-visualizar-cadastro" onclick="event.stopPropagation();visualizarItemOrcamento('${(it.descricao||'').replace(/'/g,"\\'")}', ${it.valor}, '${mes}')" title="Visualizar (somente leitura)" aria-label="Visualizar">👁</button>
+            <button class="btn-replicar" onclick="event.stopPropagation();replicarItemOrcamento('${(it.descricao||'').replace(/'/g,"\\'")}', ${it.valor})" title="Replicar — preenche os campos acima com estes dados, pra cadastrar em outro mês" aria-label="Replicar">⧉</button>
+            ${botaoIncluirOrcamentoHtml()}
+            <button class="link-acao link-editar" onclick="event.stopPropagation();editarItemOrcamento(${it.id}, '${(it.descricao||'').replace(/'/g,"\\'")}', ${it.valor})">Editar</button>
+            <button class="link-acao link-excluir" onclick="event.stopPropagation();excluirItemOrcamento(${it.id})">Excluir</button>
+          </td>
+        </tr>`).join('');
+      }
+      const total = itens.reduce((s, it) => s + Number(it.valor || 0), 0);
+      tbody.innerHTML += '<tr style="font-weight:700;background:#f0f4fa;"><td>TOTAL DO MÊS</td><td class="num">' + brl(total) + '</td><td></td></tr>';
     }
     async function adicionarItemOrcamento() {
       const mes = document.getElementById('orcamentoMesSelecionado').value;
@@ -2042,6 +2075,93 @@
       document.getElementById(idAte).value = '';
       aplicar();
     }
+    // ---------------------------------------------------------------------
+    // Ordenação clicável de coluna (A->Z / Z->A) -- genérica, usada em TODA
+    // tabela do app. Cada <th> ordenável chama ordenarTabela(this, idTabela,
+    // campo, tipo, 'chamadaDeRedesenho()') no onclick: clicar de novo na
+    // MESMA coluna alterna crescente/decrescente; clicar numa coluna
+    // diferente sempre começa crescente. "tipo" decide o comparador:
+    // 'texto' (locale pt-BR, ignora maiúsc/minúsc), 'numero' ou 'data'
+    // (string ISO "YYYY-MM-DD", já comparável direto). O estado (qual
+    // coluna + direção) fica em memória por tabela, e cada tabela reaplica
+    // sozinha (via aplicarOrdenacaoSalva) toda vez que redesenha -- inclusive
+    // depois de um filtro novo, então ordenação e filtro convivem.
+    // ---------------------------------------------------------------------
+    const estadoOrdenacaoTabelas = {};
+    function compararOrdenacao(a, b, tipo) {
+      if (tipo === 'numero') return (Number(a) || 0) - (Number(b) || 0);
+      if (tipo === 'data') { const sa = String(a || ''), sb = String(b || ''); return sa < sb ? -1 : sa > sb ? 1 : 0; }
+      return String(a == null ? '' : a).localeCompare(String(b == null ? '' : b), 'pt-BR', { sensitivity: 'base' });
+    }
+    function ordenarTabela(th, idTabela, campo, tipo, chamadaRedesenho) {
+      const anterior = estadoOrdenacaoTabelas[idTabela];
+      const direcao = (anterior && anterior.campo === campo && anterior.direcao === 'asc') ? 'desc' : 'asc';
+      estadoOrdenacaoTabelas[idTabela] = { campo, tipo, direcao };
+      const linha = th.parentElement;
+      Array.from(linha.children).forEach(el => el.classList.remove('ord-asc', 'ord-desc'));
+      th.classList.add(direcao === 'asc' ? 'ord-asc' : 'ord-desc');
+      chamadaRedesenho();
+    }
+    // Aplica (se existir) a ordenação já escolhida pelo usuário nesta tabela
+    // sobre uma lista já filtrada. "extrair(item, campo)" devolve o valor
+    // BRUTO (não formatado) da coluna escolhida a partir de um item da lista
+    // -- cada tabela sabe seu próprio formato de linha (objeto cru, ou
+    // envelopado como {raw:{...}} nos detalhamentos).
+    function aplicarOrdenacaoSalva(idTabela, itens, extrair, padrao) {
+      const estado = estadoOrdenacaoTabelas[idTabela] || padrao;
+      if (!estado) return itens;
+      return itens.slice().sort((a, b) => {
+        const r = compararOrdenacao(extrair(a, estado.campo), extrair(b, estado.campo), estado.tipo);
+        return estado.direcao === 'asc' ? r : -r;
+      });
+    }
+    // Monta um <th> ordenável pronto (rótulo + setinha ▲/▼/⇅), pro caso comum
+    // onde o cabeçalho é montado em JS (modal genérico de detalhamento).
+    function thOrd(rotulo, idTabela, campo, tipo, chamadaRedesenho, classeExtra) {
+      return '<th class="ordenavel' + (classeExtra ? ' ' + classeExtra : '') + '" ' +
+        'onclick="ordenarTabela(this,\'' + idTabela + '\',\'' + campo + '\',\'' + tipo + '\',() => ' + chamadaRedesenho + ')">' +
+        rotulo + '<span class="seta-ord"></span></th>';
+    }
+    // Extrai o valor bruto (não formatado) de uma coluna comum a toda tabela
+    // de despesa (parcela OU compra/resumo já agregado) -- ver comentário em
+    // aplicarFiltroPeriodoData sobre o mesmo tipo de fallback pra "raw".
+    function valorColunaDespesa(raw, campo) {
+      switch (campo) {
+        case 'descricao': return raw.descricao || '';
+        case 'tipo': return Number(raw.qtd_parcelas) === 1 ? 'À vista' : 'Parcelada';
+        case 'cartao': return raw.cartao || '';
+        case 'categoria': return raw.categoria || '';
+        case 'parcelaMes': return Number(raw.num_parcela != null ? raw.num_parcela : raw.qtd_parcelas_pagas) || 0;
+        case 'parcelasPagas': return Number(raw.qtd_parcelas_pagas || 0);
+        case 'parcelasAberto': return Math.max(Number(raw.qtd_parcelas || 0) - Number(raw.qtd_parcelas_pagas || 0), 0);
+        case 'dataCompra': return raw.data_compra || '';
+        case 'dataVencimento': return raw.data_vencimento || raw.proximo_vencimento || '';
+        case 'valorTotal': return Number(raw.valor_total || 0);
+        case 'valorParcela': return Number(raw.valor != null ? raw.valor : valorParcela(raw));
+        case 'saldoAberto': return Number(raw.saldo_aberto || 0);
+        case 'situacao': return Number(raw.saldo_aberto || 0) <= 0 ? 'Quitada' : 'Em Aberto';
+        case 'status': return raw.status || '';
+        default: return '';
+      }
+    }
+    // Cabeçalho ordenável padrão das tabelas de despesa (parcela ou
+    // compra/resumo) -- as 13 colunas comuns a quase todo detalhamento do
+    // app, mais "Status" quando a linha vier de uma parcela específica
+    // (não faz sentido numa linha já resumida por compra). "idTabela" e
+    // "chamadaRedesenho" identificam a tabela de destino (cada detalhamento
+    // usa o mesmo corpo #corpoDetalhe, mas o estado de ordenação abaixo é
+    // por idTabela, então trocar de gráfico não herda ordenação de outro).
+    function cabecalhoOrdenavelDespesa(idTabela, chamadaRedesenho, comStatus) {
+      const cols = [
+        ['Descrição', 'texto', 'descricao'], ['Tipo', 'texto', 'tipo'], ['Despesa', 'texto', 'cartao'], ['Categoria', 'texto', 'categoria'],
+        ['Parcela do Mês', 'numero', 'parcelaMes'], ['Parcelas Pagas', 'numero', 'parcelasPagas'], ['Parcelas em Aberto', 'numero', 'parcelasAberto'],
+        ['Data da Compra', 'data', 'dataCompra'], ['Data de Vencimento', 'data', 'dataVencimento'],
+        ['Valor da Compra', 'numero', 'valorTotal', 'num'], ['Valor Parcela', 'numero', 'valorParcela', 'num'], ['Saldo Aberto', 'numero', 'saldoAberto', 'num'],
+        ['Situação', 'texto', 'situacao'],
+      ];
+      if (comStatus) cols.push(['Status', 'texto', 'status']);
+      return cols.map(c => thOrd(c[0], idTabela, c[2], c[1], chamadaRedesenho, c[3])).join('') + '<th>Ações</th>';
+    }
     function periodoTexto(idDe, idAte) {
       const de = document.getElementById(idDe).value, ate = document.getElementById(idAte).value;
       if (!de && !ate) return '';
@@ -2081,7 +2201,7 @@
         const eParcelada = Number(p.qtd_parcelas) > 1;
         return tipo === 'parcelada' ? eParcelada : !eParcelada;
       });
-      const header = '<th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Parcelas em Aberto</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Valor da Compra</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Status</th><th>Ações</th>';
+      const header = cabecalhoOrdenavelDespesa('detalhe', 'aplicarFiltroDetalhe()', true);
       const linhasObj = linhas.map(p => {
         const avista = Number(p.qtd_parcelas) === 1;
         const tipoLabel = avista ? 'À vista' : 'Parcelada';
@@ -2173,7 +2293,7 @@
     function detalhePorDescricao(descricao) {
       ultimoDetalheRefresh = () => detalhePorDescricao(descricao);
       const linhas = ultimaListaCompras.filter(c => c.descricao === descricao);
-      const header = '<th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Parcelas em Aberto</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Valor da Compra</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Ações</th>';
+      const header = cabecalhoOrdenavelDespesa('detalhe', 'aplicarFiltroDetalhe()', false);
       const linhasObj = linhas.map(c => {
         const avista = Number(c.qtd_parcelas) === 1;
         const tipoLabel = avista ? 'À vista' : 'Parcelada';
@@ -2205,7 +2325,17 @@
     let ultimoDetalheLinhas = [];
     let ultimoDetalheMontarTotal = null;
     let ultimoDetalheColspanVazio = 6;
-    function abrirDetalheModal(titulo, obs, headerHtml, linhas, montarTotalHtml, colspanVazio) {
+    // extrairColuna(raw, campo): lê o valor bruto de uma coluna a partir do
+    // dado original da linha (raw) -- default é valorColunaDespesa (parcela
+    // ou compra/resumo), mas detalheOrcamentoMes passa o seu próprio (a
+    // linha ali é um item de orçamento, formato totalmente diferente).
+    // idTabelaOrdenacao identifica esta "espécie" de tabela pro estado de
+    // ordenação -- sempre reiniciado a cada abertura do modal (mesmo padrão
+    // já usado pro filtro de texto e de período), pra nunca herdar a
+    // ordenação de um detalhamento anterior com colunas diferentes.
+    let ultimoDetalheExtrator = valorColunaDespesa;
+    let ultimoDetalheIdTabela = 'detalhe';
+    function abrirDetalheModal(titulo, obs, headerHtml, linhas, montarTotalHtml, colspanVazio, extrairColuna, idTabelaOrdenacao) {
       document.getElementById('tituloModalDetalhe').textContent = titulo;
       document.getElementById('obsModalDetalhe').textContent = obs;
       // O "+" de incluir já vem embutido no próprio headerHtml (ver
@@ -2219,22 +2349,27 @@
       ultimoDetalheLinhas = linhas;
       ultimoDetalheMontarTotal = montarTotalHtml;
       ultimoDetalheColspanVazio = colspanVazio || 6;
-      desenharCorpoDetalhe(linhas);
+      ultimoDetalheExtrator = extrairColuna || valorColunaDespesa;
+      ultimoDetalheIdTabela = idTabelaOrdenacao || 'detalhe';
+      delete estadoOrdenacaoTabelas[ultimoDetalheIdTabela];
+      aplicarFiltroDetalhe();
       abrirModal('overlayDetalhe');
     }
     function desenharCorpoDetalhe(linhas) {
-      const linhasOrdenadas = linhas.slice().sort((a, b) => a.descricao.localeCompare(b.descricao, 'pt-BR'));
-      const corpo = linhasOrdenadas.length ? linhasOrdenadas.map(l => l.html).join('')
+      const corpo = linhas.length ? linhas.map(l => l.html).join('')
         : '<tr><td colspan="' + ultimoDetalheColspanVazio + '" style="text-align:center;color:#888;">Nenhum item encontrado.</td></tr>';
-      const totalHtml = linhasOrdenadas.length && ultimoDetalheMontarTotal ? ultimoDetalheMontarTotal(linhasOrdenadas) : '';
+      const totalHtml = linhas.length && ultimoDetalheMontarTotal ? ultimoDetalheMontarTotal(linhas) : '';
       document.getElementById('corpoDetalhe').innerHTML = corpo + totalHtml;
     }
     // Filtro de texto livre (mesmo padrão das outras tabelas do app): casa contra QUALQUER
     // coluna visível da linha, e o TOTAL do rodapé recalcula só com o que sobrou do filtro.
+    // Ordenação (clique no cabeçalho) entra por último, sobre o que sobrou do filtro --
+    // sem nenhuma coluna clicada ainda, cai no padrão de sempre (Descrição, A->Z).
     function aplicarFiltroDetalhe() {
       let linhas = aplicarFiltroPeriodoData(ultimoDetalheLinhas, 'detalheTipoData', 'detalheDe', 'detalheAte');
       const termo = (document.getElementById('filtroDetalhe').value || '').trim().toLowerCase();
       if (termo) linhas = linhas.filter(l => (l.busca || '').includes(termo));
+      linhas = aplicarOrdenacaoSalva(ultimoDetalheIdTabela, linhas, (item, campo) => ultimoDetalheExtrator(item.raw || item, campo), { campo: 'descricao', tipo: 'texto', direcao: 'asc' });
       desenharCorpoDetalhe(linhas);
     }
     // Botão "Ver tudo" do filtro de período do modal genérico de detalhamento.
@@ -2414,7 +2549,7 @@
       const anoMes = String(mesIso).slice(0, 7);
       try {
         const linhas = await api('/dashboard/parcelas?mes=' + anoMes + (statusFiltro ? '&status=' + statusFiltro : ''));
-        const header = '<th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Parcelas em Aberto</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Valor da Compra</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Status</th><th>Ações</th>';
+        const header = cabecalhoOrdenavelDespesa('detalhe', 'aplicarFiltroDetalhe()', true);
         const linhasObj = linhas.map(l => {
           const avista = Number(l.qtd_parcelas) === 1;
           const tipoLabel = avista ? 'À vista' : 'Parcelada';
@@ -2447,7 +2582,8 @@
       const anoMes = String(mesIso).slice(0, 7);
       try {
         const itens = await api('/orcamento?mes=' + anoMes);
-        const header = '<th>Descrição</th><th class="num">Valor</th><th>Ações</th>';
+        const header = thOrd('Descrição', 'detalheOrc', 'descricao', 'texto', 'aplicarFiltroDetalhe()') +
+          thOrd('Valor', 'detalheOrc', 'valor', 'numero', 'aplicarFiltroDetalhe()', 'num') + '<th>Ações</th>';
         const linhasObj = itens.map(it => ({
           descricao: it.descricao,
           raw: it,
@@ -2458,12 +2594,28 @@
             '<button class="btn-excluir-cadastro" onclick="event.stopPropagation();excluirItemOrcamentoDeDetalhe(' + it.id + ')" title="Excluir este item de orçamento" aria-label="Excluir">✕</button> ' + botaoIncluirOrcamentoHtml() + '</td></tr>',
         }));
         const montarTotal = (ls) => linhaTotal(1, ls.reduce((s,l) => s + Number(l.raw.valor||0), 0), 1);
-        abrirDetalheModal('Orçamento — ' + labelMes(mesIso), 'Itens de orçamento cadastrados para este mês (aba Orçamentos).', header, linhasObj, montarTotal, 3);
+        const extrairOrc = (raw, campo) => campo === 'valor' ? Number(raw.valor || 0) : (raw.descricao || '');
+        abrirDetalheModal('Orçamento — ' + labelMes(mesIso), 'Itens de orçamento cadastrados para este mês (aba Orçamentos).', header, linhasObj, montarTotal, 3, extrairOrc, 'detalheOrc');
       } catch (e) { alert('Erro ao carregar detalhamento: ' + e.message); }
     }
     // Clique no card "Orçamento Mês" ou no gráfico "A Pagar x Orçamento" -> comparativo completo do mês.
     let chartComparativo;
     let ultimoComparativoRefresh = null;
+    let ultimoComparativoItensOrc = [];
+    let ultimoComparativoAnoMes = '';
+    function redesenharComparativoOrcamento() {
+      const itensOrc = ultimoComparativoItensOrc;
+      const anoMes = ultimoComparativoAnoMes;
+      const totalOrc = itensOrc.reduce((s, it) => s + Number(it.valor||0), 0);
+      const ordenados = aplicarOrdenacaoSalva('compOrc', itensOrc, (it, campo) => campo === 'valor' ? Number(it.valor || 0) : (it.descricao || ''));
+      document.getElementById('corpoComparativoOrcamento').innerHTML = ordenados.length
+        ? ordenados.map(it => '<tr onclick="visualizarItemOrcamento(\'' + String(it.descricao||'').replace(/'/g,"\\'") + '\', ' + it.valor + ', \'' + anoMes + '\')"><td>' + it.descricao + '</td><td class="num">' + brl(it.valor) + '</td><td>' +
+            botaoVisualizarOrcamentoHtml(it.descricao, it.valor, anoMes) + ' <button class="btn-editar-cadastro" onclick="event.stopPropagation();editarItemOrcamentoDeDetalhe(' + it.id + ', \'' + String(it.descricao||'').replace(/'/g,"\\'") + '\', ' + it.valor + ')" title="Editar cadastro — edita este item de Orçamento" aria-label="Editar cadastro">✎</button> ' +
+            '<button class="btn-replicar" onclick="event.stopPropagation();replicarItemOrcamentoDeDetalhe(\'' + String(it.descricao||'').replace(/'/g,"\\'") + '\', ' + it.valor + ', \'' + anoMes + '\')" title="Replicar — cria um novo item de orçamento com estes dados" aria-label="Replicar">⧉</button> ' +
+            '<button class="btn-excluir-cadastro" onclick="event.stopPropagation();excluirItemOrcamentoDeDetalhe(' + it.id + ')" title="Excluir este item de orçamento" aria-label="Excluir">✕</button> ' + botaoIncluirOrcamentoHtml() + '</td></tr>').join('') +
+          '<tr style="font-weight:700;background:#f0f4fa;"><td>Subtotal</td><td class="num">' + brl(totalOrc) + '</td><td></td></tr>'
+        : '<tr><td colspan="3" style="text-align:center;color:#888;">Nenhum item cadastrado (aba Orçamentos).</td></tr>';
+    }
     async function detalheComparativoMes(mesIso) {
       ultimoComparativoRefresh = () => detalheComparativoMes(mesIso);
       const anoMes = String(mesIso).slice(0, 7);
@@ -2499,13 +2651,13 @@
             scales:{ x:{display:false,grid:{display:false}}, y:{grid:{display:false}, ticks:{ font:{ size:12, weight:'600' } }} } },
         });
 
-        document.getElementById('corpoComparativoOrcamento').innerHTML = itensOrc.length
-          ? itensOrc.map(it => '<tr onclick="visualizarItemOrcamento(\'' + String(it.descricao||'').replace(/'/g,"\\'") + '\', ' + it.valor + ', \'' + anoMes + '\')"><td>' + it.descricao + '</td><td class="num">' + brl(it.valor) + '</td><td>' +
-              botaoVisualizarOrcamentoHtml(it.descricao, it.valor, anoMes) + ' <button class="btn-editar-cadastro" onclick="event.stopPropagation();editarItemOrcamentoDeDetalhe(' + it.id + ', \'' + String(it.descricao||'').replace(/'/g,"\\'") + '\', ' + it.valor + ')" title="Editar cadastro — edita este item de Orçamento" aria-label="Editar cadastro">✎</button> ' +
-              '<button class="btn-replicar" onclick="event.stopPropagation();replicarItemOrcamentoDeDetalhe(\'' + String(it.descricao||'').replace(/'/g,"\\'") + '\', ' + it.valor + ', \'' + anoMes + '\')" title="Replicar — cria um novo item de orçamento com estes dados" aria-label="Replicar">⧉</button> ' +
-              '<button class="btn-excluir-cadastro" onclick="event.stopPropagation();excluirItemOrcamentoDeDetalhe(' + it.id + ')" title="Excluir este item de orçamento" aria-label="Excluir">✕</button> ' + botaoIncluirOrcamentoHtml() + '</td></tr>').join('') +
-            '<tr style="font-weight:700;background:#f0f4fa;"><td>Subtotal</td><td class="num">' + brl(totalOrc) + '</td><td></td></tr>'
-          : '<tr><td colspan="3" style="text-align:center;color:#888;">Nenhum item cadastrado (aba Orçamentos).</td></tr>';
+        ultimoComparativoItensOrc = itensOrc;
+        ultimoComparativoAnoMes = anoMes;
+        delete estadoOrdenacaoTabelas['compOrc'];
+        document.getElementById('cabecalhoComparativoOrcamento').innerHTML =
+          thOrd('Descrição', 'compOrc', 'descricao', 'texto', 'redesenharComparativoOrcamento()') +
+          thOrd('Valor', 'compOrc', 'valor', 'numero', 'redesenharComparativoOrcamento()', 'num') + '<th>Ações</th>';
+        redesenharComparativoOrcamento();
 
         // A tabela "Gastos do Mês" continua mostrando só as parcelas deste
         // mês (mesma lista usada no gráfico/Saldo acima) -- o filtro abaixo é
@@ -2545,26 +2697,27 @@
       document.getElementById('compGastosTipoData').value = 'compra';
       document.getElementById('compGastosDe').value = '';
       document.getElementById('compGastosAte').value = '';
-      desenharCorpoComparativoGastos(ultimoComparativoGastosLinhas);
+      delete estadoOrdenacaoTabelas['compGastos'];
+      document.getElementById('cabecalhoComparativoGastos').innerHTML = cabecalhoOrdenavelDespesa('compGastos', 'aplicarFiltroCompGastos()', true);
+      aplicarFiltroCompGastos();
     }
     function desenharCorpoComparativoGastos(linhas) {
-      // Ordem alfabética por Descrição (mesmo padrão do modal genérico de
-      // detalhamento -- ver desenharCorpoDetalhe), sem alterar a lista
-      // original (usada de novo a cada filtro digitado).
-      const linhasOrdenadas = linhas.slice().sort((a, b) => a.descricao.localeCompare(b.descricao, 'pt-BR'));
-      const totalGastos = linhasOrdenadas.reduce((s, l) => s + l.valor, 0);
-      document.getElementById('corpoComparativoGastos').innerHTML = linhasOrdenadas.length
-        ? linhasOrdenadas.map(l => l.html).join('') +
+      const totalGastos = linhas.reduce((s, l) => s + l.valor, 0);
+      document.getElementById('corpoComparativoGastos').innerHTML = linhas.length
+        ? linhas.map(l => l.html).join('') +
           '<tr style="font-weight:700;background:#f0f4fa;"><td colspan="10">Subtotal</td><td class="num">' + brl(totalGastos) + '</td><td colspan="4"></td></tr>'
         : '<tr><td colspan="15" style="text-align:center;color:#888;">Nenhuma parcela neste mês.</td></tr>';
     }
     // Filtro de texto livre da tabela "Gastos do Mês" (mesmo padrão das
     // outras tabelas): casa contra QUALQUER coluna visível da linha, e o
-    // Subtotal do rodapé recalcula só com o que sobrou do filtro.
+    // Subtotal do rodapé recalcula só com o que sobrou do filtro. Ordenação
+    // (clique no cabeçalho) entra por último -- sem nenhuma coluna clicada
+    // ainda, cai no padrão de sempre (Descrição, A->Z).
     function aplicarFiltroCompGastos() {
       let linhas = aplicarFiltroPeriodoData(ultimoComparativoGastosLinhas, 'compGastosTipoData', 'compGastosDe', 'compGastosAte');
       const termo = (document.getElementById('compGastosFiltro').value || '').trim().toLowerCase();
       if (termo) linhas = linhas.filter(l => l.busca.includes(termo));
+      linhas = aplicarOrdenacaoSalva('compGastos', linhas, (item, campo) => valorColunaDespesa(item.raw || item, campo), { campo: 'descricao', tipo: 'texto', direcao: 'asc' });
       desenharCorpoComparativoGastos(linhas);
     }
     // Botão "Ver tudo" do filtro de período da tabela "Gastos do Mês".
@@ -2576,7 +2729,7 @@
     function detalheCartao(nomeCartao) {
       ultimoDetalheRefresh = () => detalheCartao(nomeCartao);
       const linhas = filtrarParcelasPorPeriodo('cartaoDe', 'cartaoAte', ultimasParcelasTodas).filter(p => (p.cartao || '-') === nomeCartao);
-      const header = '<th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Parcelas em Aberto</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Valor da Compra</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Status</th><th>Ações</th>';
+      const header = cabecalhoOrdenavelDespesa('detalhe', 'aplicarFiltroDetalhe()', true);
       const linhasObj = linhas.map(p => {
         const avista = Number(p.qtd_parcelas) === 1;
         const tipoLabel = avista ? 'À vista' : 'Parcelada';
@@ -2694,7 +2847,7 @@
       ultimoDetalheRefresh = () => detalheTipoDespesaDireto(categoria);
       const linhas = filtrarParcelasPorPeriodo('tipoDespDe', 'tipoDespAte')
         .filter(p => (p.categoria || 'Sem tipo') === categoria);
-      const header = '<th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Parcelas em Aberto</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Valor da Compra</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Ações</th>';
+      const header = cabecalhoOrdenavelDespesa('detalhe', 'aplicarFiltroDetalhe()', false);
       const linhasObj = linhas.map(p => {
         const avista = Number(p.qtd_parcelas) === 1;
         const tipoLabel = avista ? 'À vista' : 'Parcelada';
@@ -2773,7 +2926,7 @@
       ultimoDetalheRefresh = () => detalheTipoDespesa(nomeGrupo, categoria);
       const linhas = filtrarParcelasPorPeriodo('grupoDe', 'grupoAte')
         .filter(p => (p.grupo || 'Sem grupo') === nomeGrupo && (p.categoria || 'Sem tipo') === categoria);
-      const header = '<th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Parcelas em Aberto</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Valor da Compra</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Ações</th>';
+      const header = cabecalhoOrdenavelDespesa('detalhe', 'aplicarFiltroDetalhe()', false);
       const linhasObj = linhas.map(p => {
         const avista = Number(p.qtd_parcelas) === 1;
         const tipoLabel = avista ? 'À vista' : 'Parcelada';
@@ -3009,7 +3162,7 @@
     // de grupo+tipo). Ver agruparParcelasPorCompra() acima.
     function montarTabelaResumoCompra(parcelas) {
       const linhas = agruparParcelasPorCompra(parcelas);
-      const header = '<th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Parcelas em Aberto</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Valor da Compra</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Ações</th>';
+      const header = cabecalhoOrdenavelDespesa('detalhe', 'aplicarFiltroDetalhe()', false);
       const linhasObj = linhas.map(d => {
         const avista = Number(d.qtd_parcelas) === 1;
         const tipoLabel = avista ? 'À vista' : 'Parcelada';
@@ -3053,7 +3206,7 @@
       ultimoDetalheRefresh = () => detalheStatus(status);
       try {
         const linhas = await api('/dashboard/parcelas?status=' + status);
-        const header = '<th>Descrição</th><th>Tipo</th><th>Despesa</th><th>Categoria</th><th>Parcela do Mês</th><th>Parcelas Pagas</th><th>Parcelas em Aberto</th><th>Data da Compra</th><th>Data de Vencimento</th><th class="num">Valor da Compra</th><th class="num">Valor Parcela</th><th class="num">Saldo Aberto</th><th>Situação</th><th>Ações</th>';
+        const header = cabecalhoOrdenavelDespesa('detalhe', 'aplicarFiltroDetalhe()', false);
         const linhasObj = linhas.map(l => {
           const avista = Number(l.qtd_parcelas) === 1;
           const tipoLabel = avista ? 'À vista' : 'Parcelada';
@@ -3105,6 +3258,7 @@
           return textoLinha.includes(termo);
         });
       }
+      dados = aplicarOrdenacaoSalva('resumo', dados, valorColunaDespesa);
       desenharTabelaResumo(dados);
     }
     // Botão "Ver tudo" do filtro de período do Resumo por compra.
@@ -3169,6 +3323,7 @@
           return textoLinha.includes(termo);
         });
       }
+      lista = aplicarOrdenacaoSalva('lancamentos', lista, valorColunaDespesa, { campo: 'descricao', tipo: 'texto', direcao: 'asc' });
       desenharTabelaCompras(lista);
     }
     // Botão "Ver tudo" do filtro de período de Lançamentos.
@@ -3178,7 +3333,7 @@
       aplicarFiltroLancamentos();
     }
     function desenharTabelaCompras(lista) {
-      lista = (lista || []).slice().sort((a, b) => a.descricao.localeCompare(b.descricao, 'pt-BR'));
+      lista = lista || [];
       const tbody = document.querySelector('#tabelaCompras tbody');
       if (!lista.length) {
         const msg = ultimaListaCompras.length ? 'Nenhum resultado para o filtro aplicado.' : 'Nenhum lançamento. Use os botões acima.';
@@ -3212,30 +3367,41 @@
 
     // Parcelas cujo compra_id não bate com nenhuma "compra" (dado antigo/migrado) —
     // o card fica escondido quando não existe nenhuma (a maioria dos usuários nunca vê isso).
+    let ultimasParcelasOrfas = [];
     async function carregarParcelasOrfas() {
       try {
-        const orfas = await api('/compras/orfas');
+        ultimasParcelasOrfas = await api('/compras/orfas');
         const card = document.getElementById('cardParcelasOrfas');
-        if (!orfas.length) { card.style.display = 'none'; return; }
+        if (!ultimasParcelasOrfas.length) { card.style.display = 'none'; return; }
         card.style.display = '';
-        const hoje = hojeLocal();
-        document.querySelector('#tabelaParcelasOrfas tbody').innerHTML = orfas.map(p => {
-          const vencida = p.status === 'Pendente' && String(p.data_vencimento).slice(0,10) < hoje;
-          const statusTxt = p.status === 'Pago'
-            ? '<span class="badge quitada">Pago</span>'
-            : (vencida ? '<span class="badge aberto" style="background:#fdecea;color:#922;">Vencida</span>' : '<span class="badge aberto">Pendente</span>');
-          const acaoStatus = p.status === 'Pago'
-            ? '<button class="btn-desfazer" onclick="desfazerPagamentoOrfa(' + p.id + ')">Desfazer</button>'
-            : '<button class="btn-pagar" onclick="marcarPagaOrfa(' + p.id + ')">Marcar Paga</button>';
-          return '<tr' + (vencida ? ' class="linha-vencida"' : '') + '>' +
-            '<td>' + p.num_parcela + '</td><td class="num">' + brl(p.valor) + '</td>' +
-            '<td><input type="date" value="' + String(p.data_vencimento).slice(0,10) + '" ' +
-              'onchange="salvarVencimentoParcelaOrfa(' + p.id + ', this.value)" ' +
-              'style="padding:5px 7px;border:1px solid var(--cinza-borda);border-radius:6px;font-size:13px;width:140px;" /></td>' +
-            '<td>' + statusTxt + '</td>' +
-            '<td>' + acaoStatus + ' <button class="link-acao link-excluir" onclick="excluirParcelaOrfaUI(' + p.id + ')">Excluir</button></td></tr>';
-        }).join('');
+        redesenharParcelasOrfas();
       } catch (e) { /* não crítico pro resto do Dashboard — só não mostra o card */ }
+    }
+    function redesenharParcelasOrfas() {
+      const hoje = hojeLocal();
+      const ordenadas = aplicarOrdenacaoSalva('parcelasOrfas', ultimasParcelasOrfas, (p, campo) => {
+        if (campo === 'numParcela') return Number(p.num_parcela || 0);
+        if (campo === 'valor') return Number(p.valor || 0);
+        if (campo === 'vencimento') return p.data_vencimento || '';
+        if (campo === 'status') return p.status || '';
+        return '';
+      });
+      document.querySelector('#tabelaParcelasOrfas tbody').innerHTML = ordenadas.map(p => {
+        const vencida = p.status === 'Pendente' && String(p.data_vencimento).slice(0,10) < hoje;
+        const statusTxt = p.status === 'Pago'
+          ? '<span class="badge quitada">Pago</span>'
+          : (vencida ? '<span class="badge aberto" style="background:#fdecea;color:#922;">Vencida</span>' : '<span class="badge aberto">Pendente</span>');
+        const acaoStatus = p.status === 'Pago'
+          ? '<button class="btn-desfazer" onclick="desfazerPagamentoOrfa(' + p.id + ')">Desfazer</button>'
+          : '<button class="btn-pagar" onclick="marcarPagaOrfa(' + p.id + ')">Marcar Paga</button>';
+        return '<tr' + (vencida ? ' class="linha-vencida"' : '') + '>' +
+          '<td>' + p.num_parcela + '</td><td class="num">' + brl(p.valor) + '</td>' +
+          '<td><input type="date" value="' + String(p.data_vencimento).slice(0,10) + '" ' +
+            'onchange="salvarVencimentoParcelaOrfa(' + p.id + ', this.value)" ' +
+            'style="padding:5px 7px;border:1px solid var(--cinza-borda);border-radius:6px;font-size:13px;width:140px;" /></td>' +
+          '<td>' + statusTxt + '</td>' +
+          '<td>' + acaoStatus + ' <button class="link-acao link-excluir" onclick="excluirParcelaOrfaUI(' + p.id + ')">Excluir</button></td></tr>';
+      }).join('');
     }
     async function salvarVencimentoParcelaOrfa(id, novaData) {
       if (!novaData) return;
@@ -3513,29 +3679,42 @@
       abrirModal('overlayParcelas');
       await recarregarParcelasModal();
     }
+    let ultimaCompraParcelasModal = null;
     async function recarregarParcelasModal() {
       const tbody = document.getElementById('corpoParcelas');
       tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#888;">Carregando...</td></tr>';
       try {
         const c = await api('/compras/' + parcelasCompraIdAtual);
         document.getElementById('parcelas_data_compra').value = String(c.data_compra).slice(0,10);
-        const hoje = hojeLocal();
-        tbody.innerHTML = c.parcelas.map(p => {
-          const vencida = p.status === 'Pendente' && String(p.data_vencimento).slice(0,10) < hoje;
-          const statusTxt = p.status === 'Pago'
-            ? '<span class="badge quitada">Paga em ' + formatarData(p.data_pagamento) + '</span>'
-            : (vencida ? '<span class="badge aberto" style="background:#fdecea;color:#922;">Vencida</span>' : '<span class="badge aberto">Pendente</span>');
-          const acao = p.status === 'Pago'
-            ? '<button class="btn-desfazer" onclick="event.stopPropagation();desfazerPagamento(' + p.id + ')">Desfazer</button>'
-            : '<button class="btn-pagar" onclick="event.stopPropagation();marcarPaga(' + p.id + ')">Marcar Paga</button>';
-          return '<tr onclick="visualizarCompra(' + parcelasCompraIdAtual + ')"' + (vencida ? ' class="linha-vencida"' : '') + '>' +
-            '<td>' + p.num_parcela + '</td><td class="num">' + brl(p.valor) + '</td>' +
-            '<td><input type="date" value="' + String(p.data_vencimento).slice(0,10) + '" ' +
-              'onclick="event.stopPropagation()" onchange="salvarVencimentoParcela(' + p.id + ', this.value)" ' +
-              'style="padding:5px 7px;border:1px solid var(--cinza-borda);border-radius:6px;font-size:13px;width:140px;" /></td>' +
-            '<td>' + statusTxt + '</td><td>' + botaoDetalheCadastroHtml(parcelasCompraIdAtual) + ' ' + botaoVisualizarDespesaHtml(parcelasCompraIdAtual) + ' ' + botaoEditarCadastroHtml(parcelasCompraIdAtual) + ' ' + botaoReplicarHtml(parcelasCompraIdAtual) + ' ' + botaoExcluirCadastroHtml(parcelasCompraIdAtual, c.descricao) + ' ' + acao + ' ' + botaoIncluirDespesaHtml() + '</td></tr>';
-        }).join('');
+        ultimaCompraParcelasModal = c;
+        redesenharParcelasModal();
       } catch (e) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#922;">Erro ao carregar: ' + e.message + '</td></tr>'; }
+    }
+    function redesenharParcelasModal() {
+      const c = ultimaCompraParcelasModal;
+      if (!c) return;
+      const hoje = hojeLocal();
+      const ordenadas = aplicarOrdenacaoSalva('parcelasModal', c.parcelas, (p, campo) => {
+        if (campo === 'valor') return Number(p.valor || 0);
+        if (campo === 'vencimento') return p.data_vencimento || '';
+        if (campo === 'status') return p.status || '';
+        return Number(p.num_parcela || 0);
+      });
+      document.getElementById('corpoParcelas').innerHTML = ordenadas.map(p => {
+        const vencida = p.status === 'Pendente' && String(p.data_vencimento).slice(0,10) < hoje;
+        const statusTxt = p.status === 'Pago'
+          ? '<span class="badge quitada">Paga em ' + formatarData(p.data_pagamento) + '</span>'
+          : (vencida ? '<span class="badge aberto" style="background:#fdecea;color:#922;">Vencida</span>' : '<span class="badge aberto">Pendente</span>');
+        const acao = p.status === 'Pago'
+          ? '<button class="btn-desfazer" onclick="event.stopPropagation();desfazerPagamento(' + p.id + ')">Desfazer</button>'
+          : '<button class="btn-pagar" onclick="event.stopPropagation();marcarPaga(' + p.id + ')">Marcar Paga</button>';
+        return '<tr onclick="visualizarCompra(' + parcelasCompraIdAtual + ')"' + (vencida ? ' class="linha-vencida"' : '') + '>' +
+          '<td>' + p.num_parcela + '</td><td class="num">' + brl(p.valor) + '</td>' +
+          '<td><input type="date" value="' + String(p.data_vencimento).slice(0,10) + '" ' +
+            'onclick="event.stopPropagation()" onchange="salvarVencimentoParcela(' + p.id + ', this.value)" ' +
+            'style="padding:5px 7px;border:1px solid var(--cinza-borda);border-radius:6px;font-size:13px;width:140px;" /></td>' +
+          '<td>' + statusTxt + '</td><td>' + botaoDetalheCadastroHtml(parcelasCompraIdAtual) + ' ' + botaoVisualizarDespesaHtml(parcelasCompraIdAtual) + ' ' + botaoEditarCadastroHtml(parcelasCompraIdAtual) + ' ' + botaoReplicarHtml(parcelasCompraIdAtual) + ' ' + botaoExcluirCadastroHtml(parcelasCompraIdAtual, c.descricao) + ' ' + acao + ' ' + botaoIncluirDespesaHtml() + '</td></tr>';
+      }).join('');
     }
     async function salvarDataCompra() {
       const valor = document.getElementById('parcelas_data_compra').value;
@@ -3681,6 +3860,34 @@
     ajustarBotaoFixoLancamentos();
     ajustarMenuCardsLateral();
     ajustarKpisFixo();
+
+    // Cabeçalhos ordenáveis (A->Z / Z->A) das tabelas com <thead> estático no
+    // HTML -- montados uma vez aqui, na carga da página (os outros, dentro de
+    // modal que só existe depois de um clique, são montados na hora certa
+    // pela própria função que abre aquele modal). "Sem faltar nenhuma": toda
+    // tabela do app tem pelo menos uma coluna clicável.
+    document.getElementById('cabecalhoResumo').innerHTML = cabecalhoOrdenavelDespesa('resumo', 'aplicarFiltroResumo()', false);
+    document.getElementById('cabecalhoLancamentos').innerHTML = cabecalhoOrdenavelDespesa('lancamentos', 'aplicarFiltroLancamentos()', false);
+    document.getElementById('cabecalhoParcelasOrfas').innerHTML =
+      thOrd('Nº Parcela', 'parcelasOrfas', 'numParcela', 'numero', 'redesenharParcelasOrfas()') +
+      thOrd('Valor', 'parcelasOrfas', 'valor', 'numero', 'redesenharParcelasOrfas()', 'num') +
+      thOrd('Vencimento', 'parcelasOrfas', 'vencimento', 'data', 'redesenharParcelasOrfas()') +
+      thOrd('Status', 'parcelasOrfas', 'status', 'texto', 'redesenharParcelasOrfas()') + '<th>Ações</th>';
+    document.getElementById('cabecalhoOrcamentoItens').innerHTML =
+      thOrd('Descrição', 'orcamentoItensTab', 'descricao', 'texto', 'redesenharOrcamentoItensTab()') +
+      thOrd('Valor', 'orcamentoItensTab', 'valor', 'numero', 'redesenharOrcamentoItensTab()', 'num') + '<th>Ações</th>';
+    document.getElementById('cabecalhoGrupos').innerHTML =
+      thOrd('Grupo de Despesa', 'grupos', 'nome', 'texto', 'redesenharGruposTab()') + '<th>Ações</th>';
+    document.getElementById('cabecalhoTipos').innerHTML =
+      thOrd('Tipo de Despesa', 'tipos', 'nome', 'texto', 'redesenharTiposTab()') + '<th>Ações</th>';
+    document.getElementById('cabecalhoCartoes').innerHTML =
+      thOrd('Forma de Pagamento', 'cartoesTab', 'nome', 'texto', 'redesenharCartoesTab()') +
+      thOrd('Dia de vencimento', 'cartoesTab', 'diaVencimento', 'numero', 'redesenharCartoesTab()') + '<th>Ações</th>';
+    document.getElementById('cabecalhoParcelasModal').innerHTML =
+      thOrd('Nº', 'parcelasModal', 'numParcela', 'numero', 'redesenharParcelasModal()') +
+      thOrd('Valor Parcela', 'parcelasModal', 'valor', 'numero', 'redesenharParcelasModal()', 'num') +
+      thOrd('Data de Vencimento', 'parcelasModal', 'vencimento', 'data', 'redesenharParcelasModal()') +
+      thOrd('Status', 'parcelasModal', 'status', 'texto', 'redesenharParcelasModal()') + '<th>Ações</th>';
 
     (async function iniciar() {
       const aviso = document.getElementById('aviso');
