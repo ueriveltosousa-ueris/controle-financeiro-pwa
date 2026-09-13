@@ -103,6 +103,10 @@
     .menu-cards-lateral-lista { display:flex; flex-direction:column; gap:12px; overflow-y:auto; }
     main { padding:24px 28px 24px 0; max-width:1900px; margin:0; flex:1; min-width:0; }
     .pagina { display:none; } .pagina.ativa { display:block; }
+    /* Dashboard abre só com Despesas Mês/Orçamento Mês/Acompanhamento Mensal --
+       o resto (.dashboard-extra) só aparece depois que o ícone Dashboard é
+       clicado (ver expandirDashboard()). */
+    #pagina-dashboard.dashboard-colapsado .dashboard-extra { display:none; }
     #aviso { display:none; background:#fdecea; color:#922; border:1px solid #f5c6cb; padding:14px 18px; border-radius:8px; margin-bottom:20px; font-size:14px; }
     /* 3 cards de KPI (Despesas Mês, Orçamento Mês, Resumo Anual -- "Despesas
        Totais" foi cancelado) -- flex em vez de grid pra centralizar o grupo
@@ -424,7 +428,7 @@
   <main>
     <div id="aviso">⚠️ Não consegui carregar os dados. Tente clicar em <b>Atualizar</b>; se persistir, recarregue a página.</div>
 
-    <section class="pagina ativa" id="pagina-dashboard">
+    <section class="pagina ativa dashboard-colapsado" id="pagina-dashboard">
       <div class="titulo-com-ajuda" style="margin-bottom:10px;">
         <button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-kpis', this)">?</button>
         <span style="font-size:12px;color:#7a8699;">O que os cards abaixo mostram</span>
@@ -462,7 +466,7 @@
           <div class="chart-wrap" style="overflow-x:auto;"><div id="projWrapInterno" style="min-width:4800px;height:300px;"><canvas id="graficoProjecao"></canvas></div></div>
           <div class="legenda-grafico" id="legendaProjecao"></div>
         </div>
-        <div class="card largo">
+        <div class="card largo dashboard-extra">
           <div class="titulo-com-ajuda">
             <h2 style="margin:0;">GASTOS DIÁRIOS</h2>
             <button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-gastos-diarios', this)">?</button>
@@ -508,7 +512,7 @@
           </div>
           <div class="chart-wrap" style="overflow-x:auto;"><div id="gastosDiariosWrapInterno" style="min-width:900px;height:280px;"><canvas id="graficoGastosDiarios"></canvas></div></div>
         </div>
-        <div class="graficos-centralizados">
+        <div class="graficos-centralizados dashboard-extra">
         <div class="card">
           <div class="titulo-com-ajuda"><h2 style="margin:0;">Compras por Forma de Pagamento</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-cartao', this)">?</button></div>
           <div class="ajuda-balao" id="ajuda-cartao">Quanto você comprou em cada forma de pagamento (cartão, PIX, etc.), com vencimento dentro do período escolhido (deixe De/Até em branco pra somar de sempre). Duas barras lado a lado por forma de pagamento: o que já foi <b>pago</b> (azul) e o que ainda está <b>pendente</b> (vermelho), cada uma com seu valor à direita. Clique numa barra pra ver as parcelas daquela forma de pagamento.</div>
@@ -543,7 +547,7 @@
           <div class="chart-wrap"><canvas id="graficoTipo"></canvas></div>
         </div>
         </div>
-        <div class="graficos-centralizados">
+        <div class="graficos-centralizados dashboard-extra">
         <div class="card">
           <div class="titulo-com-ajuda"><h2 style="margin:0;">Compras por Grupo de Despesa</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-grupo-despesa', this)">?</button></div>
           <div class="ajuda-balao" id="ajuda-grupo-despesa">Quanto falta pagar em cada Grupo de Despesa, somando as parcelas pendentes com vencimento dentro do período escolhido (deixe De/Até em branco pra somar de sempre). Clique numa barra pra ver a quebra por Tipo de Despesa daquele grupo.</div>
@@ -577,7 +581,7 @@
           <div class="chart-wrap" style="height:auto;max-height:500px;overflow-y:auto;"><div id="tipoDespWrapInterno" style="min-height:300px;"><canvas id="graficoTipoDesp"></canvas></div></div>
         </div>
         </div>
-        <div class="card largo">
+        <div class="card largo dashboard-extra">
           <div class="titulo-com-ajuda"><h2 style="margin:0;">Compras por Descrição</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-descricao', this)">?</button></div>
           <div class="ajuda-balao" id="ajuda-descricao">Agrupa e soma todas as compras com a mesma descrição — útil pra ver quanto você já gastou no total em algo, tipo "Mercado Livre" ou "Uber". Só entram descrições dentro do período filtrado abaixo (deixe De/Até em branco pra somar de sempre). Clique numa barra pra listar as compras daquela descrição.</div>
           <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;">
@@ -609,7 +613,7 @@
           <div class="legenda-grafico" id="legendaDescricao"></div>
         </div>
       </section>
-      <section class="card largo">
+      <section class="card largo dashboard-extra">
         <div class="titulo-com-ajuda"><h2 style="margin:0;">Resumo por compra</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-resumo', this)">?</button></div>
         <div class="ajuda-balao" id="ajuda-resumo">Uma linha por compra, com quanto já foi pago e quanto falta. "Parcela do Mês" mostra quantas parcelas já foram pagas do total (ex.: 3/10). "Situação" fica <b>Quitada</b> quando não sobra mais nada pendente. O filtro de busca procura em todas as colunas ao mesmo tempo (descrição, forma de pagamento, categoria, valores, parcela, situação...). O filtro de período busca por ano, mês e dia exatos, da Data da Compra ou da Data de Vencimento, à escolha.</div>
         <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;">
@@ -1348,6 +1352,12 @@
     // só ele -- true depois da 1ª vez, pra não pisar num filtro (inclusive um
     // "Ver tudo") que o usuário já tenha escolhido nas cargas seguintes.
     let projecaoFiltroPadraoAplicado = false;
+    // Dashboard abre só com Despesas Mês/Orçamento Mês/Acompanhamento Mensal
+    // (ver .dashboard-extra) -- true depois que o usuário clica no ícone
+    // Dashboard, revelando o resto (Resumo Anual, Gastos Diários, Compras por
+    // Forma de Pagamento/Tipo/Grupo/Descrição), e continua true daí em diante
+    // (não volta a esconder sozinho).
+    let dashboardExpandido = false;
     // Os gráficos "Em Aberto" com filtro De/Até (Forma de Pagamento, Parcelado x
     // À Vista, Grupo de Despesa) abrem sincronizados com o mesmo mês do card
     // "Despesas Mês" (De = Até = mês de referência) — esse é o padrão do
@@ -1927,7 +1937,7 @@
           '<div class="kpi-linha kpi-saldo ' + corSaldo + '">Saldo: <b>' + brl(saldoOrcamento) + '</b></div>' +
           '<div class="kpi-sub">Clique para ver o comparativo</div>' +
         '</div>' +
-        '<div class="kpi kpi-resumo-anual" onclick="detalheResumoAnual(\'' + ano + '\')">' +
+        '<div class="kpi kpi-resumo-anual dashboard-extra" onclick="detalheResumoAnual(\'' + ano + '\')">' +
           '<div class="rotulo">RESUMO ANUAL ' + ano + '</div>' +
           '<div class="kpi-linha">Orçamento Anual: <b>' + brl(orcamentoAnual) + '</b></div>' +
           '<div class="kpi-linha">Despesa Anual: <b>' + brl(despesaAnual) + '</b></div>' +
@@ -2065,7 +2075,7 @@
               label:(c) => c.dataset.label + ': ' + brl(c.raw),
               afterLabel:(c) => c.dataset.label === 'Acumulado' ? 'Soma corrida dos Gastos até este mês (não inclui o Orçamento).' : '',
             } } },
-          scales:{ x:{grid:{display:false}}, y:{display:false,grid:{display:false}}, y1:{position:'right',grid:{drawOnChartArea:false},ticks:{callback:(v)=>'R$ '+(v/1000)+'k'}} } },
+          scales:{ x:{grid:{display:false}}, y:{display:false,grid:{display:false}}, y1:{display:false,position:'right',grid:{drawOnChartArea:false}} } },
       });
       montarLegendaGrafico('legendaProjecao', chartProjecao, [
         { rotulo:'Gastos', cor:'#E57373' },
@@ -3736,10 +3746,28 @@
     // assentar antes de calcular a posição do scroll.
     function irParaDashboardAcompanhamento() {
       trocarAba('dashboard');
+      expandirDashboard();
       requestAnimationFrame(() => requestAnimationFrame(() => {
         const alvo = document.getElementById('graficoProjecao');
         if (alvo) alvo.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }));
+    }
+    // Revela o resto do Dashboard (.dashboard-extra), escondido por padrão na
+    // abertura do app. Os gráficos aí dentro já foram criados em carregarTudo()
+    // com o card ainda escondido (display:none) -- Chart.js mede a largura
+    // quase zero nesse caso (mesmo bug de sempre), então precisa recriar cada
+    // um agora que o card já está visível (mesmo motivo de sempre abrir o
+    // modal antes de criar o Chart.js).
+    function expandirDashboard() {
+      if (dashboardExpandido) return;
+      dashboardExpandido = true;
+      document.getElementById('pagina-dashboard').classList.remove('dashboard-colapsado');
+      renderCartao();
+      renderTipo();
+      renderGrupoDespesa();
+      renderTipoDespesa();
+      renderPorDescricao();
+      renderGastosDiarios();
     }
     // ---------------------------------------------------------------------
     // Ícones novos (SVG, no lugar do emoji simples) pras 4 seções do sistema
