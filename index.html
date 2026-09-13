@@ -2183,6 +2183,10 @@
       const wrapInterno = document.getElementById('gastosDiariosWrapInterno');
       if (wrapInterno) wrapInterno.style.minWidth = Math.max(dias.length * 30, 900) + 'px';
 
+      // No celular os pontos ficam maiores (mais fácil de mirar o dedo) e a
+      // área de toque (pointHitRadius) fica ainda maior que o próprio ponto
+      // visível, pra tolerar um toque um pouco impreciso.
+      const raioPonto = telaEstreita() ? 6 : 3;
       const ctx = document.getElementById('graficoGastosDiarios');
       if (chartGastosDiarios) chartGastosDiarios.destroy();
       chartGastosDiarios = new Chart(ctx, {
@@ -2190,11 +2194,19 @@
         plugins: [linhasPontilhadasAteValor, ChartDataLabels],
         data: { labels: dias.map(d => d.rotulo), datasets: [
           { label: 'Gastos', data: dias.map(d => d.total), borderColor: '#E57373', backgroundColor: gradienteArea('229,115,115', 0.35), fill: true, tension: .3,
-            pointRadius: 3, pointHoverRadius: 6, pointBackgroundColor: '#E57373', pointBorderColor: '#fff', pointBorderWidth: 1,
+            pointRadius: raioPonto, pointHoverRadius: raioPonto + 3, pointHitRadius: raioPonto + 10, pointBackgroundColor: '#E57373', pointBorderColor: '#fff', pointBorderWidth: 1,
             datalabels: { display: (c) => c.dataset.data[c.dataIndex] > 0, align: 'top', anchor: 'end', offset: 4, color: '#a13d3d', font: { size: 9, weight: '600' }, formatter: (v) => brl(v) } },
         ] },
         options: { maintainAspectRatio: false, layout: { padding: { top: 26 } },
-          onClick: (evt, elems) => { if (elems.length) detalhePorDiaCompra(dias[elems[0].index].dataIso); },
+          onClick: (evt, elems) => {
+            if (!elems.length) {
+              // Igual à Projeção -- o ponto/área de toque pode não pegar um
+              // clique/toque um pouco impreciso; tenta de novo pegando só o
+              // ponto mais próximo do clique, sem exigir acerto exato.
+              elems = chartGastosDiarios.getElementsAtEventForMode(evt, 'nearest', { intersect: false, axis: 'x' }, true);
+            }
+            if (elems.length) detalhePorDiaCompra(dias[elems[0].index].dataIso);
+          },
           onHover: (evt, elems) => { evt.native.target.style.cursor = elems.length ? 'pointer' : 'default'; },
           plugins: { legend: { display: false }, tooltip: { enabled: true, callbacks: { label: (c) => 'Gasto: ' + brl(c.raw) } } },
           // Sem eixo Y (nem números de referência, nem as linhas de grade
