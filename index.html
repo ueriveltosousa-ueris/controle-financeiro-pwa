@@ -454,18 +454,41 @@
         <div class="card largo">
           <div class="titulo-com-ajuda"><h2 style="margin:0;">GASTOS DIÁRIOS</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-gastos-diarios', this)">?</button></div>
           <div class="ajuda-balao" id="ajuda-gastos-diarios">
-            Total gasto em cada dia, pela <b>Data da Compra</b> (não a de vencimento) -- mostra o mês vigente por padrão. Use o filtro De/Até (ano, mês e dia) pra ver outro período. Clique num ponto do gráfico pra ver as despesas daquele dia, na mesma tabela padrão dos outros gráficos.
+            Total gasto em cada dia, pela <b>Data da Compra</b> (não a de vencimento) -- mostra o mês vigente por padrão. Use "Selecione uma data específica" pra um período de dias exatos, ou "Selecione o mês" pra um atalho por mês inteiro (preenche o primeiro e o último dia automaticamente). O total do período filtrado aparece à direita. Clique num ponto do gráfico pra ver as despesas daquele dia, na mesma tabela padrão dos outros gráficos.
           </div>
-          <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;">
-            <div class="campo" style="margin-bottom:0;">
-              <label>De</label>
-              <input type="date" id="gastosDiariosDe" onchange="renderGastosDiarios()" style="width:150px;" />
+          <div style="display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap;margin-bottom:14px;">
+            <div>
+              <div style="font-size:12px;color:#7a8699;margin-bottom:6px;">Selecione uma data específica</div>
+              <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+                <div class="campo" style="margin-bottom:0;">
+                  <label>De</label>
+                  <input type="date" id="gastosDiariosDe" onchange="renderGastosDiarios()" style="width:150px;" />
+                </div>
+                <div class="campo" style="margin-bottom:0;">
+                  <label>Até</label>
+                  <input type="date" id="gastosDiariosAte" onchange="renderGastosDiarios()" style="width:150px;" />
+                </div>
+                <button class="btn btn-cinza" onclick="limparFiltroGastosDiarios()">Mês vigente</button>
+                <span id="gastosDiariosNomeMesVigente" style="font-size:13px;color:var(--azul);font-weight:600;align-self:center;"></span>
+              </div>
             </div>
-            <div class="campo" style="margin-bottom:0;">
-              <label>Até</label>
-              <input type="date" id="gastosDiariosAte" onchange="renderGastosDiarios()" style="width:150px;" />
+            <div>
+              <div style="font-size:12px;color:#7a8699;margin-bottom:6px;">Selecione o mês</div>
+              <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+                <div class="campo" style="margin-bottom:0;">
+                  <label>De</label>
+                  <input type="month" id="gastosDiariosMesDe" onchange="aplicarFiltroMesGastosDiarios()" style="width:150px;" />
+                </div>
+                <div class="campo" style="margin-bottom:0;">
+                  <label>Até</label>
+                  <input type="month" id="gastosDiariosMesAte" onchange="aplicarFiltroMesGastosDiarios()" style="width:150px;" />
+                </div>
+              </div>
             </div>
-            <button class="btn btn-cinza" onclick="limparFiltroGastosDiarios()">Mês vigente</button>
+            <div style="background:#fff;border:1px solid var(--cinza-borda);border-radius:10px;padding:10px 18px;text-align:center;min-width:220px;">
+              <div style="font-size:12.5px;color:#7a8699;text-transform:uppercase;letter-spacing:.3px;">Total Gasto no Período selecionado</div>
+              <div id="gastosDiariosTotal" style="font-size:22px;font-weight:700;margin-top:4px;color:var(--vermelho);">R$ 0,00</div>
+            </div>
           </div>
           <div class="chart-wrap" style="overflow-x:auto;"><div id="gastosDiariosWrapInterno" style="min-width:900px;height:280px;"><canvas id="graficoGastosDiarios"></canvas></div></div>
         </div>
@@ -2006,16 +2029,38 @@
     // referência" dos KPIs); o filtro deixa consultar qualquer outro período
     // (dia a dia também, não só mês inteiro).
     let chartGastosDiarios;
+    // Botão "Mês vigente": limpa os dois filtros (data específica e mês) --
+    // volta ao padrão (mês corrente).
     function limparFiltroGastosDiarios() {
       document.getElementById('gastosDiariosDe').value = '';
       document.getElementById('gastosDiariosAte').value = '';
+      document.getElementById('gastosDiariosMesDe').value = '';
+      document.getElementById('gastosDiariosMesAte').value = '';
+      renderGastosDiarios();
+    }
+    // Filtro "Selecione o mês" (De/Até por mês inteiro) -- atalho que só
+    // preenche o filtro de data específica com o primeiro e o último dia do
+    // intervalo escolhido; quem realmente manda no gráfico continua sendo
+    // gastosDiariosDe/Ate (dá pra ajustar pra um dia exato depois de usar o atalho).
+    function aplicarFiltroMesGastosDiarios() {
+      const mesDe = document.getElementById('gastosDiariosMesDe').value;
+      const mesAte = document.getElementById('gastosDiariosMesAte').value;
+      if (!mesDe && !mesAte) return;
+      const inicio = mesDe || mesAte;
+      const fim = mesAte || mesDe;
+      const ultimoDia = new Date(Number(fim.slice(0, 4)), Number(fim.slice(5, 7)), 0).getDate();
+      document.getElementById('gastosDiariosDe').value = inicio + '-01';
+      document.getElementById('gastosDiariosAte').value = fim + '-' + String(ultimoDia).padStart(2, '0');
       renderGastosDiarios();
     }
     function renderGastosDiarios() {
+      const hoje = new Date();
+      document.getElementById('gastosDiariosNomeMesVigente').textContent =
+        '(' + labelMes(hoje.getFullYear() + '-' + String(hoje.getMonth() + 1).padStart(2, '0') + '-01') + ')';
+
       let de = document.getElementById('gastosDiariosDe').value;
       let ate = document.getElementById('gastosDiariosAte').value;
       if (!de && !ate) {
-        const hoje = new Date();
         const ultimoDia = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate();
         de = hoje.getFullYear() + '-' + String(hoje.getMonth() + 1).padStart(2, '0') + '-01';
         ate = hoje.getFullYear() + '-' + String(hoje.getMonth() + 1).padStart(2, '0') + '-' + String(ultimoDia).padStart(2, '0');
@@ -2033,6 +2078,8 @@
         cursor.setDate(cursor.getDate() + 1);
       }
 
+      document.getElementById('gastosDiariosTotal').textContent = brl(dias.reduce((s, d) => s + d.total, 0));
+
       const wrapInterno = document.getElementById('gastosDiariosWrapInterno');
       if (wrapInterno) wrapInterno.style.minWidth = Math.max(dias.length * 30, 900) + 'px';
 
@@ -2040,11 +2087,13 @@
       if (chartGastosDiarios) chartGastosDiarios.destroy();
       chartGastosDiarios = new Chart(ctx, {
         type: 'line',
+        plugins: [ChartDataLabels],
         data: { labels: dias.map(d => d.rotulo), datasets: [
           { label: 'Gastos', data: dias.map(d => d.total), borderColor: '#E57373', backgroundColor: gradienteArea('229,115,115', 0.35), fill: true, tension: .3,
-            pointRadius: 3, pointHoverRadius: 6, pointBackgroundColor: '#E57373', pointBorderColor: '#fff', pointBorderWidth: 1 },
+            pointRadius: 3, pointHoverRadius: 6, pointBackgroundColor: '#E57373', pointBorderColor: '#fff', pointBorderWidth: 1,
+            datalabels: { display: (c) => c.dataset.data[c.dataIndex] > 0, align: 'top', anchor: 'end', offset: 4, color: '#a13d3d', font: { size: 9, weight: '600' }, formatter: (v) => brl(v) } },
         ] },
-        options: { maintainAspectRatio: false, layout: { padding: { top: 10 } },
+        options: { maintainAspectRatio: false, layout: { padding: { top: 26 } },
           onClick: (evt, elems) => { if (elems.length) detalhePorDiaCompra(dias[elems[0].index].dataIso); },
           onHover: (evt, elems) => { evt.native.target.style.cursor = elems.length ? 'pointer' : 'default'; },
           plugins: { legend: { display: false }, tooltip: { enabled: true, callbacks: { label: (c) => 'Gasto: ' + brl(c.raw) } } },
