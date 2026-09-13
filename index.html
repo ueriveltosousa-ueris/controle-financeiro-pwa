@@ -628,7 +628,7 @@
       </section>
       <section class="card largo dashboard-extra">
         <div class="titulo-com-ajuda"><h2 style="margin:0;">Resumo por compra</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-resumo', this)">?</button></div>
-        <div class="ajuda-balao" id="ajuda-resumo">Uma linha por compra, com quanto já foi pago e quanto falta. "Parcela do Mês" mostra quantas parcelas já foram pagas do total (ex.: 3/10). "Situação" fica <b>Quitada</b> quando não sobra mais nada pendente. Abre mostrando só o mês de referência do Dashboard (Data da Compra); clique em "Ver tudo" ou ajuste o período pra consultar outros meses. O filtro de busca procura em todas as colunas ao mesmo tempo (descrição, forma de pagamento, categoria, valores, parcela, situação...). O filtro de período busca por ano, mês e dia exatos, da Data da Compra ou da Data de Vencimento, à escolha.</div>
+        <div class="ajuda-balao" id="ajuda-resumo">Uma linha por compra, com quanto já foi pago e quanto falta. "Parcela do Mês" mostra quantas parcelas já foram pagas do total (ex.: 3/10). "Situação" fica <b>Quitada</b> quando não sobra mais nada pendente. Abre mostrando só o mês de referência do Dashboard (Data da Compra); clique em "Ver tudo" ou ajuste o período (por data exata ou por mês) pra consultar outros períodos. O filtro de busca procura em todas as colunas ao mesmo tempo (descrição, forma de pagamento, categoria, valores, parcela, situação...). Use "Selecione um período exato" pra buscar por ano, mês e dia exatos, ou "Selecione o mês" pra um atalho por mês inteiro (preenche o primeiro e o último dia automaticamente) -- da Data da Compra ou da Data de Vencimento, à escolha.</div>
         <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;">
           <div class="campo" style="margin-bottom:0;">
             <label>Filtrar por período de</label>
@@ -637,15 +637,35 @@
               <option value="vencimento">Data de Vencimento</option>
             </select>
           </div>
-          <div class="campo" style="margin-bottom:0;">
-            <label>De</label>
-            <input type="date" id="resumoDe" onchange="resumoFiltroAlterado()" style="width:150px;" />
+        </div>
+        <div style="display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap;margin-bottom:14px;">
+          <div>
+            <div style="font-size:12px;color:#7a8699;margin-bottom:6px;">Selecione um período exato</div>
+            <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+              <div class="campo" style="margin-bottom:0;">
+                <label>De</label>
+                <input type="date" id="resumoDe" onchange="resumoFiltroAlterado()" style="width:150px;" />
+              </div>
+              <div class="campo" style="margin-bottom:0;">
+                <label>Até</label>
+                <input type="date" id="resumoAte" onchange="resumoFiltroAlterado()" style="width:150px;" />
+              </div>
+              <button class="btn btn-cinza" onclick="limparFiltroPeriodoResumo()">Ver tudo</button>
+            </div>
           </div>
-          <div class="campo" style="margin-bottom:0;">
-            <label>Até</label>
-            <input type="date" id="resumoAte" onchange="resumoFiltroAlterado()" style="width:150px;" />
+          <div>
+            <div style="font-size:12px;color:#7a8699;margin-bottom:6px;">Selecione o mês</div>
+            <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+              <div class="campo" style="margin-bottom:0;">
+                <label>De</label>
+                <input type="month" id="resumoMesDe" onchange="aplicarFiltroMesResumo()" style="width:150px;" />
+              </div>
+              <div class="campo" style="margin-bottom:0;">
+                <label>Até</label>
+                <input type="month" id="resumoMesAte" onchange="aplicarFiltroMesResumo()" style="width:150px;" />
+              </div>
+            </div>
           </div>
-          <button class="btn btn-cinza" onclick="limparFiltroPeriodoResumo()">Ver tudo</button>
         </div>
         <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;">
           <div class="campo" style="margin-bottom:0;max-width:360px;flex:1;">
@@ -1388,6 +1408,11 @@
         const ultimoDia = new Date(Number(ano), Number(mes), 0).getDate();
         document.getElementById('resumoDe').value = mesKpiSelecionado + '-01';
         document.getElementById('resumoAte').value = mesKpiSelecionado + '-' + String(ultimoDia).padStart(2, '0');
+        // Limpa o atalho "Selecione o mês" -- ele não reflete mais o mês de
+        // referência atual, então não faz sentido deixá-lo com um valor
+        // antigo enquanto o filtro de verdade (resumoDe/Ate) já mudou.
+        document.getElementById('resumoMesDe').value = '';
+        document.getElementById('resumoMesAte').value = '';
       }
     }
     // Chamadas pelo onchange dos inputs De/Até de cada gráfico — o usuário
@@ -3584,7 +3609,27 @@
     // Botão "Ver tudo" do filtro de período do Resumo por compra.
     function limparFiltroPeriodoResumo() {
       resumoSegueMesRef = false;
+      document.getElementById('resumoMesDe').value = '';
+      document.getElementById('resumoMesAte').value = '';
       limparFiltroPeriodoData('resumoDe', 'resumoAte', aplicarFiltroResumo);
+    }
+    // Filtro "Selecione o mês" do Resumo por compra -- mesmo atalho já usado
+    // em GASTOS DIÁRIOS: só preenche o filtro de data exata (resumoDe/Ate)
+    // com o primeiro e o último dia do intervalo escolhido; quem realmente
+    // filtra a tabela continua sendo resumoDe/Ate (dá pra ajustar pra um dia
+    // exato depois de usar o atalho). Contar como filtro alterado -- assim
+    // como editar resumoDe/Ate direto -- desliga o sincronismo com o "Mês de
+    // referência" até ele mudar de novo.
+    function aplicarFiltroMesResumo() {
+      const mesDe = document.getElementById('resumoMesDe').value;
+      const mesAte = document.getElementById('resumoMesAte').value;
+      if (!mesDe && !mesAte) return;
+      const inicio = mesDe || mesAte;
+      const fim = mesAte || mesDe;
+      const ultimoDia = new Date(Number(fim.slice(0, 4)), Number(fim.slice(5, 7)), 0).getDate();
+      document.getElementById('resumoDe').value = inicio + '-01';
+      document.getElementById('resumoAte').value = fim + '-' + String(ultimoDia).padStart(2, '0');
+      resumoFiltroAlterado();
     }
     function desenharTabelaResumo(dados) {
       const tbody = document.querySelector('#tabelaResumo tbody');
