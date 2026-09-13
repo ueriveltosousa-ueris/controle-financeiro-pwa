@@ -89,8 +89,13 @@ async function despachar(metodo, caminho, params, corpo) {
 // espaço. Ver decisão registrada na conversa: isso não é opcional.
 // ---------------------------------------------------------------------
 function nomeArquivoBackup() {
-  const hoje = new Date().toISOString().slice(0, 10);
-  return `controle-financeiro-backup-${hoje}.sqlite`;
+  // Data/hora LOCAL (não toISOString, que é UTC) -- com a hora no nome dá
+  // pra fazer mais de um backup no mesmo dia sem um sobrescrever o outro.
+  const agora = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  const data = `${agora.getFullYear()}-${pad(agora.getMonth() + 1)}-${pad(agora.getDate())}`;
+  const hora = `${pad(agora.getHours())}-${pad(agora.getMinutes())}`;
+  return `controle-financeiro-backup-${data}_${hora}.sqlite`;
 }
 
 function exportarBackup() {

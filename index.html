@@ -451,6 +451,24 @@
           <div class="chart-wrap" style="overflow-x:auto;"><div id="projWrapInterno" style="min-width:4800px;height:300px;"><canvas id="graficoProjecao"></canvas></div></div>
           <div class="legenda-grafico" id="legendaProjecao"></div>
         </div>
+        <div class="card largo">
+          <div class="titulo-com-ajuda"><h2 style="margin:0;">GASTOS DIÁRIOS</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-gastos-diarios', this)">?</button></div>
+          <div class="ajuda-balao" id="ajuda-gastos-diarios">
+            Total gasto em cada dia, pela <b>Data da Compra</b> (não a de vencimento) -- mostra o mês vigente por padrão. Use o filtro De/Até (ano, mês e dia) pra ver outro período. Clique num ponto do gráfico pra ver as despesas daquele dia, na mesma tabela padrão dos outros gráficos.
+          </div>
+          <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;">
+            <div class="campo" style="margin-bottom:0;">
+              <label>De</label>
+              <input type="date" id="gastosDiariosDe" onchange="renderGastosDiarios()" style="width:150px;" />
+            </div>
+            <div class="campo" style="margin-bottom:0;">
+              <label>Até</label>
+              <input type="date" id="gastosDiariosAte" onchange="renderGastosDiarios()" style="width:150px;" />
+            </div>
+            <button class="btn btn-cinza" onclick="limparFiltroGastosDiarios()">Mês vigente</button>
+          </div>
+          <div class="chart-wrap" style="overflow-x:auto;"><div id="gastosDiariosWrapInterno" style="min-width:900px;height:280px;"><canvas id="graficoGastosDiarios"></canvas></div></div>
+        </div>
         <div class="graficos-centralizados">
         <div class="card">
           <div class="titulo-com-ajuda"><h2 style="margin:0;">Compras por Forma de Pagamento</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-cartao', this)">?</button></div>
@@ -1085,6 +1103,7 @@
     // minúscula pra comparar contra o termo digitado — mesmo padrão usado em todo o app.
     const montarBusca = (...campos) => campos.map(v => (v === null || v === undefined) ? '' : String(v)).join(' ').toLowerCase();
     const nomesMes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    const nomesDiaSemana = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
     const labelMes = (iso) => { const p = String(iso).slice(0,7).split('-'); return nomesMes[Number(p[1]) - 1] + '/' + p[0]; };
     const hojeLocal = () => { const d = new Date(); const off = d.getTimezoneOffset(); return new Date(d.getTime() - off*60000).toISOString().slice(0,10); };
     const parseValor = (s) => { if (typeof s === 'number') return s; s = String(s).trim().replace(/\s/g,''); if (!s) return NaN; if (s.indexOf(',') > -1) s = s.replace(/\./g,'').replace(',', '.'); return Number(s); };
@@ -1702,7 +1721,7 @@
         }
         document.getElementById('kpiMesSelecionado').value = mesKpiSelecionado;
         sincronizarFiltrosComMesReferencia();
-        await renderKPIs(ultimoKpis); renderProjecao(r[1]); renderCartao();
+        await renderKPIs(ultimoKpis); renderProjecao(r[1]); renderCartao(); renderGastosDiarios();
         renderResumo(r[2]); renderTabelaCompras(r[3]); renderTipo(); renderPorDescricao(r[3]); renderGrupoDespesa(); renderTipoDespesa();
         await carregarParcelasOrfas();
         // Garante que todo gráfico acabe do tamanho certo do container final —
@@ -1980,6 +1999,84 @@
       document.getElementById('projDe').value = '';
       document.getElementById('projAte').value = '';
       renderProjecao();
+    }
+    // Card "GASTOS DIÁRIOS" -- gráfico de linha com o total gasto em cada dia,
+    // pela Data da COMPRA (não a de vencimento). Sem filtro De/Até preenchido,
+    // mostra sempre o mês vigente (mês do dia de hoje, não o "mês de
+    // referência" dos KPIs); o filtro deixa consultar qualquer outro período
+    // (dia a dia também, não só mês inteiro).
+    let chartGastosDiarios;
+    function limparFiltroGastosDiarios() {
+      document.getElementById('gastosDiariosDe').value = '';
+      document.getElementById('gastosDiariosAte').value = '';
+      renderGastosDiarios();
+    }
+    function renderGastosDiarios() {
+      let de = document.getElementById('gastosDiariosDe').value;
+      let ate = document.getElementById('gastosDiariosAte').value;
+      if (!de && !ate) {
+        const hoje = new Date();
+        const ultimoDia = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate();
+        de = hoje.getFullYear() + '-' + String(hoje.getMonth() + 1).padStart(2, '0') + '-01';
+        ate = hoje.getFullYear() + '-' + String(hoje.getMonth() + 1).padStart(2, '0') + '-' + String(ultimoDia).padStart(2, '0');
+      } else if (!de) { de = ate; } else if (!ate) { ate = de; }
+
+      const dias = [];
+      const cursor = new Date(de + 'T00:00:00');
+      const fim = new Date(ate + 'T00:00:00');
+      while (cursor <= fim) {
+        const dataIso = cursor.getFullYear() + '-' + String(cursor.getMonth() + 1).padStart(2, '0') + '-' + String(cursor.getDate()).padStart(2, '0');
+        const totalDia = ultimasParcelasTodas
+          .filter(p => String(p.data_compra).slice(0, 10) === dataIso)
+          .reduce((s, p) => s + Number(p.valor || 0), 0);
+        dias.push({ dataIso, total: totalDia, rotulo: [String(cursor.getDate()).padStart(2, '0'), nomesDiaSemana[cursor.getDay()]] });
+        cursor.setDate(cursor.getDate() + 1);
+      }
+
+      const wrapInterno = document.getElementById('gastosDiariosWrapInterno');
+      if (wrapInterno) wrapInterno.style.minWidth = Math.max(dias.length * 30, 900) + 'px';
+
+      const ctx = document.getElementById('graficoGastosDiarios');
+      if (chartGastosDiarios) chartGastosDiarios.destroy();
+      chartGastosDiarios = new Chart(ctx, {
+        type: 'line',
+        data: { labels: dias.map(d => d.rotulo), datasets: [
+          { label: 'Gastos', data: dias.map(d => d.total), borderColor: '#E57373', backgroundColor: gradienteArea('229,115,115', 0.35), fill: true, tension: .3,
+            pointRadius: 3, pointHoverRadius: 6, pointBackgroundColor: '#E57373', pointBorderColor: '#fff', pointBorderWidth: 1 },
+        ] },
+        options: { maintainAspectRatio: false, layout: { padding: { top: 10 } },
+          onClick: (evt, elems) => { if (elems.length) detalhePorDiaCompra(dias[elems[0].index].dataIso); },
+          onHover: (evt, elems) => { evt.native.target.style.cursor = elems.length ? 'pointer' : 'default'; },
+          plugins: { legend: { display: false }, tooltip: { enabled: true, callbacks: { label: (c) => 'Gasto: ' + brl(c.raw) } } },
+          scales: { x: { grid: { display: false }, ticks: { font: { size: 10 } } }, y: { ticks: { callback: (v) => 'R$ ' + (v / 1000) + 'k' } } } },
+      });
+    }
+    // Clique num ponto do gráfico "GASTOS DIÁRIOS" -> mesma tabela padrão dos
+    // outros gráficos, com as despesas cuja Data da Compra é aquele dia exato.
+    function detalhePorDiaCompra(dataIso) {
+      ultimoDetalheRefresh = () => detalhePorDiaCompra(dataIso);
+      const linhas = ultimasParcelasTodas.filter(p => String(p.data_compra).slice(0, 10) === dataIso);
+      const header = cabecalhoOrdenavelDespesa('detalhe', 'aplicarFiltroDetalhe()', true);
+      const linhasObj = linhas.map(l => {
+        const avista = Number(l.qtd_parcelas) === 1;
+        const tipoLabel = avista ? 'À vista' : 'Parcelada';
+        const tipoBadge = avista ? '<span class="badge avista">À vista</span>' : '<span class="badge parcelada">Parcelada</span>';
+        const emAberto = Math.max(Number(l.qtd_parcelas||0)-Number(l.qtd_parcelas_pagas||0),0);
+        const situacao = Number(l.saldo_aberto||0) <= 0 ? 'Quitada' : 'Em Aberto';
+        const situBadge = situacao === 'Quitada' ? '<span class="badge quitada">Quitada</span>' : '<span class="badge aberto">Em Aberto</span>';
+        return { descricao: l.descricao, raw: l,
+          busca: montarBusca(l.descricao, tipoLabel, l.cartao, l.categoria, l.num_parcela+'/'+l.qtd_parcelas, l.qtd_parcelas_pagas||0, emAberto, formatarData(l.data_compra), formatarData(l.data_vencimento), brl(l.valor_total), brl(l.valor), brl(l.saldo_aberto), situacao, l.status === 'Pago' ? 'Pago' : 'Pendente'),
+          html: '<tr onclick="visualizarCompra(' + l.compra_id + ')"><td>' + l.descricao + '</td><td>' + tipoBadge + '</td><td>' + (l.cartao||'-') + '</td><td>' + (l.categoria||'-') + '</td>' +
+            '<td>' + l.num_parcela + '/' + l.qtd_parcelas + '</td>' +
+            '<td>' + (l.qtd_parcelas_pagas || 0) + '</td>' +
+            '<td>' + emAberto + '</td>' +
+            '<td>' + formatarData(l.data_compra) + '</td><td>' + formatarData(l.data_vencimento) + '</td>' +
+            '<td class="num">' + brl(l.valor_total) + '</td><td class="num">' + brl(l.valor) + '</td>' +
+            '<td class="num">' + brl(l.saldo_aberto) + '</td><td>' + situBadge + '</td><td>' + badgeStatusParcela(l.status) + '</td>' +
+            '<td>' + botaoDetalheCadastroHtml(l.compra_id) + ' ' + botaoVisualizarDespesaHtml(l.compra_id) + ' ' + botaoEditarCadastroHtml(l.compra_id) + ' ' + botaoReplicarHtml(l.compra_id) + ' ' + botaoExcluirCadastroHtml(l.compra_id, l.descricao) + ' ' + botaoBaixaParcelaHtml(l.parcela_id, l.status === 'Pago') + ' ' + botaoIncluirDespesaHtml() + '</td></tr>' };
+      });
+      const montarTotal = (ls) => linhaTotal(10, ls.reduce((s,l) => s + Number(l.raw.valor||0), 0), 4);
+      abrirDetalheModal('Compras — ' + formatarData(dataIso), 'Despesas com Data da Compra em ' + formatarData(dataIso) + '.', header, linhasObj, montarTotal, 15);
     }
     // Gráfico "Compras por Forma de Pagamento" — agrupa TODAS as
     // parcelas (já filtradas pelo período) por forma de pagamento, quebrando
