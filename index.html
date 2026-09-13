@@ -1649,7 +1649,6 @@
         fecharModal('overlayReplicarOrcamento');
         await carregarOrcamentosTab();
         await carregarTudo();
-        await atualizarModalDetalheAberto();
       } catch (e) { alert('Erro ao replicar: ' + e.message); }
     }
     async function editarItemOrcamento(id, descricaoAtual, valorAtual) {
@@ -1670,7 +1669,6 @@
     // atualiza esse modal aberto, pra já refletir a mudança sem precisar fechar.
     async function editarItemOrcamentoDeDetalhe(id, descricaoAtual, valorAtual) {
       await editarItemOrcamento(id, descricaoAtual, valorAtual);
-      await atualizarModalDetalheAberto();
     }
     async function excluirItemOrcamento(id) {
       if (!confirm('Excluir este item de orçamento?')) return;
@@ -1684,7 +1682,6 @@
     // -- depois de excluir, atualiza esse modal aberto pra sumir a linha.
     async function excluirItemOrcamentoDeDetalhe(id) {
       await excluirItemOrcamento(id);
-      await atualizarModalDetalheAberto();
     }
 
     async function salvarVencimentoCartao(id) {
@@ -1747,6 +1744,13 @@
         await renderKPIs(ultimoKpis); renderProjecao(r[1]); renderCartao(); renderGastosDiarios();
         renderResumo(r[2]); renderTabelaCompras(r[3]); renderTipo(); renderPorDescricao(r[3]); renderGrupoDespesa(); renderTipoDespesa();
         await carregarParcelasOrfas();
+        // Reatualiza qualquer modal/aba de despesa ou orçamento que esteja
+        // aberto no momento -- carregarTudo() já é chamado depois de toda
+        // alteração (incluir, editar, excluir, pagar, desfazer...), então
+        // colocar isso bem aqui garante que a mudança se propaga pra
+        // qualquer ambiente do sistema que esteja mostrando esse dado,
+        // sem precisar lembrar de chamar isso de novo em cada função.
+        await atualizarModalDetalheAberto();
         // Garante que todo gráfico acabe do tamanho certo do container final —
         // o 1º render às vezes acontece antes do layout (menu lateral, fontes)
         // terminar de assentar.
@@ -2658,35 +2662,52 @@
     // depois de uma baixa feita através dele — sem isso a linha ficaria com o
     // status antigo até o usuário fechar e reabrir o modal.
     let ultimoDetalheRefresh = null;
+    // Mesma ideia, pros outros lugares que também mostram despesa/orçamento e
+    // podem estar abertos (por cima de outro, ou sozinhos) quando uma
+    // alteração acontece em QUALQUER lugar do app -- cada um se registra ao
+    // abrir, igual ultimoDetalheRefresh/ultimoComparativoRefresh acima.
+    let ultimoGraficoTipoRefresh = null;
+    let ultimoResumoAnualRefresh = null;
+    let ultimoResumoAnualTipoRefresh = null;
+    // Chamado sempre que QUALQUER despesa/orçamento muda em qualquer lugar do
+    // app (ver final de carregarTudo()) -- reatualiza todo modal/aba aberto
+    // no momento que mostra esse tipo de dado, pra nunca ficar com número
+    // desatualizado só porque a alteração foi feita em outra tela.
     async function atualizarModalDetalheAberto() {
       const detalhe = document.getElementById('overlayDetalhe');
       if (detalhe && detalhe.classList.contains('aberto') && typeof ultimoDetalheRefresh === 'function') await ultimoDetalheRefresh();
       const comparativo = document.getElementById('overlayComparativo');
       if (comparativo && comparativo.classList.contains('aberto') && typeof ultimoComparativoRefresh === 'function') await ultimoComparativoRefresh();
+      const parcelas = document.getElementById('overlayParcelas');
+      if (parcelas && parcelas.classList.contains('aberto') && parcelasCompraIdAtual) await recarregarParcelasModal();
+      const graficoTipo = document.getElementById('overlayGraficoTipo');
+      if (graficoTipo && graficoTipo.classList.contains('aberto') && typeof ultimoGraficoTipoRefresh === 'function') ultimoGraficoTipoRefresh();
+      const resumoAnual = document.getElementById('overlayResumoAnual');
+      if (resumoAnual && resumoAnual.classList.contains('aberto') && typeof ultimoResumoAnualRefresh === 'function') ultimoResumoAnualRefresh();
+      const resumoAnualTipo = document.getElementById('overlayResumoAnualTipo');
+      if (resumoAnualTipo && resumoAnualTipo.classList.contains('aberto') && typeof ultimoResumoAnualTipoRefresh === 'function') ultimoResumoAnualTipoRefresh();
+      const paginaOrcamentos = document.getElementById('pagina-orcamentos');
+      if (paginaOrcamentos && paginaOrcamentos.classList.contains('ativa')) await carregarOrcamentosTab();
     }
     async function pagarProximaParcelaCompra(compraId) {
       try { await api('/compras/' + compraId + '/pagar-proxima', { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({}) }); }
       catch (e) { alert('Erro ao dar baixa: ' + e.message); return; }
       await carregarTudo();
-      await atualizarModalDetalheAberto();
     }
     async function pagarParcelaTabela(parcelaId) {
       try { await api('/compras/parcelas/' + parcelaId + '/pagar', { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({}) }); }
       catch (e) { alert('Erro ao dar baixa: ' + e.message); return; }
       await carregarTudo();
-      await atualizarModalDetalheAberto();
     }
     async function desfazerUltimaParcelaCompra(compraId) {
       try { await api('/compras/' + compraId + '/desfazer-ultima', { method:'PATCH' }); }
       catch (e) { alert('Erro ao desfazer: ' + e.message); return; }
       await carregarTudo();
-      await atualizarModalDetalheAberto();
     }
     async function desfazerParcelaTabela(parcelaId) {
       try { await api('/compras/parcelas/' + parcelaId + '/despagar', { method:'PATCH' }); }
       catch (e) { alert('Erro ao desfazer: ' + e.message); return; }
       await carregarTudo();
-      await atualizarModalDetalheAberto();
     }
     function posicionarTooltipCadastro(botao) {
       const tt = document.getElementById('tooltipCadastro');
@@ -3074,6 +3095,7 @@
     // com a quebra por Tipo de Despesa dentro daquele grupo, respeitando o
     // mesmo filtro De/Até já aplicado no gráfico de Grupo.
     function abrirGraficoTipoDespesa(nomeGrupo) {
+      ultimoGraficoTipoRefresh = () => abrirGraficoTipoDespesa(nomeGrupo);
       const parcelas = filtrarParcelasPorPeriodo('grupoDe', 'grupoAte').filter(p => (p.grupo || 'Sem grupo') === nomeGrupo);
       const grupos = {};
       parcelas.forEach(p => {
@@ -3158,6 +3180,7 @@
     // logo acima), só que aqui o filtro é sempre o ANO inteiro, não o
     // período De/Até dos outros gráficos.
     function detalheResumoAnual(ano) {
+      ultimoResumoAnualRefresh = () => detalheResumoAnual(ano);
       document.getElementById('tituloResumoAnual').textContent = 'Resumo Anual — ' + ano;
       const totais = totaisAnuais(ano);
       document.getElementById('obsResumoAnual').innerHTML =
@@ -3284,6 +3307,7 @@
     // existente no Dashboard (abrirGraficoTipoDespesa), só que filtrado por
     // ano em vez de período De/Até.
     function abrirResumoAnualTipoDespesa(ano, nomeGrupo) {
+      ultimoResumoAnualTipoRefresh = () => abrirResumoAnualTipoDespesa(ano, nomeGrupo);
       const parcelas = ultimasParcelasTodas.filter(p =>
         String(p.data_vencimento).slice(0, 4) === String(ano) && (p.grupo || 'Sem grupo') === nomeGrupo);
       const tipos = {};
@@ -3858,13 +3882,14 @@
       if (!confirm('Excluir "' + nome + '" e suas parcelas?\nEsta ação não pode ser desfeita.')) return;
       try {
         await api('/compras/' + id, { method:'DELETE' });
-        await carregarTudo();
-        await atualizarModalDetalheAberto();
         // Se o modal de Parcelas estava mostrando exatamente a compra excluída,
-        // fecha ele também -- não tem mais parcela nenhuma pra listar ali.
+        // fecha ele ANTES de carregarTudo() -- ele reatualiza todo modal
+        // aberto no final (ver atualizarModalDetalheAberto), e essa compra
+        // não existe mais pra recarregar.
         if (Number(parcelasCompraIdAtual) === Number(id) && document.getElementById('overlayParcelas').classList.contains('aberto')) {
           fecharModal('overlayParcelas');
         }
+        await carregarTudo();
       } catch (e) { alert('Erro ao excluir: ' + e.message); }
     }
 
@@ -3929,19 +3954,16 @@
       try {
         await api('/compras/parcelas/' + parcelaId + '/vencimento', { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ data_vencimento: novaData }) });
       } catch (e) { alert('Erro ao salvar Data de Vencimento: ' + e.message); return; }
-      await recarregarParcelasModal();
       await carregarTudo();
     }
     async function marcarPaga(parcelaId) {
       try { await api('/compras/parcelas/' + parcelaId + '/pagar', { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({}) }); }
       catch (e) { alert('Erro: ' + e.message); return; }
-      await recarregarParcelasModal();
       await carregarTudo();
     }
     async function desfazerPagamento(parcelaId) {
       try { await api('/compras/parcelas/' + parcelaId + '/despagar', { method:'PATCH' }); }
       catch (e) { alert('Erro: ' + e.message); return; }
-      await recarregarParcelasModal();
       await carregarTudo();
     }
 
