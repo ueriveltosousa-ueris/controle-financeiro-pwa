@@ -32,9 +32,10 @@
     #btnSair { background:transparent; color:#fff; border:1px solid rgba(255,255,255,.5); padding:9px 16px; border-radius:6px; font-weight:600; cursor:pointer; font-size:13px; }
     #btnSair:hover { background:var(--vermelho); border-color:var(--vermelho); }
     /* Botão "X" fixo no cabeçalho -- presente em toda página do sistema
-       (o cabeçalho fica fora das seções .pagina), sempre volta pro início. */
-    #btnInicioTopo { background:#fff; color:var(--azul); border:none; width:36px; height:36px; border-radius:6px; font-weight:700; cursor:pointer; font-size:18px; line-height:1; }
-    #btnInicioTopo:hover { background:#eaf1fb; }
+       (o cabeçalho fica fora das seções .pagina), sempre volta pro início.
+       Redondo e vermelho pra ficar em destaque dos outros botões do topo. */
+    #btnInicioTopo { background:var(--vermelho); color:#fff; border:2px solid #fff; width:38px; height:38px; border-radius:50%; font-weight:800; cursor:pointer; font-size:18px; line-height:1; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 6px rgba(0,0,0,.3); flex-shrink:0; }
+    #btnInicioTopo:hover { background:#a5321f; }
     .menu-topo-wrap { position:relative; }
     #btnMenuTopo { background:#fff; color:var(--azul); border:none; width:36px; height:36px; border-radius:6px; font-weight:700; cursor:pointer; font-size:18px; line-height:1; }
     #btnMenuTopo:hover, #btnMenuTopo[aria-expanded="true"] { background:#eaf1fb; }
@@ -3750,11 +3751,18 @@
       fecharModal('overlayCadastroRapido');
       trocarAba(aba);
     }
-    // Botão "🏠 Início" -- presente em todo modal/formulário do sistema (é o
-    // único jeito de voltar pro Dashboard sem fechar manualmente o que está
-    // aberto primeiro, já que o menu lateral fica encoberto pelo fundo escuro
-    // do modal). Reaproveita o mesmo fechamento seguro de irParaCadastro.
-    function irParaInicio() { irParaCadastro('dashboard'); }
+    // Botão "🏠 Início" / "✕" -- presente em todo modal e no cabeçalho fixo do
+    // sistema (é o único jeito de voltar pro Dashboard sem fechar manualmente
+    // o que está aberto primeiro, já que o menu lateral fica encoberto pelo
+    // fundo escuro do modal). Reaproveita o mesmo fechamento seguro de
+    // irParaCadastro, mas "início" é a tela de abertura do app de verdade --
+    // colapsa o Dashboard de volta ao estado enxuto (mesmo que já tivesse
+    // sido expandido antes) e sobe a página pro topo.
+    function irParaInicio() {
+      irParaCadastro('dashboard');
+      colapsarDashboard();
+      window.scrollTo({ top: 0, behavior: 'auto' });
+    }
     // Botão "Dashboard" do menu -- vai pro Dashboard E já rola até o gráfico
     // Acompanhamento Mensal (em vez de só abrir a página no topo). O rAF
     // duplo espera a página ficar visível (display:none -> block) e o layout
@@ -3783,6 +3791,14 @@
       renderTipoDespesa();
       renderPorDescricao();
       renderGastosDiarios();
+    }
+    // Volta o Dashboard pro estado enxuto de abertura (usado pelo "✕"/Início
+    // -- ver irParaInicio). Só esconde de novo (os gráficos continuam vivos,
+    // prontos pra reaparecer sem precisar recriar se o usuário expandir de
+    // novo clicando no ícone Dashboard).
+    function colapsarDashboard() {
+      dashboardExpandido = false;
+      document.getElementById('pagina-dashboard').classList.add('dashboard-colapsado');
     }
     // ---------------------------------------------------------------------
     // Ícones novos (SVG, no lugar do emoji simples) pras 4 seções do sistema
