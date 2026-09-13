@@ -2055,9 +2055,6 @@
     }
     function renderGastosDiarios() {
       const hoje = new Date();
-      document.getElementById('gastosDiariosNomeMesVigente').textContent =
-        '(' + labelMes(hoje.getFullYear() + '-' + String(hoje.getMonth() + 1).padStart(2, '0') + '-01') + ')';
-
       let de = document.getElementById('gastosDiariosDe').value;
       let ate = document.getElementById('gastosDiariosAte').value;
       if (!de && !ate) {
@@ -2066,14 +2063,29 @@
         ate = hoje.getFullYear() + '-' + String(hoje.getMonth() + 1).padStart(2, '0') + '-' + String(ultimoDia).padStart(2, '0');
       } else if (!de) { de = ate; } else if (!ate) { ate = de; }
 
+      // Rótulo ao lado do botão "Mês vigente" -- não é sempre o mês de hoje:
+      // muda pro mês (ou intervalo de meses) do período selecionado no
+      // filtro, sem filtro nenhum mostra o mês corrente mesmo (que é o
+      // "de"/"ate" já calculado acima nesse caso).
+      document.getElementById('gastosDiariosNomeMesVigente').textContent =
+        de.slice(0, 7) === ate.slice(0, 7) ? '(' + labelMes(de) + ')' : '(' + labelMes(de) + ' a ' + labelMes(ate) + ')';
+
       const dias = [];
       const cursor = new Date(de + 'T00:00:00');
       const fim = new Date(ate + 'T00:00:00');
       while (cursor <= fim) {
         const dataIso = cursor.getFullYear() + '-' + String(cursor.getMonth() + 1).padStart(2, '0') + '-' + String(cursor.getDate()).padStart(2, '0');
-        const totalDia = ultimasParcelasTodas
+        // Uma compra parcelada gera várias parcelas com a MESMA Data da
+        // Compra -- soma o valor_total da compra UMA vez só (por compra_id),
+        // não o valor de cada parcela: além de evitar diferença de
+        // arredondamento (parcelas nem sempre somam de volta ao centavo
+        // exato do total), é o total realmente gasto naquele dia que importa
+        // aqui, não o tamanho de cada parcela.
+        const comprasDoDia = {};
+        ultimasParcelasTodas
           .filter(p => String(p.data_compra).slice(0, 10) === dataIso)
-          .reduce((s, p) => s + Number(p.valor || 0), 0);
+          .forEach(p => { comprasDoDia[p.compra_id] = Number(p.valor_total || 0); });
+        const totalDia = Object.values(comprasDoDia).reduce((s, v) => s + v, 0);
         dias.push({ dataIso, total: totalDia, rotulo: [String(cursor.getDate()).padStart(2, '0'), nomesDiaSemana[cursor.getDay()]] });
         cursor.setDate(cursor.getDate() + 1);
       }
@@ -2097,7 +2109,11 @@
           onClick: (evt, elems) => { if (elems.length) detalhePorDiaCompra(dias[elems[0].index].dataIso); },
           onHover: (evt, elems) => { evt.native.target.style.cursor = elems.length ? 'pointer' : 'default'; },
           plugins: { legend: { display: false }, tooltip: { enabled: true, callbacks: { label: (c) => 'Gasto: ' + brl(c.raw) } } },
-          scales: { x: { grid: { display: false }, ticks: { font: { size: 10 } } }, y: { ticks: { callback: (v) => 'R$ ' + (v / 1000) + 'k' } } } },
+          // Sem eixo Y (nem números de referência, nem as linhas de grade
+          // horizontais que eles geram) -- o valor de cada dia já aparece
+          // junto do ponto (datalabels acima) e no tooltip ao passar o mouse,
+          // então a "coluna" de valores ao lado do gráfico só poluía.
+          scales: { x: { grid: { display: false }, ticks: { font: { size: 10 } } }, y: { display: false, grid: { display: false } } } },
       });
     }
     // Clique num ponto do gráfico "GASTOS DIÁRIOS" -> mesma tabela padrão dos
