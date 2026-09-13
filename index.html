@@ -1293,6 +1293,33 @@
       },
     };
 
+    // Plugin do Chart.js: desenha uma linha pontilhada vertical, bem clara e
+    // com pontinhos pequenos, de cada dia (eixo X) até o valor do ponto no
+    // gráfico "GASTOS DIÁRIOS" -- ajuda a "ler" qual dia corresponde a cada
+    // valor, já que esse gráfico não tem eixo Y (ver renderGastosDiarios).
+    // Sem linha nenhuma nos dias com valor 0 (não tem "até o valor" pra desenhar).
+    const linhasPontilhadasAteValor = {
+      id: 'linhasPontilhadasAteValor',
+      beforeDatasetsDraw(chart) {
+        const meta = chart.getDatasetMeta(0);
+        if (!meta || !meta.data.length) return;
+        const dados = chart.data.datasets[0].data;
+        const { ctx, chartArea } = chart;
+        ctx.save();
+        ctx.strokeStyle = '#f0c4c4';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([1, 3]);
+        meta.data.forEach((ponto, i) => {
+          if (!(Number(dados[i]) > 0)) return;
+          ctx.beginPath();
+          ctx.moveTo(ponto.x, chartArea.bottom);
+          ctx.lineTo(ponto.x, ponto.y);
+          ctx.stroke();
+        });
+        ctx.restore();
+      },
+    };
+
     // api(rota, opcoes) é fornecida por js/app.js — mesma assinatura da
     // versão servidor (fetch), mas despachando direto pro banco local.
 
@@ -2108,7 +2135,7 @@
       if (chartGastosDiarios) chartGastosDiarios.destroy();
       chartGastosDiarios = new Chart(ctx, {
         type: 'line',
-        plugins: [ChartDataLabels],
+        plugins: [linhasPontilhadasAteValor, ChartDataLabels],
         data: { labels: dias.map(d => d.rotulo), datasets: [
           { label: 'Gastos', data: dias.map(d => d.total), borderColor: '#E57373', backgroundColor: gradienteArea('229,115,115', 0.35), fill: true, tension: .3,
             pointRadius: 3, pointHoverRadius: 6, pointBackgroundColor: '#E57373', pointBorderColor: '#fff', pointBorderWidth: 1,
