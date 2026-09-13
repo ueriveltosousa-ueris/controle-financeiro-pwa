@@ -463,23 +463,23 @@
         <div class="card largo">
           <div class="titulo-com-ajuda"><h2 style="margin:0;">Acompanhamento Mensal (até 24 meses)</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-projecao', this)">?</button></div>
           <div class="ajuda-balao" id="ajuda-projecao">
-            Barras <b>vermelhas</b> = o total de parcelas com vencimento em cada mês, <b>pagas ou não</b> (marcar uma parcela como paga não tira ela dessa conta — quem quer só o que falta pagar usa os cards do topo ou os gráficos "Em Aberto"). Barras <b>verdes</b> = orçamento lançado pra aquele mês. A <b>linha</b> é a soma acumulada dos gastos, mês a mês (não inclui orçamento). Clique numa barra pra ver o detalhamento daquele mês.
+            Barras <b>vermelhas</b> = o total de parcelas com vencimento em cada mês, <b>pagas ou não</b> (marcar uma parcela como paga não tira ela dessa conta — quem quer só o que falta pagar usa os cards do topo ou os gráficos "Em Aberto"). Barras <b>verdes</b> = orçamento lançado pra aquele mês. A <b>linha</b> é a soma acumulada dos gastos, mês a mês (não inclui orçamento). Clique numa barra pra ver o detalhamento daquele mês. Abre mostrando o mesmo mês de referência dos cards do topo; clique em "Ver tudo (24 meses)" ou ajuste o período pra consultar outros meses.
           </div>
           <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;">
             <div class="campo" style="margin-bottom:0;">
               <label>De</label>
-              <input type="month" id="projDe" onchange="renderProjecao()" style="width:190px;" />
+              <input type="month" id="projDe" onchange="projecaoFiltroAlterado()" style="width:190px;" />
             </div>
             <div class="campo" style="margin-bottom:0;">
               <label>Até</label>
-              <input type="month" id="projAte" onchange="renderProjecao()" style="width:190px;" />
+              <input type="month" id="projAte" onchange="projecaoFiltroAlterado()" style="width:190px;" />
             </div>
             <button class="btn btn-cinza" onclick="limparFiltroProjecao()">Ver tudo (24 meses)</button>
           </div>
           <div class="chart-wrap" style="overflow-x:auto;"><div id="projWrapInterno" style="min-width:4800px;height:300px;"><canvas id="graficoProjecao"></canvas></div></div>
           <div class="legenda-grafico" id="legendaProjecao"></div>
         </div>
-        <div class="card largo dashboard-extra">
+        <div class="card largo dashboard-extra" id="cardGastosDiarios">
           <div class="titulo-com-ajuda">
             <h2 style="margin:0;">GASTOS DIÁRIOS</h2>
             <button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-gastos-diarios', this)">?</button>
@@ -1360,11 +1360,6 @@
     let compraEditandoId = null;
     let ultimoKpis = null; // guarda o resultado de /dashboard/kpis pro filtro de mês re-renderizar sem nova chamada
     let mesKpiSelecionado = null; // "YYYY-MM" usado pelos cards "Despesas Mês" e "Orçamento Mês"
-    // Só na 1ª carga: pré-preenche o filtro De/Até da Projeção com o mês
-    // seguinte (mesmo mês que mesKpiSelecionado já usa), pra abrir mostrando
-    // só ele -- true depois da 1ª vez, pra não pisar num filtro (inclusive um
-    // "Ver tudo") que o usuário já tenha escolhido nas cargas seguintes.
-    let projecaoFiltroPadraoAplicado = false;
     // Dashboard abre só com Despesas Mês/Orçamento Mês/Acompanhamento Mensal
     // (ver .dashboard-extra) -- true depois que o usuário clica no ícone
     // Dashboard, revelando o resto (Resumo Anual, Gastos Diários, Compras por
@@ -1372,21 +1367,20 @@
     // (não volta a esconder sozinho).
     let dashboardExpandido = false;
     // Os gráficos "Em Aberto" com filtro De/Até (Forma de Pagamento, Parcelado x
-    // À Vista, Grupo de Despesa) abrem sincronizados com o mesmo mês do card
-    // "Despesas Mês" (De = Até = mês de referência) — esse é o padrão do
-    // sistema. Se o usuário mexer manualmente no filtro de UM gráfico
-    // específico (ou clicar "Ver tudo"), aquele gráfico vira independente até
-    // a próxima vez que o "Mês de referência" for alterado: trocar o mês de
-    // referência de novo sempre reseta TODOS os gráficos de volta pro padrão
-    // (ver filtrarKpisPorMes). A Projeção fica de fora desse sincronismo de
-    // propósito (ela mostra 24 meses por padrão; travar num mês só quebraria
-    // essa visão).
-    let cartaoSegueMesRef = true, tipoSegueMesRef = true, grupoSegueMesRef = true, tipoDespesaSegueMesRef = true, resumoSegueMesRef = true;
+    // À Vista, Grupo de Despesa, Acompanhamento Mensal, Resumo por compra)
+    // abrem sincronizados com o mesmo mês do card "Despesas Mês" (De = Até =
+    // mês de referência) — esse é o padrão do sistema. Se o usuário mexer
+    // manualmente no filtro de UM gráfico específico (ou clicar "Ver tudo"),
+    // aquele gráfico vira independente até a próxima vez que o "Mês de
+    // referência" for alterado: trocar o mês de referência de novo sempre
+    // reseta TODOS os gráficos de volta pro padrão (ver filtrarKpisPorMes).
+    let cartaoSegueMesRef = true, tipoSegueMesRef = true, grupoSegueMesRef = true, tipoDespesaSegueMesRef = true, resumoSegueMesRef = true, projecaoSegueMesRef = true;
     function sincronizarFiltrosComMesReferencia() {
       if (cartaoSegueMesRef) { document.getElementById('cartaoDe').value = mesKpiSelecionado; document.getElementById('cartaoAte').value = mesKpiSelecionado; }
       if (tipoSegueMesRef) { document.getElementById('tipoDe').value = mesKpiSelecionado; document.getElementById('tipoAte').value = mesKpiSelecionado; }
       if (grupoSegueMesRef) { document.getElementById('grupoDe').value = mesKpiSelecionado; document.getElementById('grupoAte').value = mesKpiSelecionado; }
       if (tipoDespesaSegueMesRef) { document.getElementById('tipoDespDe').value = mesKpiSelecionado; document.getElementById('tipoDespAte').value = mesKpiSelecionado; }
+      if (projecaoSegueMesRef) { document.getElementById('projDe').value = mesKpiSelecionado; document.getElementById('projAte').value = mesKpiSelecionado; }
       // Resumo por compra usa filtro por DATA exata (não por mês) -- traduz o
       // mês de referência pro 1º e último dia dele.
       if (resumoSegueMesRef) {
@@ -1402,6 +1396,7 @@
     function cartaoFiltroAlterado() { cartaoSegueMesRef = false; renderCartao(); }
     function tipoFiltroAlterado() { tipoSegueMesRef = false; renderTipo(); }
     function grupoFiltroAlterado() { grupoSegueMesRef = false; renderGrupoDespesa(); }
+    function projecaoFiltroAlterado() { projecaoSegueMesRef = false; renderProjecao(); }
     function tipoDespesaFiltroAlterado() { tipoDespesaSegueMesRef = false; renderTipoDespesa(); }
     function resumoFiltroAlterado() { resumoSegueMesRef = false; aplicarFiltroResumo(); }
 
@@ -1821,11 +1816,6 @@
         }
         document.getElementById('kpiMesSelecionado').value = mesKpiSelecionado;
         sincronizarFiltrosComMesReferencia();
-        if (!projecaoFiltroPadraoAplicado) {
-          projecaoFiltroPadraoAplicado = true;
-          document.getElementById('projDe').value = mesKpiSelecionado;
-          document.getElementById('projAte').value = mesKpiSelecionado;
-        }
         await renderKPIs(ultimoKpis); renderProjecao(r[1]); renderCartao(); renderGastosDiarios();
         renderResumo(r[2]); renderTabelaCompras(r[3]); renderTipo(); renderPorDescricao(r[3]); renderGrupoDespesa(); renderTipoDespesa();
         await carregarParcelasOrfas();
@@ -1988,10 +1978,10 @@
       // usuário tenha personalizado o filtro de um gráfico específico antes,
       // voltar aqui e trocar o mês faz TODOS os gráficos voltarem a seguir
       // este período de novo (o padrão do sistema é este filtro).
-      cartaoSegueMesRef = true; tipoSegueMesRef = true; grupoSegueMesRef = true; tipoDespesaSegueMesRef = true; resumoSegueMesRef = true;
+      cartaoSegueMesRef = true; tipoSegueMesRef = true; grupoSegueMesRef = true; tipoDespesaSegueMesRef = true; resumoSegueMesRef = true; projecaoSegueMesRef = true;
       sincronizarFiltrosComMesReferencia();
       await renderKPIs(ultimoKpis);
-      renderCartao(); renderTipo(); renderGrupoDespesa(); renderTipoDespesa(); aplicarFiltroResumo();
+      renderProjecao(); renderCartao(); renderTipo(); renderGrupoDespesa(); renderTipoDespesa(); aplicarFiltroResumo();
     }
     // Balão flutuante explicando o "Acumulado" — aparece ao passar o mouse na legenda do gráfico.
     function mostrarTooltipAcumulado(x, y) {
@@ -2114,8 +2104,9 @@
         { rotulo:'Acumulado', cor:'#C0392B', onHover:mostrarTooltipAcumulado, onLeave:esconderTooltipAcumulado },
       ]);
     }
-    // Botão "Ver tudo" do filtro de período da Projeção.
+    // Botão "Ver tudo (24 meses)" do filtro de período da Projeção.
     function limparFiltroProjecao() {
+      projecaoSegueMesRef = false;
       document.getElementById('projDe').value = '';
       document.getElementById('projAte').value = '';
       renderProjecao();
@@ -3778,16 +3769,30 @@
       colapsarDashboard();
       window.scrollTo({ top: 0, behavior: 'auto' });
     }
-    // Botão "Dashboard" do menu -- vai pro Dashboard E já rola até o gráfico
-    // Acompanhamento Mensal (em vez de só abrir a página no topo). O rAF
-    // duplo espera a página ficar visível (display:none -> block) e o layout
-    // assentar antes de calcular a posição do scroll.
+    // Botão "Dashboard" do menu -- vai pro Dashboard, expande o resto do
+    // painel (ver expandirDashboard) e já rola até o gráfico GASTOS DIÁRIOS
+    // -- fica no meio do painel expandido, com o Acompanhamento Mensal (e os
+    // cards do topo) acima e o restante dos gráficos/Resumo por compra
+    // abaixo, então rolar em qualquer direção mostra tudo. O rAF duplo espera
+    // a página ficar visível (display:none -> block) e o layout assentar
+    // antes de calcular a posição do scroll.
     function irParaDashboardAcompanhamento() {
       trocarAba('dashboard');
       expandirDashboard();
       requestAnimationFrame(() => requestAnimationFrame(() => {
-        const alvo = document.getElementById('graficoProjecao');
-        if (alvo) alvo.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        const alvo = document.getElementById('cardGastosDiarios');
+        if (!alvo) return;
+        // scrollIntoView puro ignora o cabeçalho fixo e (no desktop) a barra
+        // de KPIs sticky por cima do conteúdo -- alinhar o alvo direto no
+        // topo da tela deixaria o título "GASTOS DIÁRIOS" escondido atrás
+        // deles. Desconta a altura de quem estiver realmente ocupando o topo
+        // antes de rolar.
+        const topoFixo = document.getElementById('topoFixo');
+        const kpisFixo = document.getElementById('kpisFixo');
+        let ocupado = topoFixo ? topoFixo.offsetHeight : 0;
+        if (kpisFixo && getComputedStyle(kpisFixo).position === 'sticky') ocupado += kpisFixo.offsetHeight;
+        const destino = window.scrollY + alvo.getBoundingClientRect().top - ocupado - 12;
+        window.scrollTo({ top: Math.max(destino, 0), behavior: 'smooth' });
       }));
     }
     // Revela o resto do Dashboard (.dashboard-extra), escondido por padrão na
