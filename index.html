@@ -31,6 +31,10 @@
     #btnAtualizar:hover { opacity:1; background:rgba(255,255,255,.15); }
     #btnSair { background:transparent; color:#fff; border:1px solid rgba(255,255,255,.5); padding:9px 16px; border-radius:6px; font-weight:600; cursor:pointer; font-size:13px; }
     #btnSair:hover { background:var(--vermelho); border-color:var(--vermelho); }
+    /* Botão "X" fixo no cabeçalho -- presente em toda página do sistema
+       (o cabeçalho fica fora das seções .pagina), sempre volta pro início. */
+    #btnInicioTopo { background:#fff; color:var(--azul); border:none; width:36px; height:36px; border-radius:6px; font-weight:700; cursor:pointer; font-size:18px; line-height:1; }
+    #btnInicioTopo:hover { background:#eaf1fb; }
     .menu-topo-wrap { position:relative; }
     #btnMenuTopo { background:#fff; color:var(--azul); border:none; width:36px; height:36px; border-radius:6px; font-weight:700; cursor:pointer; font-size:18px; line-height:1; }
     #btnMenuTopo:hover, #btnMenuTopo[aria-expanded="true"] { background:#eaf1fb; }
@@ -380,6 +384,7 @@
       <div><h1>💳 CONTROLE FINANCEIRO</h1><div class="sub"><span id="atualizadoEm">Carregando...</span><button id="btnAtualizar" onclick="carregarTudo()" title="Atualizar a tela">🔄 Atualizar</button></div></div>
     </div>
     <div class="menu-topo-wrap" style="display:flex;gap:8px;align-items:center;">
+      <button id="btnInicioTopo" onclick="irParaInicio()" title="Voltar para o início do sistema">✕</button>
       <button id="btnMenuTopo" onclick="alternarMenuTopo(event)" title="Mais opções (backup e restaurar)" aria-haspopup="true" aria-expanded="false">⋮</button>
       <div class="menu-topo-dropdown" id="menuTopoDropdown">
         <button onclick="exportarBackup(); fecharMenuTopo();">💾 Backup</button>
@@ -615,7 +620,7 @@
       </section>
       <section class="card largo dashboard-extra">
         <div class="titulo-com-ajuda"><h2 style="margin:0;">Resumo por compra</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-resumo', this)">?</button></div>
-        <div class="ajuda-balao" id="ajuda-resumo">Uma linha por compra, com quanto já foi pago e quanto falta. "Parcela do Mês" mostra quantas parcelas já foram pagas do total (ex.: 3/10). "Situação" fica <b>Quitada</b> quando não sobra mais nada pendente. O filtro de busca procura em todas as colunas ao mesmo tempo (descrição, forma de pagamento, categoria, valores, parcela, situação...). O filtro de período busca por ano, mês e dia exatos, da Data da Compra ou da Data de Vencimento, à escolha.</div>
+        <div class="ajuda-balao" id="ajuda-resumo">Uma linha por compra, com quanto já foi pago e quanto falta. "Parcela do Mês" mostra quantas parcelas já foram pagas do total (ex.: 3/10). "Situação" fica <b>Quitada</b> quando não sobra mais nada pendente. Abre mostrando só o mês de referência do Dashboard (Data da Compra); clique em "Ver tudo" ou ajuste o período pra consultar outros meses. O filtro de busca procura em todas as colunas ao mesmo tempo (descrição, forma de pagamento, categoria, valores, parcela, situação...). O filtro de período busca por ano, mês e dia exatos, da Data da Compra ou da Data de Vencimento, à escolha.</div>
         <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;">
           <div class="campo" style="margin-bottom:0;">
             <label>Filtrar por período de</label>
@@ -626,11 +631,11 @@
           </div>
           <div class="campo" style="margin-bottom:0;">
             <label>De</label>
-            <input type="date" id="resumoDe" onchange="aplicarFiltroResumo()" style="width:150px;" />
+            <input type="date" id="resumoDe" onchange="resumoFiltroAlterado()" style="width:150px;" />
           </div>
           <div class="campo" style="margin-bottom:0;">
             <label>Até</label>
-            <input type="date" id="resumoAte" onchange="aplicarFiltroResumo()" style="width:150px;" />
+            <input type="date" id="resumoAte" onchange="resumoFiltroAlterado()" style="width:150px;" />
           </div>
           <button class="btn btn-cinza" onclick="limparFiltroPeriodoResumo()">Ver tudo</button>
         </div>
@@ -1368,12 +1373,20 @@
     // (ver filtrarKpisPorMes). A Projeção fica de fora desse sincronismo de
     // propósito (ela mostra 24 meses por padrão; travar num mês só quebraria
     // essa visão).
-    let cartaoSegueMesRef = true, tipoSegueMesRef = true, grupoSegueMesRef = true, tipoDespesaSegueMesRef = true;
+    let cartaoSegueMesRef = true, tipoSegueMesRef = true, grupoSegueMesRef = true, tipoDespesaSegueMesRef = true, resumoSegueMesRef = true;
     function sincronizarFiltrosComMesReferencia() {
       if (cartaoSegueMesRef) { document.getElementById('cartaoDe').value = mesKpiSelecionado; document.getElementById('cartaoAte').value = mesKpiSelecionado; }
       if (tipoSegueMesRef) { document.getElementById('tipoDe').value = mesKpiSelecionado; document.getElementById('tipoAte').value = mesKpiSelecionado; }
       if (grupoSegueMesRef) { document.getElementById('grupoDe').value = mesKpiSelecionado; document.getElementById('grupoAte').value = mesKpiSelecionado; }
       if (tipoDespesaSegueMesRef) { document.getElementById('tipoDespDe').value = mesKpiSelecionado; document.getElementById('tipoDespAte').value = mesKpiSelecionado; }
+      // Resumo por compra usa filtro por DATA exata (não por mês) -- traduz o
+      // mês de referência pro 1º e último dia dele.
+      if (resumoSegueMesRef) {
+        const [ano, mes] = mesKpiSelecionado.split('-');
+        const ultimoDia = new Date(Number(ano), Number(mes), 0).getDate();
+        document.getElementById('resumoDe').value = mesKpiSelecionado + '-01';
+        document.getElementById('resumoAte').value = mesKpiSelecionado + '-' + String(ultimoDia).padStart(2, '0');
+      }
     }
     // Chamadas pelo onchange dos inputs De/Até de cada gráfico — o usuário
     // mexeu manualmente, então esse gráfico vira independente (não segue
@@ -1382,6 +1395,7 @@
     function tipoFiltroAlterado() { tipoSegueMesRef = false; renderTipo(); }
     function grupoFiltroAlterado() { grupoSegueMesRef = false; renderGrupoDespesa(); }
     function tipoDespesaFiltroAlterado() { tipoDespesaSegueMesRef = false; renderTipoDespesa(); }
+    function resumoFiltroAlterado() { resumoSegueMesRef = false; aplicarFiltroResumo(); }
 
     function trocarAba(qual) {
       document.getElementById('pagina-dashboard').classList.toggle('ativa', qual === 'dashboard');
@@ -1966,10 +1980,10 @@
       // usuário tenha personalizado o filtro de um gráfico específico antes,
       // voltar aqui e trocar o mês faz TODOS os gráficos voltarem a seguir
       // este período de novo (o padrão do sistema é este filtro).
-      cartaoSegueMesRef = true; tipoSegueMesRef = true; grupoSegueMesRef = true; tipoDespesaSegueMesRef = true;
+      cartaoSegueMesRef = true; tipoSegueMesRef = true; grupoSegueMesRef = true; tipoDespesaSegueMesRef = true; resumoSegueMesRef = true;
       sincronizarFiltrosComMesReferencia();
       await renderKPIs(ultimoKpis);
-      renderCartao(); renderTipo(); renderGrupoDespesa(); renderTipoDespesa();
+      renderCartao(); renderTipo(); renderGrupoDespesa(); renderTipoDespesa(); aplicarFiltroResumo();
     }
     // Balão flutuante explicando o "Acumulado" — aparece ao passar o mouse na legenda do gráfico.
     function mostrarTooltipAcumulado(x, y) {
@@ -3550,6 +3564,7 @@
     }
     // Botão "Ver tudo" do filtro de período do Resumo por compra.
     function limparFiltroPeriodoResumo() {
+      resumoSegueMesRef = false;
       limparFiltroPeriodoData('resumoDe', 'resumoAte', aplicarFiltroResumo);
     }
     function desenharTabelaResumo(dados) {
