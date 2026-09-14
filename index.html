@@ -3680,10 +3680,12 @@
           '<td>' + badge + '</td><td>' + botaoDetalheCadastroHtml(d.compra_id) + ' ' + botaoVisualizarDespesaHtml(d.compra_id) + ' ' + botaoEditarCadastroHtml(d.compra_id) + ' ' + botaoReplicarHtml(d.compra_id) + ' ' + botaoExcluirCadastroHtml(d.compra_id, d.descricao) + ' ' + botaoBaixaCompraHtml(d.compra_id, d.situacao === 'Quitada') + ' ' + botaoIncluirDespesaHtml() + '</td></tr>';
       }).join('');
       const totalValor = dados.reduce((s,d) => s + Number(d.valor_total||0), 0);
+      const totalValorParcela = dados.reduce((s,d) => s + valorParcela(d), 0);
       const totalSaldo = dados.reduce((s,d) => s + Number(d.saldo_aberto||0), 0);
       tbody.innerHTML += '<tr style="font-weight:700;background:#f0f4fa;">' +
         '<td colspan="9">TOTAL</td>' +
-        '<td class="num">' + brl(totalValor) + '</td><td></td>' +
+        '<td class="num">' + brl(totalValor) + '</td>' +
+        '<td class="num" style="background:var(--amarelo-claro-hover);">' + brl(totalValorParcela) + '</td>' +
         '<td class="num">' + brl(totalSaldo) + '</td>' +
         '<td></td><td></td></tr>';
     }
