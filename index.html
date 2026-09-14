@@ -3589,7 +3589,35 @@
     // etc.) — monta uma string com tudo que a linha mostra e procura o termo
     // digitado ali dentro, sem se prender a uma coluna específica.
     function aplicarFiltroResumo() {
-      let dados = aplicarFiltroPeriodoData(ultimoResumoDados, 'resumoTipoData', 'resumoDe', 'resumoAte');
+      const tipoData = document.getElementById('resumoTipoData').value;
+      const de = document.getElementById('resumoDe').value;
+      const ate = document.getElementById('resumoAte').value;
+      let dados = ultimoResumoDados;
+      if (de || ate) {
+        const dentroDoPeriodo = (dataStr) => {
+          const v = String(dataStr || '').slice(0, 10);
+          if (!v) return false;
+          if (de && v < de) return false;
+          if (ate && v > ate) return false;
+          return true;
+        };
+        if (tipoData === 'vencimento') {
+          // "Resumo por compra" é uma linha por COMPRA, mas cada compra pode
+          // ter várias parcelas com vencimentos em meses diferentes -- a
+          // coluna "Data de Vencimento" da tabela só traz UMA data (a próxima
+          // parcela em aberto, ou a última se já quitada), então filtrar só
+          // por ela deixava de fora compras com parcela vencendo no período
+          // (ex.: parcela de outubro de uma compra cuja próxima em aberto é
+          // em agosto). Olha TODAS as parcelas de cada compra em vez de só
+          // essa data única.
+          const comprasNoPeriodo = new Set(
+            ultimasParcelasTodas.filter((p) => dentroDoPeriodo(p.data_vencimento)).map((p) => p.compra_id)
+          );
+          dados = dados.filter((d) => comprasNoPeriodo.has(d.compra_id));
+        } else {
+          dados = dados.filter((d) => dentroDoPeriodo(d.data_compra));
+        }
+      }
       const termo = (document.getElementById('filtroResumo').value || '').trim().toLowerCase();
       if (termo) {
         dados = dados.filter((d) => {
