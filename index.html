@@ -628,7 +628,7 @@
       </section>
       <section class="card largo dashboard-extra">
         <div class="titulo-com-ajuda"><h2 style="margin:0;">Resumo por compra</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-resumo', this)">?</button></div>
-        <div class="ajuda-balao" id="ajuda-resumo">Uma linha por compra, com quanto já foi pago e quanto falta. "Parcela do Mês" mostra quantas parcelas já foram pagas do total (ex.: 3/10). "Situação" fica <b>Quitada</b> quando não sobra mais nada pendente. Abre mostrando só o mês de referência do Dashboard (Data da Compra); clique em "Ver tudo" ou ajuste o período (por data exata ou por mês) pra consultar outros períodos. O filtro de busca procura em todas as colunas ao mesmo tempo (descrição, forma de pagamento, categoria, valores, parcela, situação...). Use "Selecione um período exato" pra buscar por ano, mês e dia exatos, ou "Selecione o mês" pra um atalho por mês inteiro (preenche o primeiro e o último dia automaticamente) -- da Data da Compra ou da Data de Vencimento, à escolha.</div>
+        <div class="ajuda-balao" id="ajuda-resumo">Uma linha por compra, com quanto já foi pago e quanto falta. "Valor da Compra" é sempre o total real da compra, não muda com o filtro. "Valor Parcela" mostra a parcela média -- mas, filtrando por <b>Data de Vencimento</b> com um período selecionado, passa a mostrar quanto daquela compra realmente vence dentro do período (pode ser mais de uma parcela): é assim que o total dessa coluna fecha igual ao card "Despesas Mês" pro mesmo período. "Parcela do Mês" mostra quantas parcelas já foram pagas do total (ex.: 3/10). "Situação" fica <b>Quitada</b> quando não sobra mais nada pendente. Abre mostrando só o mês de referência do Dashboard (Data da Compra); clique em "Ver tudo" ou ajuste o período (por data exata ou por mês) pra consultar outros períodos. O filtro de busca procura em todas as colunas ao mesmo tempo (descrição, forma de pagamento, categoria, valores, parcela, situação...). Use "Selecione um período exato" pra buscar por ano, mês e dia exatos, ou "Selecione o mês" pra um atalho por mês inteiro (preenche o primeiro e o último dia automaticamente) -- da Data da Compra ou da Data de Vencimento, à escolha.</div>
         <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;">
           <div class="campo" style="margin-bottom:0;">
             <label>Filtrar por período de</label>
@@ -3593,6 +3593,10 @@
       const de = document.getElementById('resumoDe').value;
       const ate = document.getElementById('resumoAte').value;
       let dados = ultimoResumoDados;
+      // Só populado no modo "vencimento" com filtro ativo: quanto de CADA
+      // compra realmente vence dentro do período (soma só das parcelas dela
+      // que caem ali) -- ver motivo em desenharTabelaResumo.
+      let valorNoPeriodoPorCompra = null;
       if (de || ate) {
         const dentroDoPeriodo = (dataStr) => {
           const v = String(dataStr || '').slice(0, 10);
@@ -3610,10 +3614,11 @@
           // (ex.: parcela de outubro de uma compra cuja próxima em aberto é
           // em agosto). Olha TODAS as parcelas de cada compra em vez de só
           // essa data única.
-          const comprasNoPeriodo = new Set(
-            ultimasParcelasTodas.filter((p) => dentroDoPeriodo(p.data_vencimento)).map((p) => p.compra_id)
-          );
-          dados = dados.filter((d) => comprasNoPeriodo.has(d.compra_id));
+          valorNoPeriodoPorCompra = new Map();
+          ultimasParcelasTodas.filter((p) => dentroDoPeriodo(p.data_vencimento)).forEach((p) => {
+            valorNoPeriodoPorCompra.set(p.compra_id, (valorNoPeriodoPorCompra.get(p.compra_id) || 0) + Number(p.valor || 0));
+          });
+          dados = dados.filter((d) => valorNoPeriodoPorCompra.has(d.compra_id));
         } else {
           dados = dados.filter((d) => dentroDoPeriodo(d.data_compra));
         }
@@ -3632,7 +3637,7 @@
         });
       }
       dados = aplicarOrdenacaoSalva('resumo', dados, valorColunaDespesa);
-      desenharTabelaResumo(dados);
+      desenharTabelaResumo(dados, valorNoPeriodoPorCompra);
     }
     // Botão "Ver tudo" do filtro de período do Resumo por compra.
     function limparFiltroPeriodoResumo() {
@@ -3659,13 +3664,24 @@
       document.getElementById('resumoAte').value = fim + '-' + String(ultimoDia).padStart(2, '0');
       resumoFiltroAlterado();
     }
-    function desenharTabelaResumo(dados) {
+    // valorNoPeriodoPorCompra (Map compra_id -> valor): só vem preenchido no
+    // modo "Data de Vencimento" com um período ativo (ver aplicarFiltroResumo).
+    // Nesse caso a coluna "Valor Parcela" -- e o total dela -- mostra quanto
+    // de CADA compra realmente vence dentro do período (soma só das parcelas
+    // que caem ali), em vez da média (valor_total/qtd_parcelas). Sem isso,
+    // uma compra parcelada com só 1 de 3 parcelas vencendo no período (ou,
+    // pior, 2 de 3) fazia o total da tabela divergir do card "Despesas Mês"
+    // -- ele soma exatamente essas parcelas, não o valor médio nem o total
+    // inteiro da compra. A coluna "Valor da Compra" continua mostrando o
+    // total real da compra (um fato da compra, não depende do período).
+    function desenharTabelaResumo(dados, valorNoPeriodoPorCompra) {
       const tbody = document.querySelector('#tabelaResumo tbody');
       if (!dados.length) {
         const msg = ultimoResumoDados.length ? 'Nenhum resultado para o filtro aplicado.' : 'Nenhuma compra cadastrada.';
         tbody.innerHTML = '<tr><td colspan="14" style="text-align:center;color:#888;">' + msg + '</td></tr>';
         return;
       }
+      const valorParcelaExibido = (d) => valorNoPeriodoPorCompra ? (valorNoPeriodoPorCompra.get(d.compra_id) || 0) : valorParcela(d);
       tbody.innerHTML = dados.map(d => {
         const badge = d.situacao === 'Quitada' ? '<span class="badge quitada">Quitada</span>' : '<span class="badge aberto">Em Aberto</span>';
         const avista = Number(d.qtd_parcelas) === 1;
@@ -3675,12 +3691,12 @@
         return '<tr onclick="visualizarCompra(' + d.compra_id + ')"><td>' + d.descricao + '</td><td>' + tipo + '</td><td>' + (d.cartao||'-') + '</td><td>' + (d.categoria||'-') + '</td>' +
           '<td>' + pagas + '/' + d.qtd_parcelas + '</td><td>' + pagas + '</td><td>' + emAberto + '</td>' +
           '<td>' + formatarData(d.data_compra) + '</td><td>' + formatarData(d.proximo_vencimento) + '</td>' +
-          '<td class="num">' + brl(d.valor_total) + '</td><td class="num">' + brl(valorParcela(d)) + '</td>' +
+          '<td class="num">' + brl(d.valor_total) + '</td><td class="num">' + brl(valorParcelaExibido(d)) + '</td>' +
           '<td class="num">' + brl(d.saldo_aberto) + '</td>' +
           '<td>' + badge + '</td><td>' + botaoDetalheCadastroHtml(d.compra_id) + ' ' + botaoVisualizarDespesaHtml(d.compra_id) + ' ' + botaoEditarCadastroHtml(d.compra_id) + ' ' + botaoReplicarHtml(d.compra_id) + ' ' + botaoExcluirCadastroHtml(d.compra_id, d.descricao) + ' ' + botaoBaixaCompraHtml(d.compra_id, d.situacao === 'Quitada') + ' ' + botaoIncluirDespesaHtml() + '</td></tr>';
       }).join('');
       const totalValor = dados.reduce((s,d) => s + Number(d.valor_total||0), 0);
-      const totalValorParcela = dados.reduce((s,d) => s + valorParcela(d), 0);
+      const totalValorParcela = dados.reduce((s,d) => s + valorParcelaExibido(d), 0);
       const totalSaldo = dados.reduce((s,d) => s + Number(d.saldo_aberto||0), 0);
       tbody.innerHTML += '<tr style="font-weight:700;background:#f0f4fa;">' +
         '<td colspan="9">TOTAL</td>' +
