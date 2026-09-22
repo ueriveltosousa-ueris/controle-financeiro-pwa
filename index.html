@@ -489,7 +489,7 @@
             </div>
           </div>
           <div class="ajuda-balao" id="ajuda-gastos-diarios">
-            Total gasto em cada dia, pela <b>Data da Compra</b> (não a de vencimento) -- mostra o mês vigente por padrão. Use "Selecione uma data específica" pra um período de dias exatos, ou "Selecione o mês" pra um atalho por mês inteiro (preenche o primeiro e o último dia automaticamente). O total do período filtrado aparece no canto superior direito. Clique num ponto do gráfico pra ver as despesas daquele dia, na mesma tabela padrão dos outros gráficos.
+            Total gasto em cada dia, pela <b>Data da Compra</b> (não a de vencimento) -- mostra o mês vigente por padrão. Use "Selecione uma data específica" pra um período de dias exatos, ou "Selecione o mês" pra um atalho por mês inteiro (preenche o primeiro e o último dia automaticamente). O total do período filtrado aparece no canto superior direito. O ponto de hoje aparece maior que os demais, quando o dia de hoje está dentro do período visualizado. Clique num ponto do gráfico pra ver as despesas daquele dia, na mesma tabela padrão dos outros gráficos.
           </div>
           <div style="display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap;margin-top:22px;margin-bottom:14px;">
             <div>
@@ -2212,6 +2212,11 @@
       // área de toque (pointHitRadius) fica ainda maior que o próprio ponto
       // visível, pra tolerar um toque um pouco impreciso.
       const raioPonto = telaEstreita() ? 6 : 3;
+      // Dobra o raio só do ponto de hoje -- se hoje não estiver dentro do
+      // período visualizado (mês passado/futuro, outro período filtrado),
+      // nenhum dataIso bate e o gráfico fica sem destaque, como esperado.
+      const hojeIso = hoje.getFullYear() + '-' + String(hoje.getMonth() + 1).padStart(2, '0') + '-' + String(hoje.getDate()).padStart(2, '0');
+      const raioPontos = dias.map(d => d.dataIso === hojeIso ? raioPonto * 2 : raioPonto);
       const ctx = document.getElementById('graficoGastosDiarios');
       if (chartGastosDiarios) chartGastosDiarios.destroy();
       chartGastosDiarios = new Chart(ctx, {
@@ -2219,7 +2224,7 @@
         plugins: [linhasPontilhadasAteValor, ChartDataLabels],
         data: { labels: dias.map(d => d.rotulo), datasets: [
           { label: 'Gastos', data: dias.map(d => d.total), borderColor: '#E57373', backgroundColor: gradienteArea('229,115,115', 0.35), fill: true, tension: .3,
-            pointRadius: raioPonto, pointHoverRadius: raioPonto + 3, pointHitRadius: raioPonto + 10, pointBackgroundColor: '#E57373', pointBorderColor: '#fff', pointBorderWidth: 1,
+            pointRadius: raioPontos, pointHoverRadius: raioPonto + 3, pointHitRadius: raioPonto + 10, pointBackgroundColor: '#E57373', pointBorderColor: '#fff', pointBorderWidth: 1,
             datalabels: { display: (c) => c.dataset.data[c.dataIndex] > 0, align: 'top', anchor: 'end', offset: 4, color: '#a13d3d', font: { size: 9, weight: '600' }, formatter: (v) => brl(v) } },
         ] },
         options: { maintainAspectRatio: false, layout: { padding: { top: 26 } },
