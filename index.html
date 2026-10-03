@@ -563,7 +563,7 @@
         <div class="graficos-centralizados dashboard-extra">
         <div class="card">
           <div class="titulo-com-ajuda"><h2 style="margin:0;">Compras por Grupo de Despesa</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-grupo-despesa', this)">?</button></div>
-          <div class="ajuda-balao" id="ajuda-grupo-despesa">Quanto falta pagar em cada Grupo de Despesa, somando as parcelas pendentes com vencimento dentro do período escolhido (deixe De/Até em branco pra somar de sempre). Clique numa barra pra ver a quebra por Tipo de Despesa daquele grupo.</div>
+          <div class="ajuda-balao" id="ajuda-grupo-despesa">Total de cada Grupo de Despesa, somando todas as parcelas com vencimento dentro do período escolhido, pagas ou pendentes (deixe De/Até em branco pra somar de sempre). Clique numa barra pra ver a quebra por Tipo de Despesa daquele grupo.</div>
           <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;">
             <div class="campo" style="margin-bottom:0;">
               <label>De</label>
@@ -579,7 +579,7 @@
         </div>
         <div class="card">
           <div class="titulo-com-ajuda"><h2 style="margin:0;">Compras por Tipo de Despesa</h2><button class="ajuda-btn" aria-expanded="false" onclick="alternarAjuda('ajuda-tipo-despesa', this)">?</button></div>
-          <div class="ajuda-balao" id="ajuda-tipo-despesa">Quanto falta pagar em cada Tipo de Despesa, somando as parcelas pendentes com vencimento dentro do período escolhido (deixe De/Até em branco pra somar de sempre). Clique numa barra pra ver as compras daquele tipo.</div>
+          <div class="ajuda-balao" id="ajuda-tipo-despesa">Total de cada Tipo de Despesa, somando todas as parcelas com vencimento dentro do período escolhido, pagas ou pendentes (deixe De/Até em branco pra somar de sempre). Clique numa barra pra ver as compras daquele tipo.</div>
           <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;">
             <div class="campo" style="margin-bottom:0;">
               <label>De</label>
@@ -3100,11 +3100,13 @@
       abrirDetalheModal(titulo, 'Detalhamento do cartão selecionado no gráfico.', header, linhasObj, montarTotal, 15);
     }
 
-    // Gráfico "Compras por Grupo de Despesa" — mesmo padrão dos outros
-    // gráficos "Em Aberto" com filtro De/Até, agrupando por Grupo de Despesa.
+    // Gráfico "Compras por Grupo de Despesa" — mesmo filtro De/Até dos outros
+    // gráficos, agrupando por Grupo de Despesa. Soma TODAS as parcelas com
+    // vencimento no período (pagas ou pendentes, igual ao card "Despesas
+    // Mês"): marcar uma parcela como paga não pode "sumir" com ela daqui.
     function totaisPorGrupoFiltrados() {
       const grupos = {};
-      filtrarParcelasPorPeriodo('grupoDe', 'grupoAte').forEach(p => {
+      filtrarParcelasPorPeriodo('grupoDe', 'grupoAte', ultimasParcelasTodas).forEach(p => {
         const nome = p.grupo || 'Sem grupo';
         grupos[nome] = (grupos[nome] || 0) + Number(p.valor || 0);
       });
@@ -3123,7 +3125,7 @@
       chartGrupo = new Chart(ctx, {
         type:'bar',
         plugins: [ChartDataLabels],
-        data:{ labels:f.map(d=>rotuloResponsivo(d.grupo)), datasets:[{ label:'Saldo em aberto', data:f.map(d=>d.total), backgroundColor:'#F6B26B',
+        data:{ labels:f.map(d=>rotuloResponsivo(d.grupo)), datasets:[{ label:'Total do período', data:f.map(d=>d.total), backgroundColor:'#F6B26B',
           datalabels: { anchor:'end', align:'end', color:'#8a5a1f', font:{ size:11, weight:'600' }, formatter:(v) => brl(v) } }] },
         options:{ indexAxis:'y', maintainAspectRatio:false, layout:{ padding:{ right:70 } },
           interaction: { mode:'y', intersect:false },
@@ -3143,11 +3145,12 @@
       renderGrupoDespesa();
     }
     // Gráfico "Compras por Tipo de Despesa" — mesmo padrão do gráfico de Grupo
-    // de Despesa (mesmas parcelas PENDENTES, mesmo filtro De/Até, mesmo jeito
-    // de desenhar), só que agrupando por Tipo de Despesa em vez de Grupo.
+    // de Despesa (todas as parcelas do período, pagas ou pendentes, mesmo
+    // filtro De/Até, mesmo jeito de desenhar), só que agrupando por Tipo de
+    // Despesa em vez de Grupo.
     function totaisPorTipoDespesaFiltrados() {
       const tipos = {};
-      filtrarParcelasPorPeriodo('tipoDespDe', 'tipoDespAte').forEach(p => {
+      filtrarParcelasPorPeriodo('tipoDespDe', 'tipoDespAte', ultimasParcelasTodas).forEach(p => {
         const nome = p.categoria || 'Sem tipo';
         tipos[nome] = (tipos[nome] || 0) + Number(p.valor || 0);
       });
@@ -3166,7 +3169,7 @@
       chartTipoDesp = new Chart(ctx, {
         type:'bar',
         plugins: [ChartDataLabels],
-        data:{ labels:f.map(d=>rotuloResponsivo(d.categoria)), datasets:[{ label:'Saldo em aberto', data:f.map(d=>d.total), backgroundColor:'#8E6FC4',
+        data:{ labels:f.map(d=>rotuloResponsivo(d.categoria)), datasets:[{ label:'Total do período', data:f.map(d=>d.total), backgroundColor:'#8E6FC4',
           datalabels: { anchor:'end', align:'end', color:'#5b3fa0', font:{ size:11, weight:'600' }, formatter:(v) => brl(v) } }] },
         options:{ indexAxis:'y', maintainAspectRatio:false, layout:{ padding:{ right:70 } },
           interaction: { mode:'y', intersect:false },
@@ -3192,9 +3195,9 @@
     // final, então clicar numa barra já lista as compras daquele tipo.
     function detalheTipoDespesaDireto(categoria) {
       ultimoDetalheRefresh = () => detalheTipoDespesaDireto(categoria);
-      const linhas = filtrarParcelasPorPeriodo('tipoDespDe', 'tipoDespAte')
+      const linhas = filtrarParcelasPorPeriodo('tipoDespDe', 'tipoDespAte', ultimasParcelasTodas)
         .filter(p => (p.categoria || 'Sem tipo') === categoria);
-      const header = cabecalhoOrdenavelDespesa('detalhe', 'aplicarFiltroDetalhe()', false);
+      const header = cabecalhoOrdenavelDespesa('detalhe', 'aplicarFiltroDetalhe()', true);
       const linhasObj = linhas.map(p => {
         const avista = Number(p.qtd_parcelas) === 1;
         const tipoLabel = avista ? 'À vista' : 'Parcelada';
@@ -3203,26 +3206,26 @@
         const situacao = Number(p.saldo_aberto||0) <= 0 ? 'Quitada' : 'Em Aberto';
         const situBadge = situacao === 'Quitada' ? '<span class="badge quitada">Quitada</span>' : '<span class="badge aberto">Em Aberto</span>';
         return { descricao: p.descricao, raw: p,
-          busca: montarBusca(p.descricao, tipoLabel, p.cartao, p.categoria, p.num_parcela+'/'+p.qtd_parcelas, p.qtd_parcelas_pagas||0, emAberto, formatarData(p.data_compra), formatarData(p.data_vencimento), brl(p.valor_total), brl(p.valor), brl(p.saldo_aberto), situacao),
+          busca: montarBusca(p.descricao, tipoLabel, p.cartao, p.categoria, p.num_parcela+'/'+p.qtd_parcelas, p.qtd_parcelas_pagas||0, emAberto, formatarData(p.data_compra), formatarData(p.data_vencimento), brl(p.valor_total), brl(p.valor), brl(p.saldo_aberto), situacao, p.status === 'Pago' ? 'Pago' : 'Pendente'),
           html: '<tr onclick="visualizarCompra(' + p.compra_id + ')"><td>' + p.descricao + '</td><td>' + tipoBadge + '</td><td>' + (p.cartao||'-') + '</td><td>' + (p.categoria||'-') + '</td>' +
             '<td>' + p.num_parcela + '/' + p.qtd_parcelas + '</td>' +
             '<td>' + (p.qtd_parcelas_pagas || 0) + '</td>' +
             '<td>' + emAberto + '</td>' +
             '<td>' + formatarData(p.data_compra) + '</td><td>' + formatarData(p.data_vencimento) + '</td>' +
             '<td class="num">' + brl(p.valor_total) + '</td><td class="num">' + brl(p.valor) + '</td>' +
-            '<td class="num">' + brl(p.saldo_aberto) + '</td><td>' + situBadge + '</td>' +
+            '<td class="num">' + brl(p.saldo_aberto) + '</td><td>' + situBadge + '</td><td>' + badgeStatusParcela(p.status) + '</td>' +
             '<td>' + botaoDetalheCadastroHtml(p.compra_id) + ' ' + botaoVisualizarDespesaHtml(p.compra_id) + ' ' + botaoEditarCadastroHtml(p.compra_id) + ' ' + botaoReplicarHtml(p.compra_id) + ' ' + botaoExcluirCadastroHtml(p.compra_id, p.descricao) + ' ' + botaoBaixaParcelaHtml(p.parcela_id, p.status === 'Pago') + ' ' + botaoIncluirDespesaHtml() + '</td></tr>' };
       });
-      const montarTotal = (ls) => linhaTotal(10, ls.reduce((s,l) => s + Number(l.raw.valor||0), 0), 3);
+      const montarTotal = (ls) => linhaTotal(10, ls.reduce((s,l) => s + Number(l.raw.valor||0), 0), 4);
       const titulo = categoria + periodoTexto('tipoDespDe', 'tipoDespAte');
-      abrirDetalheModal(titulo, 'Detalhamento do tipo de despesa selecionado no gráfico.', header, linhasObj, montarTotal, 14);
+      abrirDetalheModal(titulo, 'Detalhamento do tipo de despesa selecionado no gráfico.', header, linhasObj, montarTotal, 15);
     }
     // Clique numa barra de Grupo de Despesa -> abre um novo gráfico de barras
     // com a quebra por Tipo de Despesa dentro daquele grupo, respeitando o
     // mesmo filtro De/Até já aplicado no gráfico de Grupo.
     function abrirGraficoTipoDespesa(nomeGrupo) {
       ultimoGraficoTipoRefresh = () => abrirGraficoTipoDespesa(nomeGrupo);
-      const parcelas = filtrarParcelasPorPeriodo('grupoDe', 'grupoAte').filter(p => (p.grupo || 'Sem grupo') === nomeGrupo);
+      const parcelas = filtrarParcelasPorPeriodo('grupoDe', 'grupoAte', ultimasParcelasTodas).filter(p => (p.grupo || 'Sem grupo') === nomeGrupo);
       const grupos = {};
       parcelas.forEach(p => {
         const nome = p.categoria || 'Sem tipo';
@@ -3232,7 +3235,7 @@
         .filter(d => d.total > 0).sort((a, b) => b.total - a.total);
 
       document.getElementById('tituloGraficoTipoDespesa').textContent = 'Tipo de Despesa — ' + nomeGrupo + periodoTexto('grupoDe', 'grupoAte');
-      document.getElementById('obsGraficoTipoDespesa').textContent = 'Saldo em aberto por Tipo de Despesa, dentro do grupo selecionado no gráfico.';
+      document.getElementById('obsGraficoTipoDespesa').textContent = 'Total do período (pago ou pendente) por Tipo de Despesa, dentro do grupo selecionado no gráfico.';
 
       const alturaPorLinha = telaEstreita() ? 46 : 30;
       const alturaCalculada = Math.max(f.length * alturaPorLinha, 300);
@@ -3251,7 +3254,7 @@
       chartTipoDespesaDrill = new Chart(ctx, {
         type:'bar',
         plugins: [ChartDataLabels],
-        data:{ labels:f.map(d=>rotuloResponsivo(d.categoria)), datasets:[{ label:'Saldo em aberto', data:f.map(d=>d.total), backgroundColor:'#8E6FC4',
+        data:{ labels:f.map(d=>rotuloResponsivo(d.categoria)), datasets:[{ label:'Total do período', data:f.map(d=>d.total), backgroundColor:'#8E6FC4',
           datalabels: { anchor:'end', align:'end', color:'#5b3fa0', font:{ size:11, weight:'600' }, formatter:(v) => brl(v) } }] },
         options:{ indexAxis:'y', maintainAspectRatio:false, layout:{ padding:{ right:70 } },
           interaction: { mode:'y', intersect:false },
@@ -3272,9 +3275,9 @@
     // pro Dashboard.
     function detalheTipoDespesa(nomeGrupo, categoria) {
       ultimoDetalheRefresh = () => detalheTipoDespesa(nomeGrupo, categoria);
-      const linhas = filtrarParcelasPorPeriodo('grupoDe', 'grupoAte')
+      const linhas = filtrarParcelasPorPeriodo('grupoDe', 'grupoAte', ultimasParcelasTodas)
         .filter(p => (p.grupo || 'Sem grupo') === nomeGrupo && (p.categoria || 'Sem tipo') === categoria);
-      const header = cabecalhoOrdenavelDespesa('detalhe', 'aplicarFiltroDetalhe()', false);
+      const header = cabecalhoOrdenavelDespesa('detalhe', 'aplicarFiltroDetalhe()', true);
       const linhasObj = linhas.map(p => {
         const avista = Number(p.qtd_parcelas) === 1;
         const tipoLabel = avista ? 'À vista' : 'Parcelada';
@@ -3283,19 +3286,19 @@
         const situacao = Number(p.saldo_aberto||0) <= 0 ? 'Quitada' : 'Em Aberto';
         const situBadge = situacao === 'Quitada' ? '<span class="badge quitada">Quitada</span>' : '<span class="badge aberto">Em Aberto</span>';
         return { descricao: p.descricao, raw: p,
-          busca: montarBusca(p.descricao, tipoLabel, p.cartao, p.categoria, p.num_parcela+'/'+p.qtd_parcelas, p.qtd_parcelas_pagas||0, emAberto, formatarData(p.data_compra), formatarData(p.data_vencimento), brl(p.valor_total), brl(p.valor), brl(p.saldo_aberto), situacao),
+          busca: montarBusca(p.descricao, tipoLabel, p.cartao, p.categoria, p.num_parcela+'/'+p.qtd_parcelas, p.qtd_parcelas_pagas||0, emAberto, formatarData(p.data_compra), formatarData(p.data_vencimento), brl(p.valor_total), brl(p.valor), brl(p.saldo_aberto), situacao, p.status === 'Pago' ? 'Pago' : 'Pendente'),
           html: '<tr onclick="visualizarCompra(' + p.compra_id + ')"><td>' + p.descricao + '</td><td>' + tipoBadge + '</td><td>' + (p.cartao||'-') + '</td><td>' + (p.categoria||'-') + '</td>' +
             '<td>' + p.num_parcela + '/' + p.qtd_parcelas + '</td>' +
             '<td>' + (p.qtd_parcelas_pagas || 0) + '</td>' +
             '<td>' + emAberto + '</td>' +
             '<td>' + formatarData(p.data_compra) + '</td><td>' + formatarData(p.data_vencimento) + '</td>' +
             '<td class="num">' + brl(p.valor_total) + '</td><td class="num">' + brl(p.valor) + '</td>' +
-            '<td class="num">' + brl(p.saldo_aberto) + '</td><td>' + situBadge + '</td>' +
+            '<td class="num">' + brl(p.saldo_aberto) + '</td><td>' + situBadge + '</td><td>' + badgeStatusParcela(p.status) + '</td>' +
             '<td>' + botaoDetalheCadastroHtml(p.compra_id) + ' ' + botaoVisualizarDespesaHtml(p.compra_id) + ' ' + botaoEditarCadastroHtml(p.compra_id) + ' ' + botaoReplicarHtml(p.compra_id) + ' ' + botaoExcluirCadastroHtml(p.compra_id, p.descricao) + ' ' + botaoBaixaParcelaHtml(p.parcela_id, p.status === 'Pago') + ' ' + botaoIncluirDespesaHtml() + '</td></tr>' };
       });
-      const montarTotal = (ls) => linhaTotal(10, ls.reduce((s,l) => s + Number(l.raw.valor||0), 0), 3);
+      const montarTotal = (ls) => linhaTotal(10, ls.reduce((s,l) => s + Number(l.raw.valor||0), 0), 4);
       const titulo = categoria + ' — ' + nomeGrupo + periodoTexto('grupoDe', 'grupoAte');
-      abrirDetalheModal(titulo, 'Detalhamento do tipo de despesa selecionado no gráfico.', header, linhasObj, montarTotal, 14);
+      abrirDetalheModal(titulo, 'Detalhamento do tipo de despesa selecionado no gráfico.', header, linhasObj, montarTotal, 15);
     }
 
     // ---- RESUMO ANUAL (card amarelo do Dashboard) ----
